@@ -1,0 +1,211 @@
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Button } from '@/components/ui';
+import { colors, fontFamily, primaryGradient, radius, spacing } from '@/theme';
+import type { RootStackParamList } from '@/navigation/types';
+
+const loginSchema = z.object({
+  studentId: z.string().min(3, 'Enter your student ID'),
+  password: z.string().min(4, 'Password is too short'),
+});
+type LoginForm = z.infer<typeof loginSchema>;
+
+type Nav = NativeStackNavigationProp<RootStackParamList, 'Login'>;
+
+export function LoginScreen() {
+  const nav = useNavigation<Nav>();
+  const { control, handleSubmit, formState } = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { studentId: 'WBA-2024-1042', password: '' },
+  });
+
+  const submit = handleSubmit(() => nav.replace('Main'));
+
+  return (
+    <LinearGradient
+      colors={[primaryGradient[0], primaryGradient[1], primaryGradient[2]] as [string, string, string]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={styles.root}
+    >
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.hero}>
+            <View style={styles.logo}>
+              <Ionicons name="school" size={56} color={colors.white} />
+            </View>
+            <Text style={styles.brand}>School Desk</Text>
+            <Text style={styles.tagline}>For students · Grade 4 to 12</Text>
+          </View>
+
+          <View style={styles.form}>
+            <Controller
+              control={control}
+              name="studentId"
+              render={({ field, fieldState }) => (
+                <View>
+                  <Text style={styles.label}>Student ID</Text>
+                  <TextInput
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="WBA-2024-1042"
+                    placeholderTextColor="rgba(255,255,255,0.55)"
+                    autoCapitalize="characters"
+                    style={styles.input}
+                  />
+                  {fieldState.error ? (
+                    <Text style={styles.error}>{fieldState.error.message}</Text>
+                  ) : null}
+                </View>
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="password"
+              render={({ field, fieldState }) => (
+                <View>
+                  <Text style={styles.label}>Password</Text>
+                  <TextInput
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="••••••••"
+                    placeholderTextColor="rgba(255,255,255,0.55)"
+                    secureTextEntry
+                    style={styles.input}
+                  />
+                  {fieldState.error ? (
+                    <Text style={styles.error}>{fieldState.error.message}</Text>
+                  ) : null}
+                </View>
+              )}
+            />
+
+            <Button
+              variant="white"
+              size="lg"
+              full
+              loading={formState.isSubmitting}
+              onPress={submit}
+            >
+              Sign in
+            </Button>
+
+            <Pressable
+              style={({ pressed }) => [styles.qr, pressed && { opacity: 0.7 }]}
+              onPress={() => nav.replace('Main')}
+            >
+              <Ionicons name="qr-code-outline" size={18} color={colors.white} />
+              <Text style={styles.qrTxt}>Scan school ID card</Text>
+            </Pressable>
+
+            <Text style={styles.help}>
+              Need help? <Text style={styles.helpStrong}>Ask your class teacher</Text>
+            </Text>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </LinearGradient>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  safe: { flex: 1, paddingHorizontal: spacing.xxl },
+  hero: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
+  logo: {
+    width: 96,
+    height: 96,
+    borderRadius: radius.xl,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderColor: 'rgba(255,255,255,0.25)',
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brand: {
+    fontFamily: fontFamily.extraBold,
+    fontSize: 36,
+    color: colors.white,
+    letterSpacing: -0.6,
+  },
+  tagline: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: -8,
+  },
+  form: { gap: 12, paddingBottom: spacing.l },
+  label: {
+    fontFamily: fontFamily.bold,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  input: {
+    height: 52,
+    paddingHorizontal: 16,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    color: colors.white,
+    fontFamily: fontFamily.semiBold,
+    fontSize: 15,
+  },
+  error: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 11,
+    color: '#FFD0D0',
+    marginTop: 4,
+  },
+  qr: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  qrTxt: {
+    fontFamily: fontFamily.bold,
+    fontSize: 14,
+    color: colors.white,
+  },
+  help: {
+    textAlign: 'center',
+    fontFamily: fontFamily.medium,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 4,
+  },
+  helpStrong: {
+    fontFamily: fontFamily.bold,
+    color: colors.white,
+  },
+});

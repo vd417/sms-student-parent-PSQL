@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(mkdir -p \"/d/Catre Project/sms-project/sms-student/.design-pkg\")",
+      "Bash(cp \"/c/Users/user/.claude/projects/D--Catre-Project-sms-project-sms-student/8a503080-7914-4efa-a04c-844ba186b245/tool-results/webfetch-1777369517687-8yje2s.bin\" pkg.bin)",
+      "Bash(tar -tzf pkg.bin)",
+      "Bash(tar -xzf pkg.bin)",
+      "Read(//d/d/Catre Project/sms-project/sms-student/.design-pkg/teacher-app/**)",
+      "Read(//d/d/Catre Project/sms-project/**)",
+      "Read(//d/d/Catre Project/sms-project/sms-student/**)",
+      "Bash(npm install *)",
+      "Bash(npx expo *)",
+      "Bash(npx eas-cli@latest --version)",
+      "Bash(npx eas-cli@latest whoami)",
+      "Bash(./node_modules/.bin/eas whoami *)",
+      "Bash(./node_modules/.bin/eas init *)",
+      "Bash(./node_modules/.bin/eas build *)"
+    ]
+  }
+}

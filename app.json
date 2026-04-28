@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "School Desk · Student",
+    "slug": "sms-student",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "schooldesk-student",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#0C4A6E",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.schooldesk.student"
+    },
+    "android": {
+      "package": "com.schooldesk.student",
+      "adaptiveIcon": {
+        "backgroundColor": "#0C4A6E"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "789277f1-7308-4b88-8b93-12fed225b44e"
+      }
+    },
+    "owner": "catre"
+  }
+}
