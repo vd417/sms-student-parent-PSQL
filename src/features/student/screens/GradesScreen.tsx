@@ -99,12 +99,7 @@ export function GradesScreen() {
               style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
             >
               <View style={styles.rowTop}>
-                <View
-                  style={[
-                    styles.subjIcon,
-                    { backgroundColor: hueColor(sub.color) },
-                  ]}
-                >
+                <View style={[styles.subjIcon, { backgroundColor: hueColor(sub.color) }]}>
                   <Text style={styles.subjIconTxt}>{sub.short}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
@@ -150,15 +145,7 @@ export function GradesScreen() {
   );
 }
 
-function Stat({
-  label,
-  value,
-  divider,
-}: {
-  label: string;
-  value: string;
-  divider?: boolean;
-}) {
+function Stat({ label, value, divider }: { label: string; value: string; divider?: boolean }) {
   return (
     <View
       style={[

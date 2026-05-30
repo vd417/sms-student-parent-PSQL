@@ -15,11 +15,7 @@ export function AnnouncementsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScreenHeader
-        kicker="From the school"
-        title="Notices"
-        onBack={() => nav.goBack()}
-      />
+      <ScreenHeader kicker="From the school" title="Notices" onBack={() => nav.goBack()} />
       {annQ.isLoading ? (
         <Loading />
       ) : annQ.isError ? (
@@ -30,7 +26,9 @@ export function AnnouncementsScreen() {
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={annQ.isRefetching} onRefresh={() => annQ.refetch()} />}
+          refreshControl={
+            <RefreshControl refreshing={annQ.isRefetching} onRefresh={() => annQ.refetch()} />
+          }
         >
           <View style={{ gap: 10 }}>
             {annQ.data!.map((n) => (

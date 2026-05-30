@@ -66,7 +66,9 @@ export function ParentChatScreen() {
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 24, gap: 8 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={threadsQ.isRefetching} onRefresh={onRefresh} />}
+          refreshControl={
+            <RefreshControl refreshing={threadsQ.isRefetching} onRefresh={onRefresh} />
+          }
         >
           {threads.map((t) => {
             const kid = kidFor(t.kid);
@@ -101,7 +103,10 @@ export function ParentChatScreen() {
                     ) : null}
                   </View>
                   <Text
-                    style={[styles.last, t.unread > 0 && { color: colors.ink, fontFamily: fontFamily.semiBold }]}
+                    style={[
+                      styles.last,
+                      t.unread > 0 && { color: colors.ink, fontFamily: fontFamily.semiBold },
+                    ]}
                     numberOfLines={1}
                   >
                     {t.last}

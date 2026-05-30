@@ -5,7 +5,15 @@ import { KidSwitcher } from '../components/KidSwitcher';
 import { useChildren } from '@/hooks/useParent';
 import { useSubjects } from '@/hooks/useSubjects';
 import { useSelectedChild } from '@/providers/ChildProvider';
-import { colors, fontFamily, hueColor, radius, primaryGradient, spacing, typography } from '@/theme';
+import {
+  colors,
+  fontFamily,
+  hueColor,
+  radius,
+  primaryGradient,
+  spacing,
+  typography,
+} from '@/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export function ParentProgressScreen() {
@@ -45,7 +53,9 @@ export function ParentProgressScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={childrenQ.isRefetching} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl refreshing={childrenQ.isRefetching} onRefresh={onRefresh} />
+        }
       >
         <View style={styles.header}>
           <Text style={styles.kicker}>Term 4 · 2026</Text>
@@ -111,7 +121,10 @@ export function ParentProgressScreen() {
                 </View>
                 <View style={styles.barBg}>
                   <View
-                    style={[styles.barFill, { width: `${avg}%`, backgroundColor: hueColor(sub.color) }]}
+                    style={[
+                      styles.barFill,
+                      { width: `${avg}%`, backgroundColor: hueColor(sub.color) },
+                    ]}
                   />
                 </View>
               </View>
@@ -154,7 +167,12 @@ const styles = StyleSheet.create({
   },
   heroPct: { fontSize: 24, color: 'rgba(255,255,255,0.7)' },
   heroGrade: { fontFamily: fontFamily.extraBold, fontSize: 22, color: colors.white },
-  heroDelta: { fontFamily: fontFamily.semiBold, fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+  heroDelta: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 2,
+  },
   heroStats: {
     flexDirection: 'row',
     marginTop: 16,
@@ -163,7 +181,11 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(255,255,255,0.2)',
   },
   heroStat: { flex: 1, paddingHorizontal: 8 },
-  heroStatDivider: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  heroStatDivider: {
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
   heroStatLabel: {
     fontFamily: fontFamily.bold,
     fontSize: 10,
@@ -171,7 +193,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
-  heroStatValue: { fontFamily: fontFamily.extraBold, fontSize: 16, color: colors.white, marginTop: 4 },
+  heroStatValue: {
+    fontFamily: fontFamily.extraBold,
+    fontSize: 16,
+    color: colors.white,
+    marginTop: 4,
+  },
   subjCard: {
     padding: 14,
     backgroundColor: colors.white,
@@ -180,10 +207,21 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   subjTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  subjIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  subjIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   subjIconTxt: { fontFamily: fontFamily.extraBold, fontSize: 12, color: colors.white },
   subjName: { fontFamily: fontFamily.bold, fontSize: 14, color: colors.ink },
-  subjTeacher: { fontFamily: fontFamily.medium, fontSize: 11, color: colors.inkMuted, marginTop: 2 },
+  subjTeacher: {
+    fontFamily: fontFamily.medium,
+    fontSize: 11,
+    color: colors.inkMuted,
+    marginTop: 2,
+  },
   subjAvg: {
     fontFamily: fontFamily.extraBold,
     fontSize: 18,

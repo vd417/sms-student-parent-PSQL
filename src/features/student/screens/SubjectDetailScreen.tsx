@@ -3,7 +3,16 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Avatar, Card, ErrorState, IconButton, Loading, Pill, ScreenHeader, TabBar } from '@/components/ui';
+import {
+  Avatar,
+  Card,
+  ErrorState,
+  IconButton,
+  Loading,
+  Pill,
+  ScreenHeader,
+  TabBar,
+} from '@/components/ui';
 import { HomeworkCard } from '@/components/cards/HomeworkCard';
 import { useSubjects } from '@/hooks/useSubjects';
 import { useGrades, useExams } from '@/hooks/useGrades';
@@ -25,7 +34,8 @@ export function SubjectDetailScreen() {
   const examsQ = useExams();
   const homeworkQ = useHomework();
 
-  const isLoading = subjectsQ.isLoading || gradesQ.isLoading || examsQ.isLoading || homeworkQ.isLoading;
+  const isLoading =
+    subjectsQ.isLoading || gradesQ.isLoading || examsQ.isLoading || homeworkQ.isLoading;
   const isError = subjectsQ.isError || gradesQ.isError || examsQ.isError || homeworkQ.isError;
   const onRefresh = () => {
     subjectsQ.refetch();
@@ -59,28 +69,16 @@ export function SubjectDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScreenHeader
-        kicker={sub.teacher}
-        title={sub.name}
-        onBack={() => nav.goBack()}
-      />
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScreenHeader kicker={sub.teacher} title={sub.name} onBack={() => nav.goBack()} />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.hero, { backgroundColor: hueColor(sub.color) }]}>
           <Stat label="Average" value={`${sub.avg}%`} />
           <Stat
             label="Grade"
             divider
-            value={
-              sub.avg >= 90 ? 'A+' : sub.avg >= 85 ? 'A' : sub.avg >= 80 ? 'A−' : 'B+'
-            }
+            value={sub.avg >= 90 ? 'A+' : sub.avg >= 85 ? 'A' : sub.avg >= 80 ? 'A−' : 'B+'}
           />
-          <Stat
-            label="Trend"
-            value={sub.trend > 0 ? `+${sub.trend}%` : `${sub.trend}%`}
-          />
+          <Stat label="Trend" value={sub.trend > 0 ? `+${sub.trend}%` : `${sub.trend}%`} />
         </View>
 
         <View style={{ marginVertical: 14 }}>
@@ -99,9 +97,7 @@ export function SubjectDetailScreen() {
         {tab === 'overview' ? (
           <View style={{ gap: 18 }}>
             <Card style={{ padding: 16 }}>
-              <Text style={[typography.eyebrow, { marginBottom: 10 }]}>
-                Last 8 assessments
-              </Text>
+              <Text style={[typography.eyebrow, { marginBottom: 10 }]}>Last 8 assessments</Text>
               <SparkBars values={[78, 82, 88, 84, 91, 85, 90, sub.avg]} />
               <View style={styles.sparkLabels}>
                 {['Jan', 'Feb', 'Mar', 'Apr'].map((m) => (
@@ -126,9 +122,7 @@ export function SubjectDetailScreen() {
                 />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.teacherName}>{sub.teacher}</Text>
-                  <Text style={styles.teacherMeta}>
-                    {sub.name} · Office hours: Tue & Thu, 4 PM
-                  </Text>
+                  <Text style={styles.teacherMeta}>{sub.name} · Office hours: Tue & Thu, 4 PM</Text>
                 </View>
                 <IconButton
                   icon="chatbubble-outline"
@@ -143,15 +137,8 @@ export function SubjectDetailScreen() {
           <View style={{ gap: 8 }}>
             {subjGrades.map((g) => (
               <View key={g.id} style={styles.gradeRow}>
-                <View
-                  style={[
-                    styles.gradeIcon,
-                    { backgroundColor: hueColor(sub.color, 'tint') },
-                  ]}
-                >
-                  <Text style={[styles.gradeBadge, { color: hueColor(sub.color) }]}>
-                    {g.grade}
-                  </Text>
+                <View style={[styles.gradeIcon, { backgroundColor: hueColor(sub.color, 'tint') }]}>
+                  <Text style={[styles.gradeBadge, { color: hueColor(sub.color) }]}>{g.grade}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.gradeTitle}>{g.title}</Text>
@@ -164,9 +151,7 @@ export function SubjectDetailScreen() {
                     {g.score}
                     <Text style={styles.gradeMax}>/{g.max}</Text>
                   </Text>
-                  <Text style={styles.gradePct}>
-                    {Math.round((g.score / g.max) * 100)}%
-                  </Text>
+                  <Text style={styles.gradePct}>{Math.round((g.score / g.max) * 100)}%</Text>
                 </View>
               </View>
             ))}
@@ -214,15 +199,7 @@ export function SubjectDetailScreen() {
   );
 }
 
-function Stat({
-  label,
-  value,
-  divider,
-}: {
-  label: string;
-  value: string;
-  divider?: boolean;
-}) {
+function Stat({ label, value, divider }: { label: string; value: string; divider?: boolean }) {
   return (
     <View
       style={[

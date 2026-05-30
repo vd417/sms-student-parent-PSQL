@@ -99,7 +99,14 @@ export function ParentProfileScreen() {
             <ProfileRow icon="card-outline" label="Payment methods" chev />
             <ProfileRow icon="lock-closed-outline" label="Privacy & security" chev />
             <ProfileRow icon="notifications-outline" label="Notifications" chev />
-            <ProfileRow icon="log-out-outline" label="Sign out" chev last danger onPress={() => signOut()} />
+            <ProfileRow
+              icon="log-out-outline"
+              label="Sign out"
+              chev
+              last
+              danger
+              onPress={() => signOut()}
+            />
           </Card>
         </View>
       </ScrollView>
@@ -125,12 +132,20 @@ function ProfileRow({
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.prRow, !last && styles.prDivider, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [
+        styles.prRow,
+        !last && styles.prDivider,
+        pressed && { opacity: 0.7 },
+      ]}
     >
       <Ionicons name={icon} size={18} color={danger ? colors.absent : colors.ink2} />
       <Text style={[styles.prLabel, danger && { color: colors.absent }]}>{label}</Text>
       {chev ? (
-        <Ionicons name="chevron-forward" size={16} color={danger ? colors.absent : colors.inkSoft} />
+        <Ionicons
+          name="chevron-forward"
+          size={16}
+          color={danger ? colors.absent : colors.inkSoft}
+        />
       ) : null}
     </Pressable>
   );
@@ -140,7 +155,12 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.paper },
   hero: { padding: 18, borderRadius: radius.xl },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  heroTitle: { fontFamily: fontFamily.extraBold, fontSize: 18, color: colors.white, letterSpacing: -0.2 },
+  heroTitle: {
+    fontFamily: fontFamily.extraBold,
+    fontSize: 18,
+    color: colors.white,
+    letterSpacing: -0.2,
+  },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 14 },
   avatar: {
     width: 64,
@@ -154,8 +174,18 @@ const styles = StyleSheet.create({
   },
   avatarTxt: { fontFamily: fontFamily.extraBold, fontSize: 22, color: colors.white },
   name: { fontFamily: fontFamily.extraBold, fontSize: 18, color: colors.white },
-  sub: { fontFamily: fontFamily.semiBold, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
-  phone: { fontFamily: fontFamily.medium, fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
+  sub: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 2,
+  },
+  phone: {
+    fontFamily: fontFamily.medium,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 4,
+  },
   childRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -166,11 +196,28 @@ const styles = StyleSheet.create({
     borderColor: colors.rule,
     borderRadius: radius.md,
   },
-  childIcon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  childIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   childIconTxt: { fontFamily: fontFamily.extraBold, fontSize: 14, color: colors.white },
-  childName: { fontFamily: fontFamily.extraBold, fontSize: 14, color: colors.ink, letterSpacing: -0.1 },
+  childName: {
+    fontFamily: fontFamily.extraBold,
+    fontSize: 14,
+    color: colors.ink,
+    letterSpacing: -0.1,
+  },
   childMeta: { fontFamily: fontFamily.medium, fontSize: 11, color: colors.inkMuted, marginTop: 2 },
-  prRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 12 },
+  prRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
   prDivider: { borderBottomWidth: 1, borderBottomColor: colors.ruleSoft },
   prLabel: { flex: 1, fontFamily: fontFamily.bold, fontSize: 13.5, color: colors.ink },
 });

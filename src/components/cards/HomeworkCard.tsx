@@ -25,12 +25,7 @@ export function HomeworkCard({ homework, onPress }: Props) {
       onPress={onPress}
       style={({ pressed }) => [styles.root, pressed && { opacity: 0.85 }]}
     >
-      <View
-        style={[
-          styles.icon,
-          { backgroundColor: hueColor(sub.color, 'tint') },
-        ]}
-      >
+      <View style={[styles.icon, { backgroundColor: hueColor(sub.color, 'tint') }]}>
         <Text style={[styles.iconTxt, { color: hueColor(sub.color) }]}>{sub.short}</Text>
       </View>
       <View style={styles.body}>

@@ -43,16 +43,8 @@ export function TabNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Today' }} />
-      <Tab.Screen
-        name="Homework"
-        component={HomeworkListScreen}
-        options={{ title: 'Homework' }}
-      />
-      <Tab.Screen
-        name="Subjects"
-        component={SubjectsScreen}
-        options={{ title: 'Subjects' }}
-      />
+      <Tab.Screen name="Homework" component={HomeworkListScreen} options={{ title: 'Homework' }} />
+      <Tab.Screen name="Subjects" component={SubjectsScreen} options={{ title: 'Subjects' }} />
       <Tab.Screen name="Inbox" component={InboxScreen} options={{ title: 'Inbox' }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
     </Tab.Navigator>

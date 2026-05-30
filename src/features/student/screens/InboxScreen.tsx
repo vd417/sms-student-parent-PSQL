@@ -46,7 +46,9 @@ export function InboxScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={teachersQ.isRefetching} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl refreshing={teachersQ.isRefetching} onRefresh={onRefresh} />
+        }
       >
         <View style={styles.headerRow}>
           <Text style={typography.h1}>Inbox</Text>
@@ -81,9 +83,7 @@ export function InboxScreen() {
           ))}
         </View>
 
-        <Text style={[typography.eyebrow, { marginTop: 18, marginBottom: 8 }]}>
-          Classmates
-        </Text>
+        <Text style={[typography.eyebrow, { marginTop: 18, marginBottom: 8 }]}>Classmates</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}

@@ -3,7 +3,10 @@ import type { HomeworkStatus } from '@/models';
 import { db } from './db';
 import { withLatency } from './latency';
 
-interface Opts { ms?: number; errorRate?: number }
+interface Opts {
+  ms?: number;
+  errorRate?: number;
+}
 
 export function homeworkMock(opts: Opts = {}): HomeworkService {
   return {

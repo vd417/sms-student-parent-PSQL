@@ -7,9 +7,7 @@ export interface AuthState {
 
 export const initialAuthState: AuthState = { status: 'unauthenticated', session: null };
 
-export type AuthAction =
-  | { type: 'SIGNED_IN'; session: Session }
-  | { type: 'SIGNED_OUT' };
+export type AuthAction = { type: 'SIGNED_IN'; session: Session } | { type: 'SIGNED_OUT' };
 
 export function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {

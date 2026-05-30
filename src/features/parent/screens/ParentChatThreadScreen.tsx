@@ -106,7 +106,9 @@ export function ParentChatThreadScreen() {
                       { borderBottomRightRadius: me ? 4 : 18, borderBottomLeftRadius: me ? 18 : 4 },
                     ]}
                   >
-                    <Text style={[styles.msg, { color: me ? colors.white : colors.ink }]}>{m.text}</Text>
+                    <Text style={[styles.msg, { color: me ? colors.white : colors.ink }]}>
+                      {m.text}
+                    </Text>
                     <Text
                       style={[
                         styles.time,

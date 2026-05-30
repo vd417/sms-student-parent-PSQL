@@ -1,11 +1,18 @@
 import type {
-  AnnouncementsService, DirectoryService, GradesService, MessagingService,
-  StudentService, SubjectsService,
+  AnnouncementsService,
+  DirectoryService,
+  GradesService,
+  MessagingService,
+  StudentService,
+  SubjectsService,
 } from '@/services/types';
 import { db } from './db';
 import { withLatency } from './latency';
 
-interface Opts { ms?: number; errorRate?: number }
+interface Opts {
+  ms?: number;
+  errorRate?: number;
+}
 
 export function studentMock(opts: Opts = {}): StudentService {
   return {
@@ -34,7 +41,8 @@ export function announcementsMock(opts: Opts = {}): AnnouncementsService {
   return {
     list: (audience) =>
       withLatency(
-        () => (audience === 'parent' ? db.parentAnnouncements ?? db.announcements : db.announcements),
+        () =>
+          audience === 'parent' ? (db.parentAnnouncements ?? db.announcements) : db.announcements,
         opts,
       ),
   };
@@ -49,7 +57,7 @@ export function messagingMock(opts: Opts = {}): MessagingService {
   return {
     threads: (audience) =>
       withLatency(
-        () => (audience === 'parent' ? db.parentThreads ?? [] : db.studentThreads),
+        () => (audience === 'parent' ? (db.parentThreads ?? []) : db.studentThreads),
         opts,
       ),
     messages: (threadId) =>

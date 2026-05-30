@@ -58,10 +58,7 @@ export const colors = {
 // Subject color keys used throughout the app (matches `data.subjects[].color`).
 export type SubjectHue = 'coral' | 'blue' | 'teal' | 'pink' | 'amber' | 'mint';
 
-export function hueColor(
-  hue: SubjectHue,
-  variant: 'base' | 'soft' | 'tint' = 'base',
-): string {
+export function hueColor(hue: SubjectHue, variant: 'base' | 'soft' | 'tint' = 'base'): string {
   if (variant === 'soft') return colors[`${hue}Soft` as keyof typeof colors] as string;
   if (variant === 'tint') return colors[`${hue}Tint` as keyof typeof colors] as string;
   return colors[hue];

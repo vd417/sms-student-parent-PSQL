@@ -7,7 +7,10 @@ export const useThreads = (audience: Role) =>
   useQuery({ queryKey: qk.threads(audience), queryFn: () => services.messaging.threads(audience) });
 
 export const useMessages = (threadId: string) =>
-  useQuery({ queryKey: qk.messages(threadId), queryFn: () => services.messaging.messages(threadId) });
+  useQuery({
+    queryKey: qk.messages(threadId),
+    queryFn: () => services.messaging.messages(threadId),
+  });
 
 export function useSendMessage(threadId: string) {
   const qc = useQueryClient();

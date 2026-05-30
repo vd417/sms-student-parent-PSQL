@@ -19,7 +19,11 @@ describe('parent mocks', () => {
   test('leave.submit() appends a pending request', async () => {
     const before = db.leave!.length;
     const req = await leaveMock(fast).submit({
-      childId: 'k1', from: 'Apr 28', to: 'Apr 30', reason: 'Travel', note: 'Family trip',
+      childId: 'k1',
+      from: 'Apr 28',
+      to: 'Apr 30',
+      reason: 'Travel',
+      note: 'Family trip',
     });
     expect(req.status).toBe('pending');
     expect(db.leave!.length).toBe(before + 1);

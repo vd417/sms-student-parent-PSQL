@@ -6,10 +6,7 @@ interface Options {
   errorRate?: number;
 }
 
-export function withLatency<T>(
-  value: T | (() => T),
-  opts: Options = {},
-): Promise<T> {
+export function withLatency<T>(value: T | (() => T), opts: Options = {}): Promise<T> {
   const ms = opts.ms ?? MOCK_LATENCY_MS;
   const errorRate = opts.errorRate ?? MOCK_ERROR_RATE;
   return new Promise((resolve, reject) => {

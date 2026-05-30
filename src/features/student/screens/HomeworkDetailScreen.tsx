@@ -64,30 +64,29 @@ export function HomeworkDetailScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScreenHeader kicker={sub.name} title={h.title} onBack={() => nav.goBack()} />
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.hero, { backgroundColor: hueColor(sub.color) }]}>
           <Stat label="Due" value={h.due} />
           <Stat label="Time" value={h.dueT.split(' ')[0]} divider />
           <Stat label="Status" value={submitted ? 'Done' : 'Open'} />
         </View>
 
-        <Text style={[typography.eyebrow, { marginTop: 18, marginBottom: 8 }]}>
-          Description
-        </Text>
+        <Text style={[typography.eyebrow, { marginTop: 18, marginBottom: 8 }]}>Description</Text>
         <Card style={{ padding: 14 }}>
           <Text style={styles.body}>
-            Complete questions 1–14 from the textbook on quadratic equations. Show your full
-            working out and submit a scanned PDF or photos of the pages. Aim for clarity over
-            speed — partial credit is given for correct method.
+            Complete questions 1–14 from the textbook on quadratic equations. Show your full working
+            out and submit a scanned PDF or photos of the pages. Aim for clarity over speed —
+            partial credit is given for correct method.
           </Text>
         </Card>
 
         <Text style={[typography.eyebrow, { marginTop: 18, marginBottom: 8 }]}>Resources</Text>
         <Card style={{ padding: 0, overflow: 'hidden' }}>
-          <ResourceRow icon="document-text" label="Textbook Ch. 7 Practice.pdf" sub="1.4 MB · PDF" />
+          <ResourceRow
+            icon="document-text"
+            label="Textbook Ch. 7 Practice.pdf"
+            sub="1.4 MB · PDF"
+          />
           <ResourceRow icon="book" label="Worked example — Q5" sub="320 KB · PDF" last />
         </Card>
 
@@ -114,7 +113,10 @@ export function HomeworkDetailScreen() {
       </ScrollView>
 
       <View style={styles.bar}>
-        <Button variant="ghost" leading={<Ionicons name="chatbubble-outline" size={16} color={colors.ink} />}>
+        <Button
+          variant="ghost"
+          leading={<Ionicons name="chatbubble-outline" size={16} color={colors.ink} />}
+        >
           Ask
         </Button>
         <View style={{ flex: 1 }}>
@@ -140,7 +142,11 @@ function Stat({ label, value, divider }: { label: string; value: string; divider
     <View
       style={[
         styles.stat,
-        divider && { borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+        divider && {
+          borderLeftWidth: 1,
+          borderRightWidth: 1,
+          borderColor: 'rgba(255,255,255,0.2)',
+        },
       ]}
     >
       <Text style={styles.statLabel}>{label}</Text>

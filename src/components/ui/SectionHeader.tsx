@@ -12,10 +12,7 @@ export function SectionHeader({ title, action, style }: Props) {
     <View style={[styles.row, style]}>
       <Text style={[typography.h2, styles.title]}>{title}</Text>
       {action ? (
-        <Pressable
-          onPress={action.onPress}
-          style={({ pressed }) => [pressed && { opacity: 0.6 }]}
-        >
+        <Pressable onPress={action.onPress} style={({ pressed }) => [pressed && { opacity: 0.6 }]}>
           <Text style={styles.action}>{action.label}</Text>
         </Pressable>
       ) : null}

@@ -3,7 +3,15 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ErrorState, IconButton, Loading, Pill, ScreenHeader, TabBar, type PillTone } from '@/components/ui';
+import {
+  ErrorState,
+  IconButton,
+  Loading,
+  Pill,
+  ScreenHeader,
+  TabBar,
+  type PillTone,
+} from '@/components/ui';
 import { useHomework } from '@/hooks/useHomework';
 import { useSubjects } from '@/hooks/useSubjects';
 import { colors, fontFamily, hueColor, radius, spacing } from '@/theme';
@@ -29,7 +37,11 @@ export function HomeworkListScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader kicker="Term 4 · Apr–Jun" title="Homework" right={<IconButton icon="filter" />} />
+        <ScreenHeader
+          kicker="Term 4 · Apr–Jun"
+          title="Homework"
+          right={<IconButton icon="filter" />}
+        />
         <Loading />
       </SafeAreaView>
     );
@@ -37,7 +49,11 @@ export function HomeworkListScreen() {
   if (isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader kicker="Term 4 · Apr–Jun" title="Homework" right={<IconButton icon="filter" />} />
+        <ScreenHeader
+          kicker="Term 4 · Apr–Jun"
+          title="Homework"
+          right={<IconButton icon="filter" />}
+        />
         <ErrorState onRetry={onRefresh} />
       </SafeAreaView>
     );
@@ -69,7 +85,9 @@ export function HomeworkListScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={homeworkQ.isRefetching} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl refreshing={homeworkQ.isRefetching} onRefresh={onRefresh} />
+        }
       >
         <View style={styles.summaryRow}>
           <SummaryCard label="To do" value={String(counts.todo)} hue="absent" />
@@ -117,10 +135,7 @@ export function HomeworkListScreen() {
                 <View style={styles.cardTop}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View
-                      style={[
-                        styles.subjPill,
-                        { backgroundColor: hueColor(sub.color, 'tint') },
-                      ]}
+                      style={[styles.subjPill, { backgroundColor: hueColor(sub.color, 'tint') }]}
                     >
                       <Text style={[styles.subjPillTxt, { color: hueColor(sub.color) }]}>
                         {sub.name}

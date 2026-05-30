@@ -105,7 +105,11 @@ export function ParentAttendanceScreen() {
                     style={[
                       styles.cell,
                       styles.dayCell,
-                      { backgroundColor: t.bg, borderWidth: t.border ? 1 : 0, borderColor: t.border },
+                      {
+                        backgroundColor: t.bg,
+                        borderWidth: t.border ? 1 : 0,
+                        borderColor: t.border,
+                      },
                     ]}
                   >
                     <Text style={[styles.dayTxt, { color: t.fg }]}>{d}</Text>
@@ -140,7 +144,9 @@ export function ParentAttendanceScreen() {
           </Card>
         </View>
 
-        <Text style={[styles.eyebrow, { paddingHorizontal: 18, marginBottom: 8 }]}>Recent flags</Text>
+        <Text style={[styles.eyebrow, { paddingHorizontal: 18, marginBottom: 8 }]}>
+          Recent flags
+        </Text>
         <View style={{ paddingHorizontal: 18, gap: 8 }}>
           {flags.map((f) => (
             <View key={f.id} style={styles.flagRow}>
@@ -198,7 +204,13 @@ function SmallStat({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.paper },
   statsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 18, paddingBottom: 14 },
-  smallStat: { flex: 1, paddingVertical: 12, paddingHorizontal: 6, borderRadius: radius.md, alignItems: 'center' },
+  smallStat: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderRadius: radius.md,
+    alignItems: 'center',
+  },
   smallStatVal: { fontFamily: fontFamily.extraBold, fontSize: 20, fontVariant: ['tabular-nums'] },
   smallStatLabel: {
     fontFamily: fontFamily.bold,
@@ -207,7 +219,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
-  monthTitle: { fontFamily: fontFamily.extraBold, fontSize: 16, color: colors.ink, marginBottom: 14 },
+  monthTitle: {
+    fontFamily: fontFamily.extraBold,
+    fontSize: 16,
+    color: colors.ink,
+    marginBottom: 14,
+  },
   weekRow: { flexDirection: 'row', marginBottom: 6 },
   weekLabel: {
     flex: 1,
@@ -242,7 +259,13 @@ const styles = StyleSheet.create({
     borderColor: colors.rule,
     borderRadius: radius.md,
   },
-  flagIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  flagIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   flagIconTxt: { fontFamily: fontFamily.extraBold, fontSize: 11, textTransform: 'uppercase' },
   flagDate: { fontFamily: fontFamily.bold, fontSize: 12.5, color: colors.ink },
   flagReason: { fontFamily: fontFamily.medium, fontSize: 11, color: colors.inkMuted, marginTop: 2 },

@@ -37,7 +37,12 @@ export function SubjectsScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={subjectsQ.isRefetching} onRefresh={() => subjectsQ.refetch()} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={subjectsQ.isRefetching}
+            onRefresh={() => subjectsQ.refetch()}
+          />
+        }
       >
         <View style={styles.headerRow}>
           <Text style={typography.h1}>My subjects</Text>
@@ -48,10 +53,7 @@ export function SubjectsScreen() {
           {subjects.map((s, i) => (
             <View
               key={s.id}
-              style={[
-                styles.gridCell,
-                i % 2 === 0 ? { paddingRight: 6 } : { paddingLeft: 6 },
-              ]}
+              style={[styles.gridCell, i % 2 === 0 ? { paddingRight: 6 } : { paddingLeft: 6 }]}
             >
               <SubjectCard
                 subject={s}
@@ -64,9 +66,24 @@ export function SubjectsScreen() {
         <View style={{ marginTop: 24 }}>
           <SectionHeader title="Clubs & cohorts" />
           <View style={{ gap: 10, marginTop: 12 }}>
-            <CohortMini icon="trophy" title="Math Olympiad squad" sub="Wed 4 PM · 12 members" hue="amber" />
-            <CohortMini icon="people" title="Indus House" sub="35 members · Senior wing" hue="primary" />
-            <CohortMini icon="book" title="Reading Circle" sub="Monday lunch · 8 members" hue="teal" />
+            <CohortMini
+              icon="trophy"
+              title="Math Olympiad squad"
+              sub="Wed 4 PM · 12 members"
+              hue="amber"
+            />
+            <CohortMini
+              icon="people"
+              title="Indus House"
+              sub="35 members · Senior wing"
+              hue="primary"
+            />
+            <CohortMini
+              icon="book"
+              title="Reading Circle"
+              sub="Monday lunch · 8 members"
+              hue="teal"
+            />
           </View>
         </View>
       </ScrollView>

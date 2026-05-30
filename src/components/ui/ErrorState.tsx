@@ -16,7 +16,17 @@ export function ErrorState({ message, onRetry }: { message?: string; onRetry?: (
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
-  msg: { fontFamily: fontFamily.semiBold, color: colors.inkMuted, fontSize: 14, textAlign: 'center' },
-  btn: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 100 },
+  msg: {
+    fontFamily: fontFamily.semiBold,
+    color: colors.inkMuted,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  btn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 100,
+  },
   btnText: { fontFamily: fontFamily.bold, color: colors.white, fontSize: 13 },
 });

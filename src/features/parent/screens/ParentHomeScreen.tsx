@@ -4,7 +4,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Button, Card, ErrorState, IconButton, Loading, Pill, SectionHeader } from '@/components/ui';
+import {
+  Button,
+  Card,
+  ErrorState,
+  IconButton,
+  Loading,
+  Pill,
+  SectionHeader,
+} from '@/components/ui';
 import { KidSwitcher } from '../components/KidSwitcher';
 import { useChildren, useChildToday, useParentProfile } from '@/hooks/useParent';
 import { useAnnouncements } from '@/hooks/useAnnouncements';
@@ -85,7 +93,7 @@ export function ParentHomeScreen() {
           <View style={[styles.hero, { backgroundColor: hueColor(child.hue) }]}>
             <View style={styles.heroTop}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.heroEyebrow}>{child.name}'s day</Text>
+                <Text style={styles.heroEyebrow}>{child.name}&apos;s day</Text>
                 <Text style={styles.heroTitle}>At school · safe</Text>
                 <Text style={styles.heroSub}>Marked present at 8:42 AM</Text>
               </View>
@@ -108,10 +116,7 @@ export function ParentHomeScreen() {
             {today.classes.map((cl, i) => (
               <View
                 key={`${cl.t}-${i}`}
-                style={[
-                  styles.classRow,
-                  i !== today.classes.length - 1 && styles.classDivider,
-                ]}
+                style={[styles.classRow, i !== today.classes.length - 1 && styles.classDivider]}
               >
                 <Text style={styles.classTime}>{cl.t}</Text>
                 <View
@@ -121,10 +126,7 @@ export function ParentHomeScreen() {
                   ]}
                 />
                 <Text
-                  style={[
-                    styles.classLabel,
-                    { color: cl.done ? colors.inkMuted : colors.ink },
-                  ]}
+                  style={[styles.classLabel, { color: cl.done ? colors.inkMuted : colors.ink }]}
                 >
                   {cl.label}
                 </Text>
@@ -244,7 +246,12 @@ const styles = StyleSheet.create({
     marginTop: 6,
     letterSpacing: -0.2,
   },
-  heroSub: { fontFamily: fontFamily.medium, fontSize: 12, color: 'rgba(255,255,255,0.9)', marginTop: 4 },
+  heroSub: {
+    fontFamily: fontFamily.medium,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 4,
+  },
   heroIcon: {
     width: 44,
     height: 44,
@@ -324,7 +331,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  noticeTitle: { fontFamily: fontFamily.bold, fontSize: 13.5, color: colors.ink, letterSpacing: -0.1 },
+  noticeTitle: {
+    fontFamily: fontFamily.bold,
+    fontSize: 13.5,
+    color: colors.ink,
+    letterSpacing: -0.1,
+  },
   noticeBody: {
     fontFamily: fontFamily.medium,
     fontSize: 11.5,

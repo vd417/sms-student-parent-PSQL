@@ -82,7 +82,9 @@ export function ParentLeaveScreen() {
                   onPress={() => setReason(r)}
                   style={[styles.chip, on ? styles.chipOn : styles.chipOff]}
                 >
-                  <Text style={[styles.chipTxt, { color: on ? colors.white : colors.ink2 }]}>{r}</Text>
+                  <Text style={[styles.chipTxt, { color: on ? colors.white : colors.ink2 }]}>
+                    {r}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -99,7 +101,7 @@ export function ParentLeaveScreen() {
             placeholderTextColor={colors.inkMuted}
           />
           <View style={styles.tip}>
-            <Text style={styles.tipTxt}>Tip · attach a doctor's note if leave is medical</Text>
+            <Text style={styles.tipTxt}>Tip · attach a doctor&apos;s note if leave is medical</Text>
           </View>
         </View>
       </ScrollView>
@@ -129,10 +131,25 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: colors.inkMuted,
   },
-  fieldLabel: { fontFamily: fontFamily.bold, fontSize: 11, color: colors.inkMuted, marginBottom: 6 },
-  dateBox: { paddingVertical: 12, paddingHorizontal: 14, borderRadius: 12, backgroundColor: colors.paper2 },
+  fieldLabel: {
+    fontFamily: fontFamily.bold,
+    fontSize: 11,
+    color: colors.inkMuted,
+    marginBottom: 6,
+  },
+  dateBox: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: colors.paper2,
+  },
   dateTxt: { fontFamily: fontFamily.bold, fontSize: 14, color: colors.ink },
-  daysNote: { fontFamily: fontFamily.semiBold, fontSize: 12, color: colors.inkMuted, marginTop: 10 },
+  daysNote: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 12,
+    color: colors.inkMuted,
+    marginTop: 10,
+  },
   chips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.pill },
   chipOn: { backgroundColor: colors.primary },

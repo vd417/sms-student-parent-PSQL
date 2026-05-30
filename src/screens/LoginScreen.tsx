@@ -39,7 +39,9 @@ export function LoginScreen() {
 
   return (
     <LinearGradient
-      colors={[primaryGradient[0], primaryGradient[1], primaryGradient[2]] as [string, string, string]}
+      colors={
+        [primaryGradient[0], primaryGradient[1], primaryGradient[2]] as [string, string, string]
+      }
       start={{ x: 0, y: 0 }}
       end={{ x: 0, y: 1 }}
       style={styles.root}

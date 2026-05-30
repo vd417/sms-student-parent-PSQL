@@ -1,7 +1,23 @@
 import type {
-  Achievement, Announcement, ChatMessage, ChatThread, Child, ChildToday,
-  Exam, Fee, Grade, Homework, LeaveRequest, Parent, Peer, PTMMeeting,
-  Student, Subject, Teacher, TodayBlock, Transport,
+  Achievement,
+  Announcement,
+  ChatMessage,
+  ChatThread,
+  Child,
+  ChildToday,
+  Exam,
+  Fee,
+  Grade,
+  Homework,
+  LeaveRequest,
+  Parent,
+  Peer,
+  PTMMeeting,
+  Student,
+  Subject,
+  Teacher,
+  TodayBlock,
+  Transport,
 } from '@/models';
 import * as student from './fixtures/student';
 import * as parent from './fixtures/parent';

@@ -1,12 +1,5 @@
 import { ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { colors, fontFamily, radius } from '@/theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'white';

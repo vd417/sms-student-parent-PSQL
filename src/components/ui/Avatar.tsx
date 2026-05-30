@@ -22,10 +22,7 @@ export function Avatar({ initials, size = 40, hue = 'teal' }: Props) {
       ]}
     >
       <Text
-        style={[
-          styles.txt,
-          { color: hueColor(hue, 'base'), fontSize: Math.round(size * 0.36) },
-        ]}
+        style={[styles.txt, { color: hueColor(hue, 'base'), fontSize: Math.round(size * 0.36) }]}
       >
         {initials}
       </Text>

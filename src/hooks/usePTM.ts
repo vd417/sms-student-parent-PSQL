@@ -3,8 +3,7 @@ import type { PTMMeeting } from '@/models';
 import { services } from '@/services';
 import { qk } from './keys';
 
-export const usePTM = () =>
-  useQuery({ queryKey: qk.ptm, queryFn: () => services.ptm.list() });
+export const usePTM = () => useQuery({ queryKey: qk.ptm, queryFn: () => services.ptm.list() });
 
 export function useSetPTMStatus() {
   const qc = useQueryClient();

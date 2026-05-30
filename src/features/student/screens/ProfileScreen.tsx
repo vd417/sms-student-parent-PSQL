@@ -7,25 +7,17 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Card, ErrorState, IconButton, Loading, SectionHeader } from '@/components/ui';
 import { useStudentProfile, useAchievements } from '@/hooks/useStudent';
 import { useAuth } from '@/providers/AuthProvider';
-import {
-  colors,
-  fontFamily,
-  hueColor,
-  primaryGradient,
-  radius,
-  spacing,
-} from '@/theme';
+import { colors, fontFamily, hueColor, primaryGradient, radius, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const ACH_ICON: Record<'award' | 'star' | 'check' | 'flag', keyof typeof Ionicons.glyphMap> =
-  {
-    award: 'trophy',
-    star: 'star',
-    check: 'checkmark-circle',
-    flag: 'flag',
-  };
+const ACH_ICON: Record<'award' | 'star' | 'check' | 'flag', keyof typeof Ionicons.glyphMap> = {
+  award: 'trophy',
+  star: 'star',
+  check: 'checkmark-circle',
+  flag: 'flag',
+};
 
 export function ProfileScreen() {
   const nav = useNavigation<Nav>();
@@ -98,10 +90,7 @@ export function ProfileScreen() {
             {achievements.map((a, i) => (
               <View
                 key={a.id}
-                style={[
-                  styles.gridCell,
-                  i % 2 === 0 ? { paddingRight: 5 } : { paddingLeft: 5 },
-                ]}
+                style={[styles.gridCell, i % 2 === 0 ? { paddingRight: 5 } : { paddingLeft: 5 }]}
               >
                 <View
                   style={[
@@ -112,9 +101,7 @@ export function ProfileScreen() {
                     },
                   ]}
                 >
-                  <View
-                    style={[styles.achIcon, { backgroundColor: hueColor(a.hue) }]}
-                  >
+                  <View style={[styles.achIcon, { backgroundColor: hueColor(a.hue) }]}>
                     <Ionicons name={ACH_ICON[a.icon]} size={18} color={colors.white} />
                   </View>
                   <Text style={styles.achTitle}>{a.title}</Text>
@@ -147,13 +134,16 @@ export function ProfileScreen() {
           <SectionHeader title="Account" />
           <Card style={{ padding: 4, marginTop: 10 }}>
             <ProfileRow icon="person-outline" label="Personal info" chev />
-            <ProfileRow
-              icon="lock-closed-outline"
-              label="Privacy & parental controls"
-              chev
-            />
+            <ProfileRow icon="lock-closed-outline" label="Privacy & parental controls" chev />
             <ProfileRow icon="notifications-outline" label="Notifications" chev />
-            <ProfileRow icon="log-out-outline" label="Sign out" chev last danger onPress={() => signOut()} />
+            <ProfileRow
+              icon="log-out-outline"
+              label="Sign out"
+              chev
+              last
+              danger
+              onPress={() => signOut()}
+            />
           </Card>
         </View>
 
@@ -196,16 +186,8 @@ function ProfileRow({
         pressed && { opacity: 0.7 },
       ]}
     >
-      <Ionicons
-        name={icon}
-        size={18}
-        color={danger ? colors.absent : colors.ink2}
-      />
-      <Text
-        style={[styles.prLabel, danger && { color: colors.absent }]}
-      >
-        {label}
-      </Text>
+      <Ionicons name={icon} size={18} color={danger ? colors.absent : colors.ink2} />
+      <Text style={[styles.prLabel, danger && { color: colors.absent }]}>{label}</Text>
       {value ? <Text style={styles.prValue}>{value}</Text> : null}
       {chev ? (
         <Ionicons

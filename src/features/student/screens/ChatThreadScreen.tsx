@@ -31,8 +31,7 @@ export function ChatThreadScreen() {
   const sendMut = useSendMessage(threadId);
   const [draft, setDraft] = useState('');
 
-  const thread =
-    threadsQ.data?.find((t) => t.id === threadId) ?? threadsQ.data?.[0];
+  const thread = threadsQ.data?.find((t) => t.id === threadId) ?? threadsQ.data?.[0];
 
   const send = () => {
     const text = draft.trim();
@@ -77,19 +76,13 @@ export function ChatThreadScreen() {
         {messages.length === 0 ? (
           <Empty message="No messages yet. Say hello!" />
         ) : (
-          <ScrollView
-            contentContainerStyle={styles.thread}
-            showsVerticalScrollIndicator={false}
-          >
+          <ScrollView contentContainerStyle={styles.thread} showsVerticalScrollIndicator={false}>
             {messages.map((m) => {
               const me = m.from === 'me';
               return (
                 <View
                   key={m.id}
-                  style={[
-                    styles.bubbleWrap,
-                    { alignSelf: me ? 'flex-end' : 'flex-start' },
-                  ]}
+                  style={[styles.bubbleWrap, { alignSelf: me ? 'flex-end' : 'flex-start' }]}
                 >
                   <View
                     style={[

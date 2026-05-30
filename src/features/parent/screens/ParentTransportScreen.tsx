@@ -48,15 +48,35 @@ export function ParentTransportScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={trQ.isRefetching} onRefresh={() => trQ.refetch()} />}
+        refreshControl={
+          <RefreshControl refreshing={trQ.isRefetching} onRefresh={() => trQ.refetch()} />
+        }
       >
         {/* mock map */}
         <View style={{ paddingHorizontal: 18, paddingBottom: 14 }}>
           <View style={styles.map}>
             <Svg width="100%" height="100%" viewBox="0 0 400 220" style={StyleSheet.absoluteFill}>
-              <Path d="M-10 160 Q 100 140 200 150 T 410 130" stroke="rgba(255,255,255,0.6)" strokeWidth={20} fill="none" strokeLinecap="round" />
-              <Path d="M50 -10 Q 80 80 120 120 T 200 200" stroke="rgba(255,255,255,0.4)" strokeWidth={14} fill="none" strokeLinecap="round" />
-              <Path d="M260 -10 Q 280 80 300 130" stroke="rgba(255,255,255,0.4)" strokeWidth={14} fill="none" strokeLinecap="round" />
+              <Path
+                d="M-10 160 Q 100 140 200 150 T 410 130"
+                stroke="rgba(255,255,255,0.6)"
+                strokeWidth={20}
+                fill="none"
+                strokeLinecap="round"
+              />
+              <Path
+                d="M50 -10 Q 80 80 120 120 T 200 200"
+                stroke="rgba(255,255,255,0.4)"
+                strokeWidth={14}
+                fill="none"
+                strokeLinecap="round"
+              />
+              <Path
+                d="M260 -10 Q 280 80 300 130"
+                stroke="rgba(255,255,255,0.4)"
+                strokeWidth={14}
+                fill="none"
+                strokeLinecap="round"
+              />
               <Circle cx={80} cy={153} r={6} fill={colors.primary} opacity={0.6} />
               <Circle cx={160} cy={148} r={6} fill={colors.primary} opacity={0.6} />
               <Circle cx={220} cy={148} r={9} fill={colors.coral} stroke="#fff" strokeWidth={3} />
@@ -109,7 +129,11 @@ export function ParentTransportScreen() {
                     style={[
                       styles.stopDot,
                       {
-                        backgroundColor: s.done ? colors.present : s.you ? colors.coral : colors.white,
+                        backgroundColor: s.done
+                          ? colors.present
+                          : s.you
+                            ? colors.coral
+                            : colors.white,
                         borderWidth: s.you ? 3 : s.done ? 0 : 2,
                         borderColor: s.you ? colors.coral : colors.rule,
                       },
@@ -128,7 +152,10 @@ export function ParentTransportScreen() {
                   <Text
                     style={[
                       styles.stopName,
-                      { color: s.you ? colors.coral : colors.ink, fontFamily: s.you ? fontFamily.extraBold : fontFamily.bold },
+                      {
+                        color: s.you ? colors.coral : colors.ink,
+                        fontFamily: s.you ? fontFamily.extraBold : fontFamily.bold,
+                      },
                     ]}
                   >
                     {s.stop}
@@ -187,7 +214,12 @@ const styles = StyleSheet.create({
   },
   driver: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   driverName: { fontFamily: fontFamily.bold, fontSize: 14, color: colors.ink },
-  driverMeta: { fontFamily: fontFamily.medium, fontSize: 11.5, color: colors.inkMuted, marginTop: 2 },
+  driverMeta: {
+    fontFamily: fontFamily.medium,
+    fontSize: 11.5,
+    color: colors.inkMuted,
+    marginTop: 2,
+  },
   stopRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   stopCol: { width: 24, alignItems: 'center' },
   stopDot: { width: 14, height: 14, borderRadius: 7 },

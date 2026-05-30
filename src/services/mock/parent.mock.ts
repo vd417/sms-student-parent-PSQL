@@ -1,12 +1,19 @@
 import type {
-  AttendanceService, FeesService, LeaveService, ParentService,
-  PTMService, TransportService,
+  AttendanceService,
+  FeesService,
+  LeaveService,
+  ParentService,
+  PTMService,
+  TransportService,
 } from '@/services/types';
 import { db } from './db';
 import { withLatency } from './latency';
 import { attendanceFor } from './fixtures/parent';
 
-interface Opts { ms?: number; errorRate?: number }
+interface Opts {
+  ms?: number;
+  errorRate?: number;
+}
 let leaveCounter = 0;
 
 export function parentMock(opts: Opts = {}): ParentService {

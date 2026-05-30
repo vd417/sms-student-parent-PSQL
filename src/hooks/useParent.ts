@@ -7,4 +7,7 @@ export const useParentProfile = () =>
 export const useChildren = () =>
   useQuery({ queryKey: qk.children, queryFn: () => services.parent.children() });
 export const useChildToday = (childId: string) =>
-  useQuery({ queryKey: qk.childToday(childId), queryFn: () => services.parent.childToday(childId) });
+  useQuery({
+    queryKey: qk.childToday(childId),
+    queryFn: () => services.parent.childToday(childId),
+  });

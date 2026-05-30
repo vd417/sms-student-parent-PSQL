@@ -3,12 +3,23 @@ import { DATA_SOURCE } from '@/api/config';
 import type { Services } from './types';
 import { httpServices } from './http';
 import {
-  announcementsMock, directoryMock, gradesMock, messagingMock,
-  studentMock, subjectsMock,
+  announcementsMock,
+  directoryMock,
+  gradesMock,
+  messagingMock,
+  studentMock,
+  subjectsMock,
 } from './mock/student.mock';
 import { homeworkMock } from './mock/homework.mock';
 import { authMock } from './mock/auth.mock';
-import { parentMock, feesMock, ptmMock, transportMock, attendanceMock, leaveMock } from './mock/parent.mock';
+import {
+  parentMock,
+  feesMock,
+  ptmMock,
+  transportMock,
+  attendanceMock,
+  leaveMock,
+} from './mock/parent.mock';
 
 function mockServices(): Services {
   return {

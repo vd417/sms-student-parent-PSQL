@@ -43,7 +43,9 @@ export function ParentFeesScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={feesQ.isRefetching} onRefresh={() => feesQ.refetch()} />}
+        refreshControl={
+          <RefreshControl refreshing={feesQ.isRefetching} onRefresh={() => feesQ.refetch()} />
+        }
       >
         {due ? (
           <View style={{ paddingHorizontal: 18, paddingBottom: 14 }}>
@@ -134,7 +136,12 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   heroCents: { fontSize: 16, color: 'rgba(255,255,255,0.7)' },
-  heroMeta: { fontFamily: fontFamily.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 4 },
+  heroMeta: {
+    fontFamily: fontFamily.medium,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 4,
+  },
   items: {
     marginTop: 16,
     paddingTop: 14,

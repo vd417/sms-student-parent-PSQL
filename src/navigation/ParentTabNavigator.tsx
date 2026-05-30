@@ -43,7 +43,11 @@ export function ParentTabNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={ParentHomeScreen} options={{ title: 'Today' }} />
-      <Tab.Screen name="Progress" component={ParentProgressScreen} options={{ title: 'Progress' }} />
+      <Tab.Screen
+        name="Progress"
+        component={ParentProgressScreen}
+        options={{ title: 'Progress' }}
+      />
       <Tab.Screen name="Fees" component={ParentFeesScreen} options={{ title: 'Fees' }} />
       <Tab.Screen name="Inbox" component={ParentChatScreen} options={{ title: 'Inbox' }} />
       <Tab.Screen name="Profile" component={ParentProfileScreen} options={{ title: 'Me' }} />

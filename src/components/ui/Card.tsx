@@ -11,14 +11,7 @@ type Props = {
 
 export function Card({ children, style, bordered = true, elevated }: Props) {
   return (
-    <View
-      style={[
-        styles.root,
-        bordered && styles.bordered,
-        elevated && shadow.card,
-        style,
-      ]}
-    >
+    <View style={[styles.root, bordered && styles.bordered, elevated && shadow.card, style]}>
       {children}
     </View>
   );

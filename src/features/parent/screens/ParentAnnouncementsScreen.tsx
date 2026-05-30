@@ -26,7 +26,9 @@ export function ParentAnnouncementsScreen() {
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 24, gap: 10 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={annQ.isRefetching} onRefresh={() => annQ.refetch()} />}
+          refreshControl={
+            <RefreshControl refreshing={annQ.isRefetching} onRefresh={() => annQ.refetch()} />
+          }
         >
           {annQ.data!.map((n) => (
             <Card key={n.id} style={{ padding: 14 }}>
@@ -50,6 +52,12 @@ const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   when: { fontFamily: fontFamily.semiBold, fontSize: 11, color: colors.inkMuted },
   title: { fontFamily: fontFamily.extraBold, fontSize: 15, color: colors.ink, letterSpacing: -0.2 },
-  body: { fontFamily: fontFamily.medium, fontSize: 12.5, color: colors.ink2, lineHeight: 19, marginTop: 6 },
+  body: {
+    fontFamily: fontFamily.medium,
+    fontSize: 12.5,
+    color: colors.ink2,
+    lineHeight: 19,
+    marginTop: 6,
+  },
   from: { fontFamily: fontFamily.semiBold, fontSize: 11, color: colors.inkMuted, marginTop: 10 },
 });

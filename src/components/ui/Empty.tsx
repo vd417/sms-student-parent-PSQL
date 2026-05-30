@@ -11,5 +11,10 @@ export function Empty({ message }: { message: string }) {
 
 const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center', padding: 32 },
-  msg: { fontFamily: fontFamily.semiBold, color: colors.inkMuted, fontSize: 13, textAlign: 'center' },
+  msg: {
+    fontFamily: fontFamily.semiBold,
+    color: colors.inkMuted,
+    fontSize: 13,
+    textAlign: 'center',
+  },
 });

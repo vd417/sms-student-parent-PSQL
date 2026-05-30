@@ -37,7 +37,11 @@ export function HomeScreen() {
   const annQ = useAnnouncements('student');
 
   const isLoading =
-    profileQ.isLoading || todayQ.isLoading || homeworkQ.isLoading || subjectsQ.isLoading || annQ.isLoading;
+    profileQ.isLoading ||
+    todayQ.isLoading ||
+    homeworkQ.isLoading ||
+    subjectsQ.isLoading ||
+    annQ.isLoading;
   const isError =
     profileQ.isError || todayQ.isError || homeworkQ.isError || subjectsQ.isError || annQ.isError;
   const onRefresh = () => {
@@ -85,9 +89,7 @@ export function HomeScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={profileQ.isRefetching} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={profileQ.isRefetching} onRefresh={onRefresh} />}
       >
         <View style={styles.headerRow}>
           <View>
@@ -118,15 +120,11 @@ export function HomeScreen() {
                 style={[
                   styles.heroIcon,
                   {
-                    backgroundColor: nextSub
-                      ? hueColor(nextSub.color)
-                      : 'rgba(255,255,255,0.2)',
+                    backgroundColor: nextSub ? hueColor(nextSub.color) : 'rgba(255,255,255,0.2)',
                   },
                 ]}
               >
-                <Text style={styles.heroIconTxt}>
-                  {nextSub ? nextSub.short.slice(0, 2) : 'AS'}
-                </Text>
+                <Text style={styles.heroIconTxt}>{nextSub ? nextSub.short.slice(0, 2) : 'AS'}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.heroTitle}>{next.label}</Text>
@@ -177,7 +175,10 @@ export function HomeScreen() {
           />
           <View style={styles.grid}>
             {subjects.slice(0, 4).map((s, i) => (
-              <View key={s.id} style={[styles.gridCell, i % 2 === 0 ? { paddingRight: 6 } : { paddingLeft: 6 }]}>
+              <View
+                key={s.id}
+                style={[styles.gridCell, i % 2 === 0 ? { paddingRight: 6 } : { paddingLeft: 6 }]}
+              >
                 <SubjectCard
                   subject={s}
                   onPress={() => nav.navigate('SubjectDetail', { id: s.id })}
