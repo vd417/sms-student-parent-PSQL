@@ -1,21 +1,17 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Card, IconButton, Pill, SectionHeader } from '@/components/ui';
+import { Card, ErrorState, IconButton, Loading, Pill, SectionHeader } from '@/components/ui';
 import { SubjectCard } from '@/components/cards/SubjectCard';
 import { HomeworkCard } from '@/components/cards/HomeworkCard';
-import {
-  announcements,
-  homework as allHomework,
-  student,
-  subjectById,
-  subjects,
-  today,
-} from '@/data/sample';
+import { useStudentProfile, useToday } from '@/hooks/useStudent';
+import { useHomework } from '@/hooks/useHomework';
+import { useSubjects } from '@/hooks/useSubjects';
+import { useAnnouncements } from '@/hooks/useAnnouncements';
 import {
   colors,
   fontFamily,
@@ -29,32 +25,6 @@ import type { RootStackParamList, TabParamList } from '@/navigation/types';
 
 type Nav = BottomTabNavigationProp<TabParamList, 'Home'> & {
   navigate: NativeStackNavigationProp<RootStackParamList>['navigate'];
-};
-
-const EMPTY_STUDENT: Student = {
-  name: '',
-  initials: '',
-  grade: '',
-  roll: 0,
-  school: '',
-  studentId: '',
-  email: '',
-  classroom: '',
-  house: '',
-  overallAvg: 0,
-  attnPct: 0,
-  rank: 0,
-  rankOf: 0,
-};
-
-const EMPTY_SUBJECT: Subject = {
-  id: '',
-  name: '',
-  short: '',
-  teacher: '',
-  avg: 0,
-  trend: 0,
-  color: 'blue',
 };
 
 export function HomeScreen() {
@@ -78,13 +48,28 @@ export function HomeScreen() {
     annQ.refetch();
   };
 
-  const student = profileQ.data ?? EMPTY_STUDENT;
-  const today = todayQ.data ?? [];
-  const allHomework = homeworkQ.data ?? [];
-  const subjects = subjectsQ.data ?? [];
-  const announcements = annQ.data ?? [];
-  const subjectById = (id: string) =>
-    subjects.find((s) => s.id === id) ?? subjects[0] ?? EMPTY_SUBJECT;
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <Loading />
+      </SafeAreaView>
+    );
+  }
+  if (isError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ErrorState onRetry={onRefresh} />
+      </SafeAreaView>
+    );
+  }
+
+  const student = profileQ.data!;
+  const today = todayQ.data!;
+  const allHomework = homeworkQ.data!;
+  const subjects = subjectsQ.data!;
+  const announcements = annQ.data!;
+  const subjectById = (id: string) => subjects.find((s) => s.id === id) ?? subjects[0];
+
   const todoCount = allHomework.filter(
     (h) => h.status === 'todo' || h.status === 'progress',
   ).length;
@@ -100,6 +85,9 @@ export function HomeScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={profileQ.isRefetching} onRefresh={onRefresh} />
+        }
       >
         <View style={styles.headerRow}>
           <View>
