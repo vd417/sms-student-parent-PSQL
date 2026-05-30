@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Card, Empty, ErrorState, Loading, Pill, ScreenHeader } from '@/components/ui';
 import { useAnnouncements } from '@/hooks/useAnnouncements';
-import { colors, fontFamily, spacing } from '@/theme';
+import { colors, fontFamily } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<ParentStackParamList>;

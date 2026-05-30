@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Button, Empty, ErrorState, IconButton, Loading, ScreenHeader } from '@/components/ui';
 import { useFees, usePayFee } from '@/hooks/useFees';
 import { useSelectedChild } from '@/providers/ChildProvider';
-import { colors, fontFamily, primaryGradient, radius, spacing, typography } from '@/theme';
+import { colors, fontFamily, primaryGradient, radius, typography } from '@/theme';
 
 export function ParentFeesScreen() {
   const { childId } = useSelectedChild();

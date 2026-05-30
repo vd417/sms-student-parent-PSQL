@@ -8,7 +8,7 @@ import { useLeave } from '@/hooks/useLeave';
 import { useChildren } from '@/hooks/useParent';
 import { useSelectedChild } from '@/providers/ChildProvider';
 import type { AttendanceKind } from '@/models';
-import { colors, fontFamily, radius, spacing } from '@/theme';
+import { colors, fontFamily, radius } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<ParentStackParamList>;

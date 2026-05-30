@@ -8,7 +8,7 @@ import { Button, Card, ScreenHeader, Toast } from '@/components/ui';
 import { useSubmitLeave } from '@/hooks/useLeave';
 import { useChildren } from '@/hooks/useParent';
 import { useSelectedChild } from '@/providers/ChildProvider';
-import { colors, fontFamily, radius, spacing } from '@/theme';
+import { colors, fontFamily, radius } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<ParentStackParamList>;

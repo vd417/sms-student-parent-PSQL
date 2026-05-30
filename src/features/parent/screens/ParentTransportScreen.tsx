@@ -6,7 +6,7 @@ import { Avatar } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { useTransport } from '@/hooks/useTransport';
 import { useSelectedChild } from '@/providers/ChildProvider';
-import { colors, fontFamily, radius, spacing } from '@/theme';
+import { colors, fontFamily, radius } from '@/theme';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { ParentStackParamList } from '@/navigation/types';

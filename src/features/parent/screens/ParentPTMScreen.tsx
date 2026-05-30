@@ -6,7 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, Card, Empty, ErrorState, IconButton, Loading, Pill, ScreenHeader } from '@/components/ui';
 import { usePTM, useSetPTMStatus } from '@/hooks/usePTM';
 import { useChildren } from '@/hooks/useParent';
-import { colors, fontFamily, radius, spacing } from '@/theme';
+import { colors, fontFamily, radius } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<ParentStackParamList>;
