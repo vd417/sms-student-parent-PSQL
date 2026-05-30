@@ -11,7 +11,6 @@ import {
   hueColor,
   radius,
   primaryGradient,
-  spacing,
   typography,
 } from '@/theme';
 import { LinearGradient } from 'expo-linear-gradient';

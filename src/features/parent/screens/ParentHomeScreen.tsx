@@ -17,7 +17,7 @@ import { KidSwitcher } from '../components/KidSwitcher';
 import { useChildren, useChildToday, useParentProfile } from '@/hooks/useParent';
 import { useAnnouncements } from '@/hooks/useAnnouncements';
 import { useSelectedChild } from '@/providers/ChildProvider';
-import { colors, fontFamily, hueColor, radius, spacing, typography } from '@/theme';
+import { colors, fontFamily, hueColor, radius, typography } from '@/theme';
 import type { ParentStackParamList, ParentTabParamList } from '@/navigation/types';
 
 type Nav = BottomTabNavigationProp<ParentTabParamList, 'Home'> & {

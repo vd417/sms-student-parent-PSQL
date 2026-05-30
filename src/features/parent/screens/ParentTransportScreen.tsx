@@ -1,8 +1,7 @@
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
-import { Button, Card, ErrorState, IconButton, Loading, ScreenHeader } from '@/components/ui';
-import { Avatar } from '@/components/ui';
+import { Avatar, Button, Card, ErrorState, IconButton, Loading, ScreenHeader } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { useTransport } from '@/hooks/useTransport';
 import { useSelectedChild } from '@/providers/ChildProvider';
