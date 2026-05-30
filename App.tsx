@@ -12,6 +12,9 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { ActivityIndicator, Platform, View } from 'react-native';
 import { RootNavigator } from '@/navigation/RootNavigator';
+import { QueryProvider } from '@/providers/QueryProvider';
+import { AuthProvider } from '@/providers/AuthProvider';
+import { ChildProvider } from '@/providers/ChildProvider';
 import { colors } from '@/theme';
 
 const isWeb = Platform.OS === 'web';
@@ -37,7 +40,13 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style="auto" />
-        <RootNavigator />
+        <QueryProvider>
+          <AuthProvider>
+            <ChildProvider>
+              <RootNavigator />
+            </ChildProvider>
+          </AuthProvider>
+        </QueryProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

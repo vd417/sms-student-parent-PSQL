@@ -13,11 +13,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useState } from 'react';
 import { Button } from '@/components/ui';
 import { colors, fontFamily, primaryGradient, radius, spacing } from '@/theme';
-import type { RootStackParamList } from '@/navigation/types';
+import type { Role } from '@/models';
+import { useAuth } from '@/providers/AuthProvider';
 
 const loginSchema = z.object({
   studentId: z.string().min(3, 'Enter your student ID'),
@@ -25,16 +25,17 @@ const loginSchema = z.object({
 });
 type LoginForm = z.infer<typeof loginSchema>;
 
-type Nav = NativeStackNavigationProp<RootStackParamList, 'Login'>;
-
 export function LoginScreen() {
-  const nav = useNavigation<Nav>();
+  const { signIn } = useAuth();
+  const [role, setRole] = useState<Role>('student');
   const { control, handleSubmit, formState } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { studentId: 'WBA-2024-1042', password: '' },
   });
 
-  const submit = handleSubmit(() => nav.replace('Main'));
+  const submit = handleSubmit(async (data) => {
+    await signIn(data.studentId, data.password, role);
+  });
 
   return (
     <LinearGradient
@@ -57,6 +58,20 @@ export function LoginScreen() {
           </View>
 
           <View style={styles.form}>
+            <View style={styles.roleToggle}>
+              {(['student', 'parent'] as Role[]).map((r) => (
+                <Pressable
+                  key={r}
+                  onPress={() => setRole(r)}
+                  style={[styles.roleChip, role === r && styles.roleChipActive]}
+                >
+                  <Text style={[styles.roleChipText, role === r && styles.roleChipTextActive]}>
+                    {r === 'student' ? 'Student' : 'Parent'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
             <Controller
               control={control}
               name="studentId"
@@ -113,7 +128,7 @@ export function LoginScreen() {
 
             <Pressable
               style={({ pressed }) => [styles.qr, pressed && { opacity: 0.7 }]}
-              onPress={() => nav.replace('Main')}
+              onPress={() => signIn('WBA-2024-1042', 'guest', role)}
             >
               <Ionicons name="qr-code-outline" size={18} color={colors.white} />
               <Text style={styles.qrTxt}>Scan school ID card</Text>
@@ -156,6 +171,28 @@ const styles = StyleSheet.create({
     marginTop: -8,
   },
   form: { gap: 12, paddingBottom: spacing.l },
+  roleToggle: {
+    flexDirection: 'row',
+    gap: 8,
+    padding: 4,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  roleChip: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+  },
+  roleChipActive: { backgroundColor: colors.white },
+  roleChipText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  roleChipTextActive: { color: colors.primary },
   label: {
     fontFamily: fontFamily.bold,
     fontSize: 11,
