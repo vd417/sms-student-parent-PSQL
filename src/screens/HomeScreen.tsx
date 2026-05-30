@@ -31,8 +31,60 @@ type Nav = BottomTabNavigationProp<TabParamList, 'Home'> & {
   navigate: NativeStackNavigationProp<RootStackParamList>['navigate'];
 };
 
+const EMPTY_STUDENT: Student = {
+  name: '',
+  initials: '',
+  grade: '',
+  roll: 0,
+  school: '',
+  studentId: '',
+  email: '',
+  classroom: '',
+  house: '',
+  overallAvg: 0,
+  attnPct: 0,
+  rank: 0,
+  rankOf: 0,
+};
+
+const EMPTY_SUBJECT: Subject = {
+  id: '',
+  name: '',
+  short: '',
+  teacher: '',
+  avg: 0,
+  trend: 0,
+  color: 'blue',
+};
+
 export function HomeScreen() {
   const nav = useNavigation<Nav>();
+
+  const profileQ = useStudentProfile();
+  const todayQ = useToday();
+  const homeworkQ = useHomework();
+  const subjectsQ = useSubjects();
+  const annQ = useAnnouncements('student');
+
+  const isLoading =
+    profileQ.isLoading || todayQ.isLoading || homeworkQ.isLoading || subjectsQ.isLoading || annQ.isLoading;
+  const isError =
+    profileQ.isError || todayQ.isError || homeworkQ.isError || subjectsQ.isError || annQ.isError;
+  const onRefresh = () => {
+    profileQ.refetch();
+    todayQ.refetch();
+    homeworkQ.refetch();
+    subjectsQ.refetch();
+    annQ.refetch();
+  };
+
+  const student = profileQ.data ?? EMPTY_STUDENT;
+  const today = todayQ.data ?? [];
+  const allHomework = homeworkQ.data ?? [];
+  const subjects = subjectsQ.data ?? [];
+  const announcements = annQ.data ?? [];
+  const subjectById = (id: string) =>
+    subjects.find((s) => s.id === id) ?? subjects[0] ?? EMPTY_SUBJECT;
   const todoCount = allHomework.filter(
     (h) => h.status === 'todo' || h.status === 'progress',
   ).length;
