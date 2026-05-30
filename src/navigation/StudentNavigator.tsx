@@ -1,10 +1,10 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { ScheduleScreen } from '@/screens/ScheduleScreen';
-import { HomeworkDetailScreen } from '@/screens/HomeworkDetailScreen';
-import { SubjectDetailScreen } from '@/screens/SubjectDetailScreen';
-import { GradesScreen } from '@/screens/GradesScreen';
-import { ChatThreadScreen } from '@/screens/ChatThreadScreen';
-import { AnnouncementsScreen } from '@/screens/AnnouncementsScreen';
+import { ScheduleScreen } from '@/features/student/screens/ScheduleScreen';
+import { HomeworkDetailScreen } from '@/features/student/screens/HomeworkDetailScreen';
+import { SubjectDetailScreen } from '@/features/student/screens/SubjectDetailScreen';
+import { GradesScreen } from '@/features/student/screens/GradesScreen';
+import { ChatThreadScreen } from '@/features/student/screens/ChatThreadScreen';
+import { AnnouncementsScreen } from '@/features/student/screens/AnnouncementsScreen';
 import { TabNavigator } from './TabNavigator';
 import type { RootStackParamList } from './types';
 

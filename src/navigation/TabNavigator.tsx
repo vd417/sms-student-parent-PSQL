@@ -1,11 +1,11 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily } from '@/theme';
-import { HomeScreen } from '@/screens/HomeScreen';
-import { HomeworkListScreen } from '@/screens/HomeworkListScreen';
-import { SubjectsScreen } from '@/screens/SubjectsScreen';
-import { InboxScreen } from '@/screens/InboxScreen';
-import { ProfileScreen } from '@/screens/ProfileScreen';
+import { HomeScreen } from '@/features/student/screens/HomeScreen';
+import { HomeworkListScreen } from '@/features/student/screens/HomeworkListScreen';
+import { SubjectsScreen } from '@/features/student/screens/SubjectsScreen';
+import { InboxScreen } from '@/features/student/screens/InboxScreen';
+import { ProfileScreen } from '@/features/student/screens/ProfileScreen';
 import type { TabParamList } from './types';
 
 const Tab = createBottomTabNavigator<TabParamList>();
