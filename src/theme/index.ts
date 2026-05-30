@@ -1,4 +1,4 @@
-export { colors, hueColor, primaryGradient } from './colors';
+export { colors, hueColor, hueForName, primaryGradient } from './colors';
 export type { SubjectHue } from './colors';
 export { fontFamily, typography } from './typography';
 

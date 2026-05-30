@@ -1,15 +1,23 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Pill, type PillTone } from '@/components/ui';
 import { colors, fontFamily, hueColor, radius } from '@/theme';
-import { subjectById, type Homework } from '@/data/sample';
+import type { Homework, Subject } from '@/models';
+import { useSubjects } from '@/hooks/useSubjects';
 
 type Props = {
   homework: Homework;
   onPress?: () => void;
 };
 
+const FALLBACK_SUBJECT: Pick<Subject, 'short' | 'name' | 'color'> = {
+  short: '—',
+  name: 'Subject',
+  color: 'blue',
+};
+
 export function HomeworkCard({ homework, onPress }: Props) {
-  const sub = subjectById(homework.subjId);
+  const { data: subjects } = useSubjects();
+  const sub = subjects?.find((s) => s.id === homework.subjId) ?? FALLBACK_SUBJECT;
   const tone: PillTone =
     homework.due === 'Today' ? 'absent' : homework.due === 'Tomorrow' ? 'late' : 'neutral';
   return (

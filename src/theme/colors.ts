@@ -69,3 +69,12 @@ export function hueColor(
 
 // Linear gradient stops for the primary brand gradient.
 export const primaryGradient = [colors.primaryBright, colors.primary, colors.primaryDeep];
+
+// Deterministic subject-hue picker for names (avatars, etc.).
+const HUES: SubjectHue[] = ['coral', 'blue', 'teal', 'pink', 'amber', 'mint'];
+
+export function hueForName(name: string): SubjectHue {
+  let h = 0;
+  for (let i = 0; i < name.length; i += 1) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return HUES[h % HUES.length];
+}

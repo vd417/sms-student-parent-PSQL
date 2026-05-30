@@ -12,6 +12,7 @@ export const qk = {
   announcements: (audience: string) => ['announcements', audience] as const,
   threads: (audience: string) => ['threads', audience] as const,
   messages: (threadId: string) => ['messages', threadId] as const,
+  directory: ['directory', 'teachers'] as const,
   // parent
   parentProfile: ['parent', 'profile'] as const,
   children: ['parent', 'children'] as const,

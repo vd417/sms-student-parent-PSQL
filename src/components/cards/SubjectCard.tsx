@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fontFamily, hueColor, radius } from '@/theme';
-import type { Subject } from '@/data/sample';
+import type { Subject } from '@/models';
 
 type Props = {
   subject: Subject;
