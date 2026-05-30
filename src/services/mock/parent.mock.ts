@@ -2,19 +2,66 @@ import type {
   AttendanceService, FeesService, LeaveService, ParentService,
   PTMService, TransportService,
 } from '@/services/types';
-import { NotImplementedError } from '@/services/errors';
+import { db } from './db';
+import { withLatency } from './latency';
+import { attendanceFor } from './fixtures/parent';
 
-const ni = (what: string): never => {
-  throw new NotImplementedError(what);
-};
+interface Opts { ms?: number; errorRate?: number }
+let leaveCounter = 0;
 
-export const parentMock = (): ParentService => ({
-  getProfile: () => ni('parent.getProfile'),
-  children: () => ni('parent.children'),
-  childToday: () => ni('parent.childToday'),
-});
-export const feesMock = (): FeesService => ({ list: () => ni('fees.list'), pay: () => ni('fees.pay') });
-export const ptmMock = (): PTMService => ({ list: () => ni('ptm.list'), setStatus: () => ni('ptm.setStatus') });
-export const transportMock = (): TransportService => ({ forChild: () => ni('transport.forChild') });
-export const attendanceMock = (): AttendanceService => ({ month: () => ni('attendance.month') });
-export const leaveMock = (): LeaveService => ({ list: () => ni('leave.list'), submit: () => ni('leave.submit') });
+export function parentMock(opts: Opts = {}): ParentService {
+  return {
+    getProfile: () => withLatency(() => db.parent!, opts),
+    children: () => withLatency(() => db.children!, opts),
+    childToday: (childId) => withLatency(() => db.childToday![childId], opts),
+  };
+}
+
+export function feesMock(opts: Opts = {}): FeesService {
+  return {
+    list: (_childId) => withLatency(() => db.fees!, opts), // single-child fee set in mock
+    pay: (feeId) =>
+      withLatency(() => {
+        const fee = db.fees!.find((f) => f.id === feeId);
+        if (!fee) throw new Error(`Fee ${feeId} not found`);
+        fee.status = 'paid';
+        fee.paidOn = 'today';
+        fee.method = 'Visa •• 4421';
+        return fee;
+      }, opts),
+  };
+}
+
+export function ptmMock(opts: Opts = {}): PTMService {
+  return {
+    list: () => withLatency(() => db.ptm!, opts),
+    setStatus: (id, status) =>
+      withLatency(() => {
+        const m = db.ptm!.find((x) => x.id === id);
+        if (!m) throw new Error(`PTM ${id} not found`);
+        m.status = status;
+        return m;
+      }, opts),
+  };
+}
+
+export function transportMock(opts: Opts = {}): TransportService {
+  return { forChild: (_childId) => withLatency(() => db.transport!, opts) };
+}
+
+export function attendanceMock(opts: Opts = {}): AttendanceService {
+  return { month: (childId) => withLatency(() => attendanceFor(childId), opts) };
+}
+
+export function leaveMock(opts: Opts = {}): LeaveService {
+  return {
+    list: (childId) => withLatency(() => db.leave!.filter((l) => l.childId === childId), opts),
+    submit: (req) =>
+      withLatency(() => {
+        leaveCounter += 1;
+        const created = { ...req, id: `lv-${leaveCounter}`, status: 'pending' as const };
+        db.leave!.push(created);
+        return created;
+      }, opts),
+  };
+}
