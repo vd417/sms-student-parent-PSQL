@@ -4,6 +4,7 @@ import type {
   Student, Subject, Teacher, TodayBlock, Transport,
 } from '@/models';
 import * as student from './fixtures/student';
+import * as parent from './fixtures/parent';
 
 function clone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v));
@@ -49,4 +50,15 @@ export const db: MockDb = {
   achievements: clone(student.achievements),
   studentThreads: clone(student.studentThreads),
   studentMessages: clone(student.studentMessages),
+  // parent
+  parent: clone(parent.parentProfile),
+  children: clone(parent.children),
+  childToday: clone(parent.childToday),
+  fees: clone(parent.fees),
+  ptm: clone(parent.ptm),
+  parentThreads: clone(parent.parentThreads),
+  parentMessages: clone(parent.parentMessages),
+  parentAnnouncements: clone(parent.parentAnnouncements),
+  transport: clone(parent.transport),
+  leave: [],
 };
