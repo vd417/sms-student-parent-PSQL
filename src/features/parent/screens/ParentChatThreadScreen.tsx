@@ -16,7 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Avatar, Empty, IconButton, Loading } from '@/components/ui';
 import { useThreads, useMessages, useSendMessage } from '@/hooks/useMessaging';
 import { useChildren } from '@/hooks/useParent';
-import { colors, fontFamily, hueForName, radius } from '@/theme';
+import { colors, fontFamily, hueForName, radius, spacing } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<ParentStackParamList, 'ChatThread'>;

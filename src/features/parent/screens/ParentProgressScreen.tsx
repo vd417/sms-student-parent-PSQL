@@ -5,14 +5,7 @@ import { KidSwitcher } from '../components/KidSwitcher';
 import { useChildren } from '@/hooks/useParent';
 import { useSubjects } from '@/hooks/useSubjects';
 import { useSelectedChild } from '@/providers/ChildProvider';
-import {
-  colors,
-  fontFamily,
-  hueColor,
-  radius,
-  primaryGradient,
-  typography,
-} from '@/theme';
+import { colors, fontFamily, hueColor, radius, primaryGradient, typography } from '@/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export function ParentProgressScreen() {
