@@ -17,6 +17,7 @@ import type {
   Peer,
   PTMMeeting,
   Role,
+  School,
   Session,
   Student,
   Subject,
@@ -97,8 +98,13 @@ export interface LeaveService {
   submit(req: Omit<LeaveRequest, 'id' | 'status'>): Promise<LeaveRequest>;
 }
 
+export interface SchoolService {
+  getCurrent(): Promise<School>;
+}
+
 export interface Services {
   auth: AuthService;
+  school: SchoolService;
   student: StudentService;
   subjects: SubjectsService;
   homework: HomeworkService;

@@ -13,6 +13,7 @@ import type {
   Parent,
   Peer,
   PTMMeeting,
+  School,
   Student,
   Subject,
   Teacher,
@@ -21,12 +22,15 @@ import type {
 } from '@/models';
 import * as student from './fixtures/student';
 import * as parent from './fixtures/parent';
+import * as schoolFx from './fixtures/school';
 
 function clone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v));
 }
 
 export interface MockDb {
+  // school
+  school: School;
   // student
   student: Student;
   subjects: Subject[];
@@ -54,6 +58,7 @@ export interface MockDb {
 }
 
 export const db: MockDb = {
+  school: clone(schoolFx.school),
   student: clone(student.studentProfile),
   subjects: clone(student.subjects),
   today: clone(student.today),

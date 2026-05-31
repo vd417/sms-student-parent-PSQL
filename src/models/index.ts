@@ -236,6 +236,14 @@ export interface LeaveRequest {
   status: 'pending' | 'approved' | 'rejected';
 }
 
+// ---------- school ----------
+export interface School {
+  id: string;
+  name: string;
+  shortName?: string;
+  logoUrl: string;
+}
+
 // ---------- auth ----------
 export interface Session {
   token: string;

@@ -11,6 +11,7 @@ import {
   subjectsMock,
 } from './mock/student.mock';
 import { homeworkMock } from './mock/homework.mock';
+import { schoolMock } from './mock/school.mock';
 import { authMock } from './mock/auth.mock';
 import {
   parentMock,
@@ -23,6 +24,7 @@ import {
 
 function mockServices(): Services {
   return {
+    school: schoolMock(),
     auth: authMock(),
     student: studentMock(),
     subjects: subjectsMock(),

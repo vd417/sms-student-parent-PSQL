@@ -6,6 +6,7 @@ const ni = (what: string) => {
 };
 
 export const httpServices: Services = {
+  school: { getCurrent: () => ni('school.getCurrent') },
   auth: {
     signIn: () => ni('auth.signIn'),
     signOut: () => ni('auth.signOut'),

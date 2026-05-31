@@ -12,4 +12,17 @@ describe('buildServices', () => {
     const s = buildServices('http');
     expect(() => s.homework.list()).toThrow(/Not implemented/);
   });
+
+  test('exposes a school service in the mock registry', () => {
+    const mock = buildServices('mock');
+    expect(mock.school).toBeDefined();
+    expect(typeof mock.school.getCurrent).toBe('function');
+  });
+
+  test('mock school.getCurrent resolves to the seeded school', async () => {
+    const mock = buildServices('mock');
+    const school = await mock.school.getCurrent();
+    expect(school.name).toBe('Westbrook Academy');
+    expect(school.id).toBe('sch-001');
+  });
 });

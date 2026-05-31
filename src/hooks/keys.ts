@@ -1,4 +1,5 @@
 export const qk = {
+  school: ['school'] as const,
   studentProfile: ['student', 'profile'] as const,
   today: ['student', 'today'] as const,
   peers: ['student', 'peers'] as const,
