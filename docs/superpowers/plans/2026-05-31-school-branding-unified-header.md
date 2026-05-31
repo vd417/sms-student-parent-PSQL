@@ -11,9 +11,9 @@
 **Conventions confirmed from the codebase (follow exactly):**
 - Models: `export interface X {}` in `src/models/index.ts`, imported via `@/models`.
 - Service interfaces in `src/services/types.ts`; the `Services` interface lists every domain. Adding a domain there REQUIRES adding it to both `mockServices()` (`src/services/index.ts`) and `httpServices` (`src/services/http/index.ts`) or `tsc` fails — do them in one task.
-- Mock service = a factory returning an object whose methods call `withLatency(db.<x>)` (`src/services/mock/latency.ts`).
+- Mock service = a factory `xMock(opts: Opts = {})` returning an object whose methods call `withLatency(() => db.<x>, opts)` — note `withLatency` takes a **thunk**, not a value (`src/services/mock/latency.ts`).
 - Fixtures live in `src/services/mock/fixtures/*.ts`; `db.ts` deep-`clone()`s them into `db`.
-- HTTP impls are `makeStub<Services['x']>()` Proxies that throw `NotImplementedError` (the real `apiFetch` swap is a later dev's job — keep the stub style consistent).
+- HTTP impls live in one literal `httpServices: Services` object in `src/services/http/index.ts`; each method is `() => ni('domain.method')` where `ni` throws `NotImplementedError` (the real `apiFetch` swap is a later dev's job — keep the stub style consistent).
 - Hooks = thin `useQuery({ queryKey: qk.x, queryFn: () => services.x.method() })` (`src/hooks/`), keys in `src/hooks/keys.ts`.
 - UI components in `src/components/ui/`, re-exported from `src/components/ui/index.ts`.
 - Path alias `@/` → `src/`.
@@ -141,26 +141,31 @@ Add to the `db` object literal:
 
 - [ ] **Step 7: Create the mock service**
 
-Create `src/services/mock/school.mock.ts`:
+Create `src/services/mock/school.mock.ts` (mirrors the `opts`/thunk shape of the other mocks, e.g. `studentMock`):
 
 ```ts
 import type { SchoolService } from '../types';
 import { db } from './db';
 import { withLatency } from './latency';
 
-export function schoolMock(): SchoolService {
+interface Opts {
+  ms?: number;
+  errorRate?: number;
+}
+
+export function schoolMock(opts: Opts = {}): SchoolService {
   return {
-    getCurrent: () => withLatency(db.school),
+    getCurrent: () => withLatency(() => db.school, opts),
   };
 }
 ```
 
 - [ ] **Step 8: Add the HTTP stub**
 
-In `src/services/http/index.ts`, add to the `httpServices` object literal:
+In `src/services/http/index.ts`, add to the `httpServices` object literal (matches the existing `() => ni('domain.method')` style):
 
 ```ts
-  school: makeStub<Services['school']>(),
+  school: { getCurrent: () => ni('school.getCurrent') },
 ```
 
 - [ ] **Step 9: Wire the mock into the registry**
