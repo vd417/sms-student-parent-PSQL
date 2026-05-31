@@ -5,7 +5,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { Card, ErrorState, IconButton, Loading, Pill, SectionHeader } from '@/components/ui';
+import {
+  Card,
+  ErrorState,
+  IconButton,
+  Loading,
+  Pill,
+  SchoolBadge,
+  SectionHeader,
+} from '@/components/ui';
 import { SubjectCard } from '@/components/cards/SubjectCard';
 import { HomeworkCard } from '@/components/cards/HomeworkCard';
 import { useStudentProfile, useToday } from '@/hooks/useStudent';
@@ -109,6 +117,9 @@ export function HomeScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.hero}
           >
+            <View style={styles.brandRow}>
+              <SchoolBadge light />
+            </View>
             <View style={styles.heroTop}>
               <Text style={styles.heroEyebrow}>UP NEXT</Text>
               <Pill tone="primary_solid" style={styles.heroPill}>
@@ -253,6 +264,7 @@ const styles = StyleSheet.create({
   date: { marginTop: 2 },
   heroWrap: { borderRadius: radius.lg, overflow: 'hidden' },
   hero: { padding: 16 },
+  brandRow: { marginBottom: spacing.m },
   heroTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',

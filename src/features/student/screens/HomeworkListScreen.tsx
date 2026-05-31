@@ -8,6 +8,7 @@ import {
   IconButton,
   Loading,
   Pill,
+  SchoolBadge,
   ScreenHeader,
   TabBar,
   type PillTone,
@@ -76,6 +77,9 @@ export function HomeworkListScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.header}>
+        <SchoolBadge />
+      </View>
       <ScreenHeader
         kicker="Term 4 · Apr–Jun"
         title="Homework"
@@ -189,6 +193,7 @@ function SummaryCard({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.paper },
+  header: { paddingHorizontal: spacing.l, paddingTop: spacing.m, gap: spacing.s },
   content: { paddingHorizontal: spacing.l, paddingBottom: 24 },
   summaryRow: { flexDirection: 'row', gap: 8 },
   summary: {

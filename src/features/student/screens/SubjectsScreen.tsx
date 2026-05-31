@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ErrorState, IconButton, Loading, SectionHeader } from '@/components/ui';
+import { ErrorState, IconButton, Loading, SchoolBadge, SectionHeader } from '@/components/ui';
 import { SubjectCard } from '@/components/cards/SubjectCard';
 import { useSubjects } from '@/hooks/useSubjects';
 import { colors, fontFamily, hueColor, radius, spacing, typography } from '@/theme';
@@ -45,6 +45,7 @@ export function SubjectsScreen() {
         }
       >
         <View style={styles.headerRow}>
+          <SchoolBadge />
           <Text style={typography.h1}>My subjects</Text>
           <IconButton icon="search" />
         </View>
@@ -126,6 +127,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 8,
+    gap: spacing.s,
   },
   grid: {
     flexDirection: 'row',

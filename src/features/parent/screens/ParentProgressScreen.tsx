@@ -1,11 +1,19 @@
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ErrorState, Loading } from '@/components/ui';
+import { ErrorState, Loading, SchoolBadge } from '@/components/ui';
 import { KidSwitcher } from '../components/KidSwitcher';
 import { useChildren } from '@/hooks/useParent';
 import { useSubjects } from '@/hooks/useSubjects';
 import { useSelectedChild } from '@/providers/ChildProvider';
-import { colors, fontFamily, hueColor, radius, primaryGradient, typography } from '@/theme';
+import {
+  colors,
+  fontFamily,
+  hueColor,
+  radius,
+  primaryGradient,
+  spacing,
+  typography,
+} from '@/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export function ParentProgressScreen() {
@@ -50,6 +58,7 @@ export function ParentProgressScreen() {
         }
       >
         <View style={styles.header}>
+          <SchoolBadge />
           <Text style={styles.kicker}>Term 4 · 2026</Text>
           <Text style={[typography.h1, { marginTop: 2 }]}>Progress</Text>
         </View>
@@ -139,7 +148,7 @@ function HeroStat({ label, value, divider }: { label: string; value: string; div
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.paper },
-  header: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 12 },
+  header: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 12, gap: spacing.s },
   kicker: { fontFamily: fontFamily.semiBold, fontSize: 13, color: colors.inkMuted },
   hero: { borderRadius: radius.lg, padding: 18 },
   heroEyebrow: {

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Card, ErrorState, IconButton, Loading, SectionHeader } from '@/components/ui';
+import { Card, ErrorState, IconButton, Loading, SchoolBadge, SectionHeader } from '@/components/ui';
 import { useStudentProfile, useAchievements } from '@/hooks/useStudent';
 import { useAuth } from '@/providers/AuthProvider';
 import { colors, fontFamily, hueColor, primaryGradient, radius, spacing } from '@/theme';
@@ -64,6 +64,9 @@ export function ProfileScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.hero}
         >
+          <View style={styles.brandRow}>
+            <SchoolBadge light />
+          </View>
           <View style={styles.heroTop}>
             <Text style={styles.heroTitle}>Profile</Text>
             <IconButton icon="settings-outline" dark />
@@ -204,6 +207,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.paper },
   content: { paddingHorizontal: spacing.l, paddingTop: 14, paddingBottom: 24 },
   hero: { padding: 18, borderRadius: radius.xl },
+  brandRow: { marginBottom: spacing.m },
   heroTop: {
     flexDirection: 'row',
     alignItems: 'center',

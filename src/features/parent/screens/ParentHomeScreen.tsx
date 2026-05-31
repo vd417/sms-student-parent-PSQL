@@ -11,13 +11,14 @@ import {
   IconButton,
   Loading,
   Pill,
+  SchoolBadge,
   SectionHeader,
 } from '@/components/ui';
 import { KidSwitcher } from '../components/KidSwitcher';
 import { useChildren, useChildToday, useParentProfile } from '@/hooks/useParent';
 import { useAnnouncements } from '@/hooks/useAnnouncements';
 import { useSelectedChild } from '@/providers/ChildProvider';
-import { colors, fontFamily, hueColor, radius, typography } from '@/theme';
+import { colors, fontFamily, hueColor, radius, spacing, typography } from '@/theme';
 import type { ParentStackParamList, ParentTabParamList } from '@/navigation/types';
 
 type Nav = BottomTabNavigationProp<ParentTabParamList, 'Home'> & {
@@ -91,6 +92,9 @@ export function ParentHomeScreen() {
         {/* Today snapshot hero */}
         <View style={{ paddingHorizontal: 18 }}>
           <View style={[styles.hero, { backgroundColor: hueColor(child.hue) }]}>
+            <View style={styles.brandRow}>
+              <SchoolBadge light />
+            </View>
             <View style={styles.heroTop}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.heroEyebrow}>{child.name}&apos;s day</Text>
@@ -231,6 +235,7 @@ const styles = StyleSheet.create({
   },
   greet: { fontFamily: fontFamily.semiBold, fontSize: 13, color: colors.inkMuted },
   hero: { borderRadius: radius.lg, padding: 18 },
+  brandRow: { marginBottom: spacing.m },
   heroTop: { flexDirection: 'row', alignItems: 'flex-start' },
   heroEyebrow: {
     fontFamily: fontFamily.bold,

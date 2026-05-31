@@ -2,10 +2,18 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Button, Empty, ErrorState, IconButton, Loading, ScreenHeader } from '@/components/ui';
+import {
+  Button,
+  Empty,
+  ErrorState,
+  IconButton,
+  Loading,
+  SchoolBadge,
+  ScreenHeader,
+} from '@/components/ui';
 import { useFees, usePayFee } from '@/hooks/useFees';
 import { useSelectedChild } from '@/providers/ChildProvider';
-import { colors, fontFamily, primaryGradient, radius, typography } from '@/theme';
+import { colors, fontFamily, primaryGradient, radius, spacing, typography } from '@/theme';
 
 export function ParentFeesScreen() {
   const { childId } = useSelectedChild();
@@ -35,6 +43,9 @@ export function ParentFeesScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.header}>
+        <SchoolBadge />
+      </View>
       <ScreenHeader
         kicker="Fees"
         title="Fees & payments"
@@ -120,6 +131,7 @@ export function ParentFeesScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.paper },
+  header: { paddingHorizontal: spacing.l, paddingTop: spacing.m, gap: spacing.s },
   hero: { borderRadius: radius.lg, padding: 18 },
   heroEyebrow: {
     fontFamily: fontFamily.bold,

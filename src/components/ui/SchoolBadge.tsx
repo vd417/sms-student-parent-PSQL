@@ -5,18 +5,20 @@ import { colors, fontFamily, spacing, typography } from '@/theme';
 import { useSchool } from '@/hooks/useSchool';
 import { monogramFromName } from './monogram';
 
-type Props = { compact?: boolean };
+type Props = { compact?: boolean; light?: boolean };
 
-export function SchoolBadge({ compact = false }: Props) {
+export function SchoolBadge({ compact = false, light = false }: Props) {
   const { data: school, isLoading } = useSchool();
   const [imgFailed, setImgFailed] = useState(false);
 
   const showImage = !!school?.logoUrl && !imgFailed;
   const name = school ? (compact && school.shortName ? school.shortName : school.name) : '';
+  const circleBg = light ? colors.white : colors.primary;
+  const glyph = light ? colors.primary : colors.white;
 
   return (
     <View style={styles.row}>
-      <View style={styles.logo}>
+      <View style={[styles.logo, { backgroundColor: circleBg }]}>
         {isLoading ? (
           <View style={styles.skeleton} />
         ) : showImage ? (
@@ -26,12 +28,15 @@ export function SchoolBadge({ compact = false }: Props) {
             onError={() => setImgFailed(true)}
           />
         ) : school ? (
-          <Text style={styles.monogram}>{monogramFromName(school.name)}</Text>
+          <Text style={[styles.monogram, { color: glyph }]}>{monogramFromName(school.name)}</Text>
         ) : (
-          <Ionicons name="school" size={18} color={colors.white} />
+          <Ionicons name="school" size={18} color={glyph} />
         )}
       </View>
-      <Text style={[typography.bodyStrong, styles.name]} numberOfLines={1}>
+      <Text
+        style={[typography.bodyStrong, styles.name, light && { color: colors.white }]}
+        numberOfLines={1}
+      >
         {isLoading ? 'Loading…' : name || 'School'}
       </Text>
     </View>

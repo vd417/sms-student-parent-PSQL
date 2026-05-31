@@ -2,10 +2,18 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Card, ErrorState, IconButton, Loading, Pill, SectionHeader } from '@/components/ui';
+import {
+  Card,
+  ErrorState,
+  IconButton,
+  Loading,
+  Pill,
+  SchoolBadge,
+  SectionHeader,
+} from '@/components/ui';
 import { useChildren, useParentProfile } from '@/hooks/useParent';
 import { useAuth } from '@/providers/AuthProvider';
-import { colors, fontFamily, hueColor, primaryGradient, radius } from '@/theme';
+import { colors, fontFamily, hueColor, primaryGradient, radius, spacing } from '@/theme';
 
 export function ParentProfileScreen() {
   const { signOut } = useAuth();
@@ -50,6 +58,9 @@ export function ParentProfileScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.hero}
         >
+          <View style={styles.brandRow}>
+            <SchoolBadge light />
+          </View>
           <View style={styles.heroTop}>
             <Text style={styles.heroTitle}>Profile</Text>
             <IconButton icon="settings-outline" dark />
@@ -154,6 +165,7 @@ function ProfileRow({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.paper },
   hero: { padding: 18, borderRadius: radius.xl },
+  brandRow: { marginBottom: spacing.m },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroTitle: {
     fontFamily: fontFamily.extraBold,

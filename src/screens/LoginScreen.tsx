@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
-import { Button } from '@/components/ui';
+import { Button, SchoolBadge } from '@/components/ui';
 import { colors, fontFamily, primaryGradient, radius, spacing } from '@/theme';
 import type { Role } from '@/models';
 import { useAuth } from '@/providers/AuthProvider';
@@ -52,10 +52,9 @@ export function LoginScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.hero}>
-            <View style={styles.logo}>
-              <Ionicons name="school" size={56} color={colors.white} />
+            <View style={styles.brandWrap}>
+              <SchoolBadge light />
             </View>
-            <Text style={styles.brand}>School Desk</Text>
             <Text style={styles.tagline}>For students · Grade 4 to 12</Text>
           </View>
 
@@ -150,22 +149,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   safe: { flex: 1, paddingHorizontal: spacing.xxl },
   hero: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16 },
-  logo: {
-    width: 96,
-    height: 96,
-    borderRadius: radius.xl,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderColor: 'rgba(255,255,255,0.25)',
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brand: {
-    fontFamily: fontFamily.extraBold,
-    fontSize: 36,
-    color: colors.white,
-    letterSpacing: -0.6,
-  },
+  brandWrap: { marginBottom: spacing.l },
   tagline: {
     fontFamily: fontFamily.semiBold,
     fontSize: 14,

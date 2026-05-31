@@ -2,10 +2,18 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Avatar, Empty, ErrorState, IconButton, Loading, SearchField } from '@/components/ui';
+import {
+  Avatar,
+  Empty,
+  ErrorState,
+  IconButton,
+  Loading,
+  SchoolBadge,
+  SearchField,
+} from '@/components/ui';
 import { useThreads } from '@/hooks/useMessaging';
 import { useChildren } from '@/hooks/useParent';
-import { colors, fontFamily, hueColor, hueForName, radius, typography } from '@/theme';
+import { colors, fontFamily, hueColor, hueForName, radius, spacing, typography } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<ParentStackParamList>;
@@ -53,6 +61,7 @@ export function ParentChatScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
+        <SchoolBadge />
         <Text style={typography.h1}>Inbox</Text>
         <IconButton icon="create-outline" />
       </View>
@@ -129,6 +138,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 18,
     paddingTop: 8,
+    gap: spacing.s,
   },
   row: {
     flexDirection: 'row',

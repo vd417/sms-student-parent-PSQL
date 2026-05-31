@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Avatar, ErrorState, IconButton, Loading, SearchField } from '@/components/ui';
+import { Avatar, ErrorState, IconButton, Loading, SchoolBadge, SearchField } from '@/components/ui';
 import { useDirectory } from '@/hooks/useDirectory';
 import { usePeers } from '@/hooks/useStudent';
 import { colors, fontFamily, hueForName, radius, spacing, typography } from '@/theme';
@@ -51,6 +51,7 @@ export function InboxScreen() {
         }
       >
         <View style={styles.headerRow}>
+          <SchoolBadge />
           <Text style={typography.h1}>Inbox</Text>
           <IconButton icon="create-outline" />
         </View>
@@ -109,6 +110,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 8,
+    gap: spacing.s,
   },
   row: {
     flexDirection: 'row',
