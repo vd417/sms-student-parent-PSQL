@@ -46,3 +46,30 @@ variants — see `src/theme/colors.ts`.
 - Tabs: `Home`, `Homework`, `Subjects`, `Inbox`, `Profile`.
 - Detail destinations off the stack: `Schedule`, `HomeworkDetail`, `SubjectDetail`,
   `Grades`, `ChatThread`, `Announcements`.
+
+## Data layer & API swap
+
+Screens never call the network directly. The flow is:
+
+```
+Screen → React Query hook → Service interface → [ Mock impl | HTTP impl ]
+```
+
+Hooks live in `src/hooks/`, service interfaces in `src/services/types.ts`, and the
+registry in `src/services/index.ts` picks the implementation from the `DATA_SOURCE`
+flag (`app.json` → `expo.extra.dataSource`, default `'mock'`). To move a domain to a
+real backend: implement its methods in `src/services/http/*.http.ts` using
+`src/api/client.ts`, then set `dataSource: 'http'` (and `apiBaseUrl`). No screen or
+hook changes needed — the mock impl stays as an offline/test backend.
+
+### School branding (logo + name)
+
+The current school's identity is a normal data domain: `useSchool()` →
+`SchoolService.getCurrent()` returns `{ id, name, shortName?, logoUrl }`. In mock mode
+it comes from `src/services/mock/fixtures/school.ts`; for a real backend, implement
+`src/services/http/school.http.ts` (e.g. `apiFetch<School>('/school')`) and flip the
+`DATA_SOURCE` flag. The tenant is resolved **server-side from the auth token**, so the
+app never sends a `schoolId`. Branding is **view-only**: the school admin sets the logo
+and name via the backend; the app only displays them through `<SchoolBadge />` (shown on
+the top-level tab screens, Login, and Profile, with a monogram fallback when no logo is
+available).
