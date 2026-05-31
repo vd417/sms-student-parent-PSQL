@@ -2,15 +2,17 @@ import { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily, spacing, typography } from '@/theme';
+import { SchoolBadge } from './SchoolBadge';
 
 type Props = {
-  title: string;
+  title?: string;
   kicker?: string;
   onBack?: () => void;
   right?: ReactNode;
+  brand?: boolean;
 };
 
-export function ScreenHeader({ title, kicker, onBack, right }: Props) {
+export function ScreenHeader({ title, kicker, onBack, right, brand }: Props) {
   return (
     <View style={styles.root}>
       <View style={styles.row}>
@@ -25,10 +27,18 @@ export function ScreenHeader({ title, kicker, onBack, right }: Props) {
           <View style={{ width: 40 }} />
         )}
         <View style={styles.center}>
-          {kicker ? <Text style={typography.eyebrow}>{kicker}</Text> : null}
-          <Text style={[typography.h1, styles.title]} numberOfLines={1}>
-            {title}
-          </Text>
+          {brand ? (
+            <SchoolBadge />
+          ) : (
+            <>
+              {kicker ? <Text style={typography.eyebrow}>{kicker}</Text> : null}
+              {title ? (
+                <Text style={[typography.h1, styles.title]} numberOfLines={1}>
+                  {title}
+                </Text>
+              ) : null}
+            </>
+          )}
         </View>
         <View style={styles.right}>{right}</View>
       </View>
