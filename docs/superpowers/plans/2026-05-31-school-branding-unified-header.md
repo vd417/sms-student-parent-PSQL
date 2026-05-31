@@ -36,11 +36,11 @@
 - Modify: `src/services/http/index.ts`
 - Modify: `src/services/index.ts`
 - Modify: `src/hooks/keys.ts`
-- Test: `src/services/__tests__/registry.test.ts`
+- Test: `src/services/index.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
-Add these two cases to `src/services/__tests__/registry.test.ts`, inside the existing `describe('service registry', ...)` block:
+Add these two cases to `src/services/index.test.ts`, inside the existing `describe('buildServices', ...)` block (it already imports `buildServices` from `./index`):
 
 ```ts
   it('exposes a school service in the mock registry', () => {
@@ -59,7 +59,7 @@ Add these two cases to `src/services/__tests__/registry.test.ts`, inside the exi
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `npx jest registry -t "school"`
+Run: `npx jest index -t "school"`
 Expected: FAIL — `mock.school` is undefined / `Property 'school' does not exist on type 'Services'`.
 
 - [ ] **Step 3: Add the `School` model**
@@ -194,15 +194,15 @@ In `src/hooks/keys.ts`, add inside the `qk` object:
 
 - [ ] **Step 11: Run the test + gates to verify they pass**
 
-Run: `npx jest registry`
-Expected: PASS (all registry cases, including the two new `school` ones).
+Run: `npx jest index`
+Expected: PASS (all `buildServices` cases, including the two new `school` ones).
 Run: `npx tsc --noEmit`
 Expected: only the 1 known pre-existing `App.tsx` error.
 
 - [ ] **Step 12: Commit**
 
 ```bash
-git add src/models/index.ts src/services/types.ts src/services/mock/fixtures/school.ts src/services/mock/school.mock.ts src/services/mock/db.ts src/services/http/index.ts src/services/index.ts src/hooks/keys.ts src/services/__tests__/registry.test.ts
+git add src/models/index.ts src/services/types.ts src/services/mock/fixtures/school.ts src/services/mock/school.mock.ts src/services/mock/db.ts src/services/http/index.ts src/services/index.ts src/hooks/keys.ts src/services/index.test.ts
 git commit -m "feat: add School branding domain (model, service, mock, registry)"
 ```
 
