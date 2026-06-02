@@ -2,21 +2,15 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  Button,
-  Empty,
-  ErrorState,
-  IconButton,
-  Loading,
-  SchoolBadge,
-  ScreenHeader,
-} from '@/components/ui';
+import { Button, Empty, ErrorState, IconButton, Loading, ScreenHeader } from '@/components/ui';
 import { useFees, usePayFee } from '@/hooks/useFees';
 import { useSelectedChild } from '@/providers/ChildProvider';
+import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, primaryGradient, radius, spacing, typography } from '@/theme';
 
 export function ParentFeesScreen() {
   const { childId } = useSelectedChild();
+  const toast = useToast();
   const feesQ = useFees(childId);
   const payMut = usePayFee(childId);
 
@@ -43,13 +37,10 @@ export function ParentFeesScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <SchoolBadge />
-      </View>
       <ScreenHeader
         kicker="Fees"
         title="Fees & payments"
-        right={<IconButton icon="download-outline" />}
+        right={<IconButton icon="download-outline" onPress={() => toast('Coming soon')} />}
       />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}

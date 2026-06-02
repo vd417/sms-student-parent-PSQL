@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ErrorState, IconButton, Loading, ScreenHeader } from '@/components/ui';
 import { useStudentProfile } from '@/hooks/useStudent';
 import { useSubjects } from '@/hooks/useSubjects';
+import { useToast } from '@/providers/ToastProvider';
 import {
   colors,
   fontFamily,
@@ -21,6 +22,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function GradesScreen() {
   const nav = useNavigation<Nav>();
+  const toast = useToast();
   const profileQ = useStudentProfile();
   const subjectsQ = useSubjects();
 
@@ -57,7 +59,7 @@ export function GradesScreen() {
         kicker="Term 4 · 2026"
         title="Report card"
         onBack={() => nav.goBack()}
-        right={<IconButton icon="download-outline" />}
+        right={<IconButton icon="download-outline" onPress={() => toast('Coming soon')} />}
       />
       <ScrollView
         contentContainerStyle={styles.content}

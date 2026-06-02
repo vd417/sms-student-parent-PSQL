@@ -8,13 +8,13 @@ import {
   IconButton,
   Loading,
   Pill,
-  SchoolBadge,
   ScreenHeader,
   TabBar,
   type PillTone,
 } from '@/components/ui';
 import { useHomework } from '@/hooks/useHomework';
 import { useSubjects } from '@/hooks/useSubjects';
+import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueColor, radius, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -23,6 +23,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export function HomeworkListScreen() {
   const nav = useNavigation<Nav>();
+  const toast = useToast();
   const [tab, setTab] = useState<Tab>('todo');
 
   const homeworkQ = useHomework();
@@ -41,7 +42,7 @@ export function HomeworkListScreen() {
         <ScreenHeader
           kicker="Term 4 · Apr–Jun"
           title="Homework"
-          right={<IconButton icon="filter" />}
+          right={<IconButton icon="filter" onPress={() => toast('Coming soon')} />}
         />
         <Loading />
       </SafeAreaView>
@@ -53,7 +54,7 @@ export function HomeworkListScreen() {
         <ScreenHeader
           kicker="Term 4 · Apr–Jun"
           title="Homework"
-          right={<IconButton icon="filter" />}
+          right={<IconButton icon="filter" onPress={() => toast('Coming soon')} />}
         />
         <ErrorState onRetry={onRefresh} />
       </SafeAreaView>
@@ -77,13 +78,10 @@ export function HomeworkListScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <SchoolBadge />
-      </View>
       <ScreenHeader
         kicker="Term 4 · Apr–Jun"
         title="Homework"
-        right={<IconButton icon="filter" />}
+        right={<IconButton icon="filter" onPress={() => toast('Coming soon')} />}
       />
 
       <ScrollView

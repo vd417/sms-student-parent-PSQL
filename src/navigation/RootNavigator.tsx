@@ -1,6 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { useAuth } from '@/providers/AuthProvider';
-import { LoginScreen } from '@/screens/LoginScreen';
+import { AuthNavigator } from './AuthNavigator';
 import { StudentNavigator } from './StudentNavigator';
 import { ParentNavigator } from './ParentNavigator';
 
@@ -9,7 +9,7 @@ export function RootNavigator() {
   return (
     <NavigationContainer>
       {status === 'unauthenticated' ? (
-        <LoginScreen />
+        <AuthNavigator />
       ) : role === 'parent' ? (
         <ParentNavigator />
       ) : (

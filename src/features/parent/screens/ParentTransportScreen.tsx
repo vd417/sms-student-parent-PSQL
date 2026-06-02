@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTransport } from '@/hooks/useTransport';
 import { useSelectedChild } from '@/providers/ChildProvider';
+import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, radius } from '@/theme';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -22,6 +23,7 @@ type Nav = NativeStackNavigationProp<ParentStackParamList>;
 
 export function ParentTransportScreen() {
   const nav = useNavigation<Nav>();
+  const toast = useToast();
   const { childId } = useSelectedChild();
   const trQ = useTransport(childId);
 
@@ -50,7 +52,7 @@ export function ParentTransportScreen() {
         kicker={`Bus #${tr.busNo} · ${tr.plate}`}
         title="Bus track"
         onBack={() => nav.goBack()}
-        right={<IconButton icon="notifications-outline" />}
+        right={<IconButton icon="notifications-outline" onPress={() => toast('Coming soon')} />}
       />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -119,8 +121,8 @@ export function ParentTransportScreen() {
               <Text style={styles.driverName}>{tr.driver}</Text>
               <Text style={styles.driverMeta}>Bus #{tr.busNo} · 8 yrs experience</Text>
             </View>
-            <IconButton icon="chatbubble-outline" />
-            <IconButton icon="call-outline" />
+            <IconButton icon="chatbubble-outline" onPress={() => toast('Coming soon')} />
+            <IconButton icon="call-outline" onPress={() => toast('Coming soon')} />
           </Card>
         </View>
 

@@ -15,6 +15,7 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Avatar, Empty, IconButton, Loading } from '@/components/ui';
 import { useThreads, useMessages, useSendMessage } from '@/hooks/useMessaging';
+import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueForName, radius, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -23,6 +24,7 @@ type Route = RouteProp<RootStackParamList, 'ChatThread'>;
 
 export function ChatThreadScreen() {
   const nav = useNavigation<Nav>();
+  const toast = useToast();
   const route = useRoute<Route>();
   const threadId = route.params.id;
 
@@ -66,7 +68,7 @@ export function ChatThreadScreen() {
           <Text style={styles.name}>{headerName}</Text>
           <Text style={styles.subj}>● {headerSubj}</Text>
         </View>
-        <IconButton icon="notifications-outline" size={36} />
+        <IconButton icon="notifications-outline" size={36} onPress={() => toast('Coming soon')} />
       </View>
 
       <KeyboardAvoidingView
@@ -110,7 +112,7 @@ export function ChatThreadScreen() {
         )}
 
         <View style={styles.composer}>
-          <IconButton icon="attach" size={40} />
+          <IconButton icon="attach" size={40} onPress={() => toast('Coming soon')} />
           <TextInput
             value={draft}
             onChangeText={setDraft}

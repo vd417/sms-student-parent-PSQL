@@ -1,6 +1,6 @@
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ErrorState, Loading, SchoolBadge } from '@/components/ui';
+import { ErrorState, Loading } from '@/components/ui';
 import { KidSwitcher } from '../components/KidSwitcher';
 import { useChildren } from '@/hooks/useParent';
 import { useSubjects } from '@/hooks/useSubjects';
@@ -58,7 +58,6 @@ export function ParentProgressScreen() {
         }
       >
         <View style={styles.header}>
-          <SchoolBadge />
           <Text style={styles.kicker}>Term 4 · 2026</Text>
           <Text style={[typography.h1, { marginTop: 2 }]}>Progress</Text>
         </View>

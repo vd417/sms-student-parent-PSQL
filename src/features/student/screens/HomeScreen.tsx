@@ -29,6 +29,7 @@ import {
   spacing,
   typography,
 } from '@/theme';
+import { useToast } from '@/providers/ToastProvider';
 import type { RootStackParamList, TabParamList } from '@/navigation/types';
 
 type Nav = BottomTabNavigationProp<TabParamList, 'Home'> & {
@@ -37,6 +38,7 @@ type Nav = BottomTabNavigationProp<TabParamList, 'Home'> & {
 
 export function HomeScreen() {
   const nav = useNavigation<Nav>();
+  const toast = useToast();
 
   const profileQ = useStudentProfile();
   const todayQ = useToday();
@@ -104,7 +106,7 @@ export function HomeScreen() {
             <Text style={styles.greet}>Hey {student.name.split(' ')[0]} 👋</Text>
             <Text style={[typography.h1, styles.date]}>Friday, Apr 25</Text>
           </View>
-          <IconButton icon="notifications-outline" badge />
+          <IconButton icon="notifications-outline" badge onPress={() => toast('Coming soon')} />
         </View>
 
         <Pressable

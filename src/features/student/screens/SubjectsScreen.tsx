@@ -1,9 +1,17 @@
+import { useState } from 'react';
 import { ScrollView, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ErrorState, IconButton, Loading, SchoolBadge, SectionHeader } from '@/components/ui';
+import {
+  Empty,
+  ErrorState,
+  IconButton,
+  Loading,
+  SearchField,
+  SectionHeader,
+} from '@/components/ui';
 import { SubjectCard } from '@/components/cards/SubjectCard';
 import { useSubjects } from '@/hooks/useSubjects';
 import { colors, fontFamily, hueColor, radius, spacing, typography } from '@/theme';
@@ -14,6 +22,8 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export function SubjectsScreen() {
   const nav = useNavigation<Nav>();
   const subjectsQ = useSubjects();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
 
   if (subjectsQ.isLoading) {
     return (
@@ -30,7 +40,10 @@ export function SubjectsScreen() {
     );
   }
 
-  const subjects = subjectsQ.data!;
+  const q = query.trim().toLowerCase();
+  const subjects = subjectsQ.data!.filter(
+    (s) => !q || s.name.toLowerCase().includes(q) || s.teacher.toLowerCase().includes(q),
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -45,24 +58,43 @@ export function SubjectsScreen() {
         }
       >
         <View style={styles.headerRow}>
-          <SchoolBadge />
           <Text style={typography.h1}>My subjects</Text>
-          <IconButton icon="search" />
+          <IconButton
+            icon={searchOpen ? 'close' : 'search'}
+            onPress={() => {
+              setSearchOpen((v) => !v);
+              setQuery('');
+            }}
+          />
         </View>
 
-        <View style={styles.grid}>
-          {subjects.map((s, i) => (
-            <View
-              key={s.id}
-              style={[styles.gridCell, i % 2 === 0 ? { paddingRight: 6 } : { paddingLeft: 6 }]}
-            >
-              <SubjectCard
-                subject={s}
-                onPress={() => nav.navigate('SubjectDetail', { id: s.id })}
-              />
-            </View>
-          ))}
-        </View>
+        {searchOpen ? (
+          <View style={{ paddingBottom: 14 }}>
+            <SearchField
+              placeholder="Search subjects or teachers"
+              value={query}
+              onChangeText={setQuery}
+            />
+          </View>
+        ) : null}
+
+        {subjects.length === 0 ? (
+          <Empty message={`No subjects match “${query}”`} />
+        ) : (
+          <View style={styles.grid}>
+            {subjects.map((s, i) => (
+              <View
+                key={s.id}
+                style={[styles.gridCell, i % 2 === 0 ? { paddingRight: 6 } : { paddingLeft: 6 }]}
+              >
+                <SubjectCard
+                  subject={s}
+                  onPress={() => nav.navigate('SubjectDetail', { id: s.id })}
+                />
+              </View>
+            ))}
+          </View>
+        )}
 
         <View style={{ marginTop: 24 }}>
           <SectionHeader title="Clubs & cohorts" />

@@ -1,18 +1,12 @@
+import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import {
-  Avatar,
-  Empty,
-  ErrorState,
-  IconButton,
-  Loading,
-  SchoolBadge,
-  SearchField,
-} from '@/components/ui';
+import { Avatar, Empty, ErrorState, IconButton, Loading, SearchField } from '@/components/ui';
 import { useThreads } from '@/hooks/useMessaging';
 import { useChildren } from '@/hooks/useParent';
+import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueColor, hueForName, radius, spacing, typography } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
 
@@ -29,6 +23,8 @@ function initialsFor(name: string): string {
 
 export function ParentChatScreen() {
   const nav = useNavigation<Nav>();
+  const toast = useToast();
+  const [query, setQuery] = useState('');
   const threadsQ = useThreads('parent');
   const childrenQ = useChildren();
 
@@ -54,23 +50,25 @@ export function ParentChatScreen() {
     );
   }
 
-  const threads = threadsQ.data!;
+  const q = query.trim().toLowerCase();
+  const threads = threadsQ.data!.filter(
+    (t) => !q || t.name.toLowerCase().includes(q) || t.role.toLowerCase().includes(q),
+  );
   const children = childrenQ.data!;
   const kidFor = (id?: string | null) => (id ? children.find((c) => c.id === id) : undefined);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <SchoolBadge />
         <Text style={typography.h1}>Inbox</Text>
-        <IconButton icon="create-outline" />
+        <IconButton icon="create-outline" onPress={() => toast('Coming soon')} />
       </View>
       <View style={{ paddingHorizontal: 18, paddingVertical: 14 }}>
-        <SearchField placeholder="Search teachers, groups" />
+        <SearchField placeholder="Search teachers, groups" value={query} onChangeText={setQuery} />
       </View>
 
       {threads.length === 0 ? (
-        <Empty message="No conversations yet." />
+        <Empty message={q ? `No matches for “${query}”` : 'No conversations yet.'} />
       ) : (
         <ScrollView
           contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 24, gap: 8 }}

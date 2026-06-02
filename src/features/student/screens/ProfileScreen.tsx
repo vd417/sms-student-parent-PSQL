@@ -4,9 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Card, ErrorState, IconButton, Loading, SchoolBadge, SectionHeader } from '@/components/ui';
+import { Card, ErrorState, IconButton, Loading, SectionHeader } from '@/components/ui';
 import { useStudentProfile, useAchievements } from '@/hooks/useStudent';
 import { useAuth } from '@/providers/AuthProvider';
+import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueColor, primaryGradient, radius, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -21,6 +22,7 @@ const ACH_ICON: Record<'award' | 'star' | 'check' | 'flag', keyof typeof Ionicon
 
 export function ProfileScreen() {
   const nav = useNavigation<Nav>();
+  const toast = useToast();
   const { signOut } = useAuth();
 
   const profileQ = useStudentProfile();
@@ -64,12 +66,9 @@ export function ProfileScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.hero}
         >
-          <View style={styles.brandRow}>
-            <SchoolBadge light />
-          </View>
           <View style={styles.heroTop}>
             <Text style={styles.heroTitle}>Profile</Text>
-            <IconButton icon="settings-outline" dark />
+            <IconButton icon="log-out-outline" dark onPress={() => signOut()} />
           </View>
           <View style={styles.heroRow}>
             <View style={styles.avatar}>
@@ -136,16 +135,24 @@ export function ProfileScreen() {
         <View style={{ marginTop: 18 }}>
           <SectionHeader title="Account" />
           <Card style={{ padding: 4, marginTop: 10 }}>
-            <ProfileRow icon="person-outline" label="Personal info" chev />
-            <ProfileRow icon="lock-closed-outline" label="Privacy & parental controls" chev />
-            <ProfileRow icon="notifications-outline" label="Notifications" chev />
             <ProfileRow
-              icon="log-out-outline"
-              label="Sign out"
+              icon="person-outline"
+              label="Personal info"
+              chev
+              onPress={() => toast('Coming soon')}
+            />
+            <ProfileRow
+              icon="lock-closed-outline"
+              label="Privacy & parental controls"
+              chev
+              onPress={() => toast('Coming soon')}
+            />
+            <ProfileRow
+              icon="notifications-outline"
+              label="Notifications"
               chev
               last
-              danger
-              onPress={() => signOut()}
+              onPress={() => toast('Coming soon')}
             />
           </Card>
         </View>
@@ -157,6 +164,14 @@ export function ProfileScreen() {
           <Ionicons name="document-text-outline" size={18} color={colors.primary} />
           <Text style={styles.viewReportTxt}>View full report card</Text>
           <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+        </Pressable>
+
+        <Pressable
+          onPress={() => signOut()}
+          style={({ pressed }) => [styles.logoutBtn, pressed && { opacity: 0.85 }]}
+        >
+          <Ionicons name="log-out-outline" size={18} color={colors.absent} />
+          <Text style={styles.logoutTxt}>Log out</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -301,5 +316,22 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.bold,
     fontSize: 13,
     color: colors.primary,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 14,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.absent,
+    backgroundColor: colors.white,
+  },
+  logoutTxt: {
+    fontFamily: fontFamily.bold,
+    fontSize: 13,
+    color: colors.absent,
   },
 });

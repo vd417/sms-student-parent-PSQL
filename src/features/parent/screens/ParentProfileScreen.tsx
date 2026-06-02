@@ -2,21 +2,15 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import {
-  Card,
-  ErrorState,
-  IconButton,
-  Loading,
-  Pill,
-  SchoolBadge,
-  SectionHeader,
-} from '@/components/ui';
+import { Card, ErrorState, IconButton, Loading, Pill, SectionHeader } from '@/components/ui';
 import { useChildren, useParentProfile } from '@/hooks/useParent';
 import { useAuth } from '@/providers/AuthProvider';
+import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueColor, primaryGradient, radius, spacing } from '@/theme';
 
 export function ParentProfileScreen() {
   const { signOut } = useAuth();
+  const toast = useToast();
   const profileQ = useParentProfile();
   const childrenQ = useChildren();
 
@@ -58,12 +52,9 @@ export function ParentProfileScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.hero}
         >
-          <View style={styles.brandRow}>
-            <SchoolBadge light />
-          </View>
           <View style={styles.heroTop}>
             <Text style={styles.heroTitle}>Profile</Text>
-            <IconButton icon="settings-outline" dark />
+            <IconButton icon="log-out-outline" dark onPress={() => signOut()} />
           </View>
           <View style={styles.heroRow}>
             <View style={styles.avatar}>
@@ -106,20 +97,41 @@ export function ParentProfileScreen() {
         <View style={{ marginTop: 18 }}>
           <SectionHeader title="Account" />
           <Card style={{ padding: 4, marginTop: 10 }}>
-            <ProfileRow icon="person-outline" label="Personal info" chev />
-            <ProfileRow icon="card-outline" label="Payment methods" chev />
-            <ProfileRow icon="lock-closed-outline" label="Privacy & security" chev />
-            <ProfileRow icon="notifications-outline" label="Notifications" chev />
             <ProfileRow
-              icon="log-out-outline"
-              label="Sign out"
+              icon="person-outline"
+              label="Personal info"
+              chev
+              onPress={() => toast('Coming soon')}
+            />
+            <ProfileRow
+              icon="card-outline"
+              label="Payment methods"
+              chev
+              onPress={() => toast('Coming soon')}
+            />
+            <ProfileRow
+              icon="lock-closed-outline"
+              label="Privacy & security"
+              chev
+              onPress={() => toast('Coming soon')}
+            />
+            <ProfileRow
+              icon="notifications-outline"
+              label="Notifications"
               chev
               last
-              danger
-              onPress={() => signOut()}
+              onPress={() => toast('Coming soon')}
             />
           </Card>
         </View>
+
+        <Pressable
+          onPress={() => signOut()}
+          style={({ pressed }) => [styles.logoutBtn, pressed && { opacity: 0.85 }]}
+        >
+          <Ionicons name="log-out-outline" size={18} color={colors.absent} />
+          <Text style={styles.logoutTxt}>Log out</Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -232,4 +244,21 @@ const styles = StyleSheet.create({
   },
   prDivider: { borderBottomWidth: 1, borderBottomColor: colors.ruleSoft },
   prLabel: { flex: 1, fontFamily: fontFamily.bold, fontSize: 13.5, color: colors.ink },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 18,
+    paddingVertical: 14,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.absent,
+    backgroundColor: colors.white,
+  },
+  logoutTxt: {
+    fontFamily: fontFamily.bold,
+    fontSize: 13,
+    color: colors.absent,
+  },
 });

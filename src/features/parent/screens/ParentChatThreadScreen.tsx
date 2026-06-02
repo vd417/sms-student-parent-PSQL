@@ -16,6 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Avatar, Empty, IconButton, Loading } from '@/components/ui';
 import { useThreads, useMessages, useSendMessage } from '@/hooks/useMessaging';
 import { useChildren } from '@/hooks/useParent';
+import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueForName, radius, spacing } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
 
@@ -33,6 +34,7 @@ function initialsFor(name: string): string {
 
 export function ParentChatThreadScreen() {
   const nav = useNavigation<Nav>();
+  const toast = useToast();
   const route = useRoute<Route>();
   const threadId = route.params.id;
 
@@ -81,7 +83,7 @@ export function ParentChatThreadScreen() {
             {kid ? ` · re: ${kid.name.split(' ')[0]}` : ''}
           </Text>
         </View>
-        <IconButton icon="notifications-outline" size={36} />
+        <IconButton icon="notifications-outline" size={36} onPress={() => toast('Coming soon')} />
       </View>
 
       <KeyboardAvoidingView
@@ -125,7 +127,7 @@ export function ParentChatThreadScreen() {
         )}
 
         <View style={styles.composer}>
-          <IconButton icon="attach" size={40} />
+          <IconButton icon="attach" size={40} onPress={() => toast('Coming soon')} />
           <TextInput
             value={draft}
             onChangeText={setDraft}

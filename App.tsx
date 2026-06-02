@@ -15,6 +15,7 @@ import { RootNavigator } from '@/navigation/RootNavigator';
 import { QueryProvider } from '@/providers/QueryProvider';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { ChildProvider } from '@/providers/ChildProvider';
+import { ToastProvider } from '@/providers/ToastProvider';
 import { colors } from '@/theme';
 
 const isWeb = Platform.OS === 'web';
@@ -43,7 +44,9 @@ export default function App() {
         <QueryProvider>
           <AuthProvider>
             <ChildProvider>
-              <RootNavigator />
+              <ToastProvider>
+                <RootNavigator />
+              </ToastProvider>
             </ChildProvider>
           </AuthProvider>
         </QueryProvider>

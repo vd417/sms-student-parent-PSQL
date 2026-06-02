@@ -4,11 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ErrorState, IconButton, Loading } from '@/components/ui';
 import { useToday } from '@/hooks/useStudent';
 import { useSubjects } from '@/hooks/useSubjects';
+import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueColor, radius, spacing, typography } from '@/theme';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] as const;
 
 export function ScheduleScreen() {
+  const toast = useToast();
   const [day, setDay] = useState<(typeof DAYS)[number]>('Fri');
 
   const todayQ = useToday();
@@ -52,7 +54,7 @@ export function ScheduleScreen() {
             <Text style={styles.kicker}>Week 17 · April 2026</Text>
             <Text style={[typography.h1, { marginTop: 2 }]}>Timetable</Text>
           </View>
-          <IconButton icon="calendar-outline" />
+          <IconButton icon="calendar-outline" onPress={() => toast('Coming soon')} />
         </View>
 
         <View style={styles.daysRow}>

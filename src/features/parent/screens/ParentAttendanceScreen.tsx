@@ -7,6 +7,7 @@ import { useAttendance } from '@/hooks/useAttendance';
 import { useLeave } from '@/hooks/useLeave';
 import { useChildren } from '@/hooks/useParent';
 import { useSelectedChild } from '@/providers/ChildProvider';
+import { useToast } from '@/providers/ToastProvider';
 import type { AttendanceKind } from '@/models';
 import { colors, fontFamily, radius } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
@@ -23,6 +24,7 @@ const TONES: Record<AttendanceKind, { bg: string; fg: string; border?: string }>
 
 export function ParentAttendanceScreen() {
   const nav = useNavigation<Nav>();
+  const toast = useToast();
   const { childId } = useSelectedChild();
   const attnQ = useAttendance(childId);
   const leaveQ = useLeave(childId);
@@ -69,7 +71,7 @@ export function ParentAttendanceScreen() {
         kicker={child?.name}
         title="Attendance"
         onBack={() => nav.goBack()}
-        right={<IconButton icon="filter" />}
+        right={<IconButton icon="filter" onPress={() => toast('Coming soon')} />}
       />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}

@@ -15,6 +15,7 @@ import {
 } from '@/components/ui';
 import { usePTM, useSetPTMStatus } from '@/hooks/usePTM';
 import { useChildren } from '@/hooks/useParent';
+import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, radius } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
 
@@ -22,6 +23,7 @@ type Nav = NativeStackNavigationProp<ParentStackParamList>;
 
 export function ParentPTMScreen() {
   const nav = useNavigation<Nav>();
+  const toast = useToast();
   const ptmQ = usePTM();
   const childrenQ = useChildren();
   const setStatus = useSetPTMStatus();
@@ -60,7 +62,7 @@ export function ParentPTMScreen() {
         kicker="Parent–Teacher Meet"
         title="Meetings"
         onBack={() => nav.goBack()}
-        right={<IconButton icon="add" />}
+        right={<IconButton icon="add" onPress={() => toast('Coming soon')} />}
       />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}

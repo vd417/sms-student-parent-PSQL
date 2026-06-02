@@ -18,6 +18,7 @@ import { KidSwitcher } from '../components/KidSwitcher';
 import { useChildren, useChildToday, useParentProfile } from '@/hooks/useParent';
 import { useAnnouncements } from '@/hooks/useAnnouncements';
 import { useSelectedChild } from '@/providers/ChildProvider';
+import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueColor, radius, spacing, typography } from '@/theme';
 import type { ParentStackParamList, ParentTabParamList } from '@/navigation/types';
 
@@ -34,6 +35,7 @@ const ACTIONS = [
 
 export function ParentHomeScreen() {
   const nav = useNavigation<Nav>();
+  const toast = useToast();
   const { childId } = useSelectedChild();
 
   const profileQ = useParentProfile();
@@ -84,7 +86,7 @@ export function ParentHomeScreen() {
             <Text style={styles.greet}>Hello {parent.name.split(' ')[0]} 👋</Text>
             <Text style={[typography.h1, { marginTop: 2 }]}>Friday, Apr 25</Text>
           </View>
-          <IconButton icon="notifications-outline" badge />
+          <IconButton icon="notifications-outline" badge onPress={() => toast('Coming soon')} />
         </View>
 
         <KidSwitcher />
