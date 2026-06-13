@@ -3,7 +3,9 @@ import type {
 } from '@/models';
 
 // ── Auth / school ──
-export interface SessionDTO { access_token: string; refresh_token: string; role: 'student' | 'parent'; email: string; }
+export interface SessionUserDTO { id: string; name: string; email: string; role: 'student' | 'parent'; }
+export interface SessionTenantDTO { id: string; name: string; }
+export interface SessionDTO { access_token: string; refresh_token: string; user: SessionUserDTO; tenant: SessionTenantDTO; }
 export interface SchoolDTO { id: string; name: string; short_name?: string; logo_url: string; }
 
 // ── Student (canonical: admission_no, attendance_pct, class_label, overall_avg, rank_of) ──
@@ -29,7 +31,7 @@ export interface PeerDTO { id: string; name: string; initials: string; subject: 
 export interface AchievementDTO { id: string; title: string; date: string; icon: Achievement['icon']; hue: Achievement['hue']; }
 
 export interface HomeworkDTO { id: string; title: string; subject_id: string; due_date: string; due_time: string; status: HomeworkStatus; priority: 'low' | 'med' | 'high'; grade?: string; }
-export interface ExamPaperDTO { id: string; title: string; subject_id: string; date: string; start_time: string; duration_min: number; status: 'upcoming' | 'graded'; max_marks: number; score?: number; grade?: string; }
+export interface ExamPaperDTO { id: string; name: string; subject_id: string; date: string; start_time: string; duration_min: number; status: 'upcoming' | 'graded'; max_marks: number; score?: number; grade?: string; }
 export interface GradeDTO { id: string; subject_id: string; title: string; score: number; max_marks: number; grade: string; date: string; }
 
 export interface AnnouncementDTO { id: string; from: string; role: string; date: string; title: string; body: string; type: string; pinned?: boolean; }

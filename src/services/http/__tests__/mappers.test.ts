@@ -1,5 +1,5 @@
-import { toStudent, toFee, toAnnouncement, toSession, toLeaveRequest, toChatMessage } from '@/services/http/mappers';
-import type { StudentDTO, FeeInvoiceDTO, AnnouncementDTO, SessionDTO, LeaveRequestDTO, ChatMessageDTO } from '@/services/http/dtos';
+import { toStudent, toFee, toAnnouncement, toSession, toExam, toLeaveRequest, toChatMessage } from '@/services/http/mappers';
+import type { StudentDTO, FeeInvoiceDTO, AnnouncementDTO, SessionDTO, ExamPaperDTO, LeaveRequestDTO, ChatMessageDTO } from '@/services/http/dtos';
 
 describe('http mappers → domain', () => {
   it('toStudent maps canonical fields to the domain Student', () => {
@@ -31,9 +31,24 @@ describe('http mappers → domain', () => {
     expect(toAnnouncement(d)).toEqual({ id: 'a1', from: 'Office', role: 'admin', when: '2026-06-13', title: 'T', body: 'B' });
   });
 
-  it('toSession maps access_token→token', () => {
-    const d: SessionDTO = { access_token: 'aaa', refresh_token: 'rrr', role: 'parent', email: 'p@wba.edu' };
+  it('toSession maps access_token→token and reads role/email from nested user', () => {
+    const d: SessionDTO = {
+      access_token: 'aaa', refresh_token: 'rrr',
+      user: { id: 'u1', name: 'Parent', email: 'p@wba.edu', role: 'parent' },
+      tenant: { id: 't1', name: 'Westbrook Academy' },
+    };
     expect(toSession(d)).toEqual({ token: 'aaa', role: 'parent', email: 'p@wba.edu' });
+  });
+
+  it('toExam maps canonical name→title and subject_id→subjId', () => {
+    const d: ExamPaperDTO = {
+      id: 'e1', name: 'Algebra Midterm', subject_id: 'sub1', date: '2026-07-10',
+      start_time: '09:00', duration_min: 90, status: 'graded', max_marks: 100, score: 88, grade: 'A',
+    };
+    expect(toExam(d)).toEqual({
+      id: 'e1', title: 'Algebra Midterm', subjId: 'sub1', date: '2026-07-10',
+      time: '09:00', dur: '90', status: 'graded', max: 100, score: 88, grade: 'A',
+    });
   });
 
   it('toLeaveRequest maps child_id/from_date/to_date', () => {

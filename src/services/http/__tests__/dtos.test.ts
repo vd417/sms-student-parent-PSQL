@@ -1,4 +1,4 @@
-import type { StudentDTO, FeeInvoiceDTO, AnnouncementDTO, SessionDTO } from '@/services/http/dtos';
+import type { StudentDTO, FeeInvoiceDTO, AnnouncementDTO, SessionDTO, ExamPaperDTO } from '@/services/http/dtos';
 
 describe('canonical DTO key contract', () => {
   it('StudentDTO uses admission_no / attendance_pct / class_label', () => {
@@ -25,9 +25,22 @@ describe('canonical DTO key contract', () => {
     expect(d.type).toBe('info');
   });
 
-  it('SessionDTO carries access_token + refresh_token', () => {
-    const d: SessionDTO = { access_token: 'a', refresh_token: 'r', role: 'student', email: 'm@wba.edu' };
+  it('SessionDTO carries access_token + refresh_token and nested user', () => {
+    const d: SessionDTO = {
+      access_token: 'a', refresh_token: 'r',
+      user: { id: 'u1', name: 'Maya Patel', email: 'm@wba.edu', role: 'student' },
+      tenant: { id: 't1', name: 'Westbrook Academy' },
+    };
     expect(d.access_token).toBe('a');
     expect(d.refresh_token).toBe('r');
+    expect(d.user.role).toBe('student');
+  });
+
+  it('ExamPaperDTO uses name (canonical) for the paper title', () => {
+    const d: ExamPaperDTO = {
+      id: 'e1', name: 'Algebra Midterm', subject_id: 'sub1', date: '2026-07-10',
+      start_time: '09:00', duration_min: 90, status: 'upcoming', max_marks: 100,
+    };
+    expect(d.name).toBe('Algebra Midterm');
   });
 });

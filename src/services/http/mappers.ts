@@ -10,7 +10,7 @@ import type {
   SubjectDTO, TeacherDTO, TodayBlockDTO, TransportDTO,
 } from './dtos';
 
-export const toSession = (d: SessionDTO): Session => ({ token: d.access_token, role: d.role, email: d.email });
+export const toSession = (d: SessionDTO): Session => ({ token: d.access_token, role: d.user.role, email: d.user.email });
 export const toSchool = (d: SchoolDTO): School => ({ id: d.id, name: d.name, shortName: d.short_name, logoUrl: d.logo_url });
 
 export const toStudent = (d: StudentDTO): Student => ({
@@ -26,7 +26,7 @@ export const toAchievement = (d: AchievementDTO): Achievement => ({ id: d.id, ti
 export const toTeacher = (d: TeacherDTO): Teacher => ({ id: d.id, name: d.name, initials: d.initials, subj: d.subject, online: d.online });
 
 export const toHomework = (d: HomeworkDTO): Homework => ({ id: d.id, title: d.title, subjId: d.subject_id, due: d.due_date, dueT: d.due_time, status: d.status, priority: d.priority, grade: d.grade });
-export const toExam = (d: ExamPaperDTO): Exam => ({ id: d.id, title: d.title, subjId: d.subject_id, date: d.date, time: d.start_time, dur: String(d.duration_min), status: d.status, max: d.max_marks, score: d.score, grade: d.grade });
+export const toExam = (d: ExamPaperDTO): Exam => ({ id: d.id, title: d.name, subjId: d.subject_id, date: d.date, time: d.start_time, dur: String(d.duration_min), status: d.status, max: d.max_marks, score: d.score, grade: d.grade });
 export const toGrade = (d: GradeDTO): Grade => ({ id: d.id, subjId: d.subject_id, title: d.title, score: d.score, max: d.max_marks, grade: d.grade, date: d.date });
 
 export const toAnnouncement = (d: AnnouncementDTO): Announcement => ({ id: d.id, from: d.from, role: d.role, when: d.date, title: d.title, body: d.body });
