@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx}\"",
+    "test": "jest",
     "prepare": "husky"
   },
   "dependencies": {
