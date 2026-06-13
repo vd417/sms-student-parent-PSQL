@@ -30,7 +30,7 @@ export interface TodayBlockDTO { t: string; d: number; label: string; subject_id
 export interface PeerDTO { id: string; name: string; initials: string; subject: string; }
 export interface AchievementDTO { id: string; title: string; date: string; icon: Achievement['icon']; hue: Achievement['hue']; }
 
-export interface HomeworkDTO { id: string; title: string; subject_id: string; due_date: string; due_time: string; status: HomeworkStatus; priority: 'low' | 'med' | 'high'; grade?: string; }
+export interface HomeworkDTO { id: string; assignment_id?: string; title: string; subject_id: string; due_date: string; due_time: string; status: HomeworkStatus; priority: 'low' | 'med' | 'high'; grade?: string; }
 export interface ExamPaperDTO { id: string; name: string; subject_id: string; date: string; start_time: string; duration_min: number; status: 'upcoming' | 'graded'; max_marks: number; score?: number; grade?: string; }
 export interface GradeDTO { id: string; subject_id: string; title: string; score: number; max_marks: number; grade: string; date: string; }
 
@@ -56,4 +56,4 @@ export interface AttendanceDayDTO { d: number; kind: AttendanceDay['kind']; }
 export interface AttendanceFlagDTO { id: string; tone: AttendanceFlag['tone']; date: string; reason: string; action: string; }
 export interface AttendanceMonthDTO { days: AttendanceDayDTO[]; flags: AttendanceFlagDTO[]; }
 
-export interface LeaveRequestDTO { id: string; child_id: string; from_date: string; to_date: string; reason: string; note: string; status: 'pending' | 'approved' | 'rejected'; }
+export interface LeaveRequestDTO { id: string; child_id: string; type?: 'casual' | 'sick' | 'earned' | 'medical' | 'maternity' | 'emergency' | 'other'; from_date: string; to_date: string; reason: string; note: string; status: 'pending' | 'approved' | 'rejected'; }

@@ -1,4 +1,4 @@
-import type { StudentDTO, FeeInvoiceDTO, AnnouncementDTO, SessionDTO, ExamPaperDTO } from '@/services/http/dtos';
+import type { StudentDTO, FeeInvoiceDTO, AnnouncementDTO, SessionDTO, ExamPaperDTO, HomeworkDTO, LeaveRequestDTO } from '@/services/http/dtos';
 
 describe('canonical DTO key contract', () => {
   it('StudentDTO uses admission_no / attendance_pct / class_label', () => {
@@ -42,5 +42,18 @@ describe('canonical DTO key contract', () => {
       start_time: '09:00', duration_min: 90, status: 'upcoming', max_marks: 100,
     };
     expect(d.name).toBe('Algebra Midterm');
+  });
+
+  it('HomeworkDTO carries assignment_id and LeaveRequestDTO carries type', () => {
+    const hw: HomeworkDTO = {
+      id: 'h1', assignment_id: 'a1', title: 'Fractions', subject_id: 'sub1',
+      due_date: '2026-07-10', due_time: '17:00', status: 'todo', priority: 'med',
+    };
+    const lr: LeaveRequestDTO = {
+      id: 'l1', child_id: 'c1', type: 'sick', from_date: '2026-07-01', to_date: '2026-07-02',
+      reason: 'Fever', note: '', status: 'pending',
+    };
+    expect(hw.assignment_id).toBe('a1');
+    expect(lr.type).toBe('sick');
   });
 });
