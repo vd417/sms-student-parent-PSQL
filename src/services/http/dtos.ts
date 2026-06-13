@@ -1,5 +1,5 @@
 import type {
-  HomeworkStatus, TodayBlock, Subject, Achievement, AttendanceDay, AttendanceFlag,
+  HomeworkStatus, TodayBlock, Subject, Achievement, AttendanceDay, AttendanceFlag, Child,
 } from '@/models';
 
 // ── Auth / school ──
@@ -39,7 +39,7 @@ export interface TeacherDTO { id: string; name: string; initials: string; subjec
 
 // ── Parent ──
 export interface ParentDTO { name: string; initials: string; relation: string; email: string; phone: string; }
-export interface ChildDTO { id: string; name: string; initials: string; grade: string; school: string; avg: number; attn: number; fee: string; unread: number; hue: number; }
+export interface ChildDTO { id: string; name: string; initials: string; grade: string; school: string; avg: number; attn: number; fee: string; unread: number; hue: Child['hue']; }
 export interface ChildClassDTO { t: string; label: string; done: boolean; attn: 'present' | 'late' | null; }
 export interface ChildTodayDTO { classes: ChildClassDTO[]; meals: { breakfast: string; lunch: string }; pickup: string; }
 

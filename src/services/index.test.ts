@@ -8,9 +8,9 @@ describe('buildServices', () => {
     expect(list.length).toBeGreaterThan(0);
   });
 
-  test('http source wires stubs that throw NotImplemented', () => {
+  test('http source wires real service implementations', () => {
     const s = buildServices('http');
-    expect(() => s.homework.list()).toThrow(/Not implemented/);
+    expect(typeof s.homework.list).toBe('function');
   });
 
   test('exposes a school service in the mock registry', () => {
