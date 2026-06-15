@@ -24,6 +24,10 @@ export const httpServices: Services = {
     signIn: (email, password, role) =>
       post<SessionDTO>('/auth/login', { email, password, role }).then(toSession),
     signOut: () => post<void>('/auth/logout', {}).then(() => undefined),
+    requestOtp: (identifier) =>
+      post<{ channel: 'sms' | 'email'; sent: boolean }>('/auth/otp/request', { identifier }),
+    verifyOtp: (identifier, code) =>
+      post<SessionDTO>('/auth/otp/verify', { identifier, code }).then(toSession),
   },
   student: {
     getProfile: () => getJson<StudentDTO>('/students/me').then(toStudent),

@@ -20,6 +20,7 @@ import { Button } from '@/components/ui';
 import { colors, fontFamily, primaryGradient, radius, shadow, spacing } from '@/theme';
 import type { Role } from '@/models';
 import { useAuth } from '@/providers/AuthProvider';
+import { ApiError } from '@/services/errors';
 import type { AuthStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
@@ -30,10 +31,21 @@ const loginSchema = z.object({
 });
 type LoginForm = z.infer<typeof loginSchema>;
 
+// Accepts an email or a 7–15 digit phone number (formatting characters allowed).
+function isValidIdentifier(value: string): boolean {
+  const v = value.trim();
+  if (v.includes('@')) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  const digits = v.replace(/\D/g, '');
+  return digits.length >= 7 && digits.length <= 15;
+}
+
 export function LoginScreen() {
   const nav = useNavigation<Nav>();
-  const { signIn } = useAuth();
+  const { signIn, requestOtp, signInWithOtp } = useAuth();
   const [role, setRole] = useState<Role>('student');
+  const isParent = role === 'parent';
+
+  // --- Student: ID + password ---
   const { control, handleSubmit, formState } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { studentId: 'WBA-2024-1042', password: '' },
@@ -42,6 +54,70 @@ export function LoginScreen() {
   const submit = handleSubmit(async (data) => {
     await signIn(data.studentId, data.password, role);
   });
+
+  // --- Parent: mobile/email + OTP ---
+  const [otpStep, setOtpStep] = useState<'idle' | 'sent'>('idle');
+  const [identifier, setIdentifier] = useState('');
+  const [code, setCode] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [sentChannel, setSentChannel] = useState<'sms' | 'email' | null>(null);
+
+  const resetOtp = () => {
+    setOtpStep('idle');
+    setCode('');
+    setOtpError(null);
+    setSentChannel(null);
+  };
+
+  const switchRole = (next: Role) => {
+    if (next === role) return;
+    setRole(next);
+    resetOtp();
+  };
+
+  const mapOtpError = (err: unknown): string => {
+    if (err instanceof ApiError) {
+      if (err.status === 404) return 'Not registered — contact your school.';
+      if (err.status === 401) return 'Incorrect or expired code. Try again.';
+    }
+    return 'Something went wrong. Please try again.';
+  };
+
+  const sendCode = async () => {
+    if (!isValidIdentifier(identifier)) {
+      setOtpError('Enter a valid mobile number or email.');
+      return;
+    }
+    setOtpLoading(true);
+    setOtpError(null);
+    try {
+      const res = await requestOtp(identifier.trim());
+      setSentChannel(res.channel);
+      setOtpStep('sent');
+      setCode('');
+    } catch (err) {
+      setOtpError(mapOtpError(err));
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const verifyCode = async () => {
+    if (code.trim().length < 4) {
+      setOtpError('Enter the code we sent you.');
+      return;
+    }
+    setOtpLoading(true);
+    setOtpError(null);
+    try {
+      await signInWithOtp(identifier.trim(), code.trim());
+    } catch (err) {
+      setOtpError(mapOtpError(err));
+    } finally {
+      setOtpLoading(false);
+    }
+  };
 
   return (
     <LinearGradient
@@ -77,7 +153,7 @@ export function LoginScreen() {
               {(['student', 'parent'] as Role[]).map((r) => (
                 <Pressable
                   key={r}
-                  onPress={() => setRole(r)}
+                  onPress={() => switchRole(r)}
                   style={[styles.roleChip, role === r && styles.roleChipActive]}
                 >
                   <Text style={[styles.roleChipText, role === r && styles.roleChipTextActive]}>
@@ -87,59 +163,116 @@ export function LoginScreen() {
               ))}
             </View>
 
-            <Controller
-              control={control}
-              name="studentId"
-              render={({ field, fieldState }) => (
-                <View>
-                  <Text style={styles.label}>Student ID</Text>
-                  <TextInput
-                    value={field.value}
-                    onChangeText={field.onChange}
-                    onBlur={field.onBlur}
-                    placeholder="WBA-2024-1042"
-                    placeholderTextColor={colors.inkMuted}
-                    autoCapitalize="characters"
-                    style={styles.input}
-                  />
-                  {fieldState.error ? (
-                    <Text style={styles.error}>{fieldState.error.message}</Text>
-                  ) : null}
-                </View>
-              )}
-            />
+            {!isParent ? (
+              <>
+                <Controller
+                  control={control}
+                  name="studentId"
+                  render={({ field, fieldState }) => (
+                    <View>
+                      <Text style={styles.label}>Student ID</Text>
+                      <TextInput
+                        value={field.value}
+                        onChangeText={field.onChange}
+                        onBlur={field.onBlur}
+                        placeholder="WBA-2024-1042"
+                        placeholderTextColor={colors.inkMuted}
+                        autoCapitalize="characters"
+                        style={styles.input}
+                      />
+                      {fieldState.error ? (
+                        <Text style={styles.error}>{fieldState.error.message}</Text>
+                      ) : null}
+                    </View>
+                  )}
+                />
 
-            <Controller
-              control={control}
-              name="password"
-              render={({ field, fieldState }) => (
-                <View>
-                  <Text style={styles.label}>Password</Text>
-                  <TextInput
-                    value={field.value}
-                    onChangeText={field.onChange}
-                    onBlur={field.onBlur}
-                    placeholder="••••••••"
-                    placeholderTextColor={colors.inkMuted}
-                    secureTextEntry
-                    style={styles.input}
-                  />
-                  {fieldState.error ? (
-                    <Text style={styles.error}>{fieldState.error.message}</Text>
-                  ) : null}
-                </View>
-              )}
-            />
+                <Controller
+                  control={control}
+                  name="password"
+                  render={({ field, fieldState }) => (
+                    <View>
+                      <Text style={styles.label}>Password</Text>
+                      <TextInput
+                        value={field.value}
+                        onChangeText={field.onChange}
+                        onBlur={field.onBlur}
+                        placeholder="••••••••"
+                        placeholderTextColor={colors.inkMuted}
+                        secureTextEntry
+                        style={styles.input}
+                      />
+                      {fieldState.error ? (
+                        <Text style={styles.error}>{fieldState.error.message}</Text>
+                      ) : null}
+                    </View>
+                  )}
+                />
 
-            <Button
-              variant="primary"
-              size="lg"
-              full
-              loading={formState.isSubmitting}
-              onPress={submit}
-            >
-              Sign in
-            </Button>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  full
+                  loading={formState.isSubmitting}
+                  onPress={submit}
+                >
+                  Sign in
+                </Button>
+              </>
+            ) : otpStep === 'idle' ? (
+              <View style={styles.otpBlock}>
+                <Text style={styles.label}>Parent email or number</Text>
+                <TextInput
+                  value={identifier}
+                  onChangeText={(t) => {
+                    setIdentifier(t);
+                    if (otpError) setOtpError(null);
+                  }}
+                  placeholder="priya.patel@home.com or 415 555 0142"
+                  placeholderTextColor={colors.inkMuted}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  style={styles.input}
+                />
+                {otpError ? <Text style={styles.error}>{otpError}</Text> : null}
+                <Button variant="primary" size="lg" full loading={otpLoading} onPress={sendCode}>
+                  Send code
+                </Button>
+              </View>
+            ) : (
+              <View style={styles.otpBlock}>
+                <Text style={styles.otpSentTo}>
+                  Code sent via {sentChannel === 'sms' ? 'SMS' : 'email'} to{' '}
+                  <Text style={styles.helpStrong}>{identifier.trim()}</Text>
+                </Text>
+                <Text style={styles.devHint}>Demo code: 123456</Text>
+                <Text style={styles.label}>Verification code</Text>
+                <TextInput
+                  value={code}
+                  onChangeText={(t) => {
+                    setCode(t.replace(/\D/g, ''));
+                    if (otpError) setOtpError(null);
+                  }}
+                  placeholder="6-digit code"
+                  placeholderTextColor={colors.inkMuted}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  style={styles.input}
+                />
+                {otpError ? <Text style={styles.error}>{otpError}</Text> : null}
+                <Button variant="primary" size="lg" full loading={otpLoading} onPress={verifyCode}>
+                  Verify &amp; sign in
+                </Button>
+                <View style={styles.otpActions}>
+                  <Pressable onPress={sendCode} disabled={otpLoading} hitSlop={8}>
+                    <Text style={styles.otpLink}>Resend code</Text>
+                  </Pressable>
+                  <Pressable onPress={resetOtp} disabled={otpLoading} hitSlop={8}>
+                    <Text style={styles.otpLink}>Change number/email</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
 
             <Text style={styles.help}>
               Need help? <Text style={styles.helpStrong}>Ask your class teacher</Text>
@@ -248,6 +381,26 @@ const styles = StyleSheet.create({
   },
   helpStrong: {
     fontFamily: fontFamily.bold,
+    color: colors.primary,
+  },
+  otpBlock: { gap: 12 },
+  otpSentTo: {
+    fontFamily: fontFamily.medium,
+    fontSize: 13,
+    color: colors.ink,
+  },
+  devHint: {
+    fontFamily: fontFamily.bold,
+    fontSize: 11,
+    color: colors.inkMuted,
+  },
+  otpActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  otpLink: {
+    fontFamily: fontFamily.bold,
+    fontSize: 12,
     color: colors.primary,
   },
 });

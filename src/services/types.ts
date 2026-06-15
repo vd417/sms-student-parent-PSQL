@@ -29,6 +29,8 @@ import type {
 export interface AuthService {
   signIn(email: string, password: string, role: Role): Promise<Session>;
   signOut(): Promise<void>;
+  requestOtp(identifier: string): Promise<{ channel: 'sms' | 'email'; sent: boolean }>;
+  verifyOtp(identifier: string, code: string): Promise<Session>;
 }
 
 export interface StudentService {

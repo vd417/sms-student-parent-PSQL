@@ -9,6 +9,8 @@ interface AuthContextValue {
   role: Role | null;
   status: 'unauthenticated' | 'authenticated';
   signIn: (email: string, password: string, role: Role) => Promise<void>;
+  requestOtp: (identifier: string) => Promise<{ channel: 'sms' | 'email'; sent: boolean }>;
+  signInWithOtp: (identifier: string, code: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -24,6 +26,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       status: state.status,
       signIn: async (email, password, role) => {
         const session = await services.auth.signIn(email, password, role);
+        setAuthToken(session.token);
+        dispatch({ type: 'SIGNED_IN', session });
+      },
+      requestOtp: (identifier) => services.auth.requestOtp(identifier),
+      signInWithOtp: async (identifier, code) => {
+        const session = await services.auth.verifyOtp(identifier, code);
         setAuthToken(session.token);
         dispatch({ type: 'SIGNED_IN', session });
       },
