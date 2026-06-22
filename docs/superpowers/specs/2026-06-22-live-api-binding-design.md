@@ -85,6 +85,25 @@ Bind the Student & Parent app to the live `/v1` backend (Swagger: `/swagger/stud
 
 There is no parent→children endpoint. We assume `GET /v1/students` returns the authenticated guardian's children. If the live response does not behave that way, parent-mode child list becomes a gap domain (mock + flag) until the backend provides a guardian-scoped endpoint.
 
+## Not-registered (404) handling — decided 2026-06-22
+
+When an identifier lookup against the live backend returns `404 not_registered`, the
+UI surfaces a **friendly, actionable inline message and stays on the same step** —
+*"No account is registered for this email/mobile. Contact your school to get set up."*
+
+- This is **not a new pattern**: the parent-OTP flow already shows
+  `'Not registered — contact your school.'` on a 404 (`LoginScreen.mapOtpError`).
+  We standardize that copy/behavior so the live-bound `ApiError(status: 404)` maps
+  to it everywhere an identifier is checked (login + OTP request).
+- **Rejected: neutral anti-enumeration** ("If an account exists, we sent a code").
+  It is inconsistent with the shipped UX, dead-ends the user at the reset/verify
+  step, and is security theater — the backend already discloses existence via the
+  distinct 404. Honesty + a clear next action wins.
+- **No new UI:** this reuses the existing inline `error` text style. No
+  forgot/reset-password screen is added under this spec; the additive
+  `AuthService.setPassword` method is wired and ready, but no screen consumes it
+  yet. A student forgot-password flow, if wanted, is a separate design.
+
 ## Out of scope (YAGNI)
 
 `notifications`, `calendar`, `assignments`, all create-side write endpoints not consumed by current screens, and any UI/screen changes.
