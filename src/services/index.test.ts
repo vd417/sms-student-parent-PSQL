@@ -1,4 +1,5 @@
 import { buildServices } from './index';
+import { httpServices } from './http';
 
 describe('buildServices', () => {
   test('mock source wires real mock implementations', async () => {
@@ -24,5 +25,18 @@ describe('buildServices', () => {
     const school = await mock.school.getCurrent();
     expect(school.name).toBe('Westbrook Academy');
     expect(school.id).toBe('sch-001');
+  });
+
+  test('http source routes backed domains to live and gap domains to mock', () => {
+    const s = buildServices('http');
+    // backed → identical reference to the http impl
+    expect(s.auth).toBe(httpServices.auth);
+    expect(s.homework).toBe(httpServices.homework);
+    // student.getProfile is live, but the gap methods are NOT the http ones
+    expect(s.student.getProfile).toBe(httpServices.student.getProfile);
+    expect(s.student.getToday).not.toBe(httpServices.student.getToday);
+    // fully-gap domains are not the http impls
+    expect(s.ptm).not.toBe(httpServices.ptm);
+    expect(s.school).not.toBe(httpServices.school);
   });
 });
