@@ -1,16 +1,18 @@
-import { createContext, ReactNode, useContext, useMemo, useReducer } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useMemo, useReducer } from 'react';
 import type { Role, Session } from '@/models';
 import { services } from '@/services';
-import { setAuthToken } from '@/api/client';
+import { setAuthToken, setRefreshHandler, setSessionExpiredHandler } from '@/api/client';
+import { tokenStore } from '@/services/auth/tokenStore';
 import { authReducer, initialAuthState } from './authReducer';
 
 interface AuthContextValue {
   session: Session | null;
   role: Role | null;
-  status: 'unauthenticated' | 'authenticated';
+  status: 'restoring' | 'unauthenticated' | 'authenticated';
   signIn: (email: string, password: string, role: Role) => Promise<void>;
   requestOtp: (identifier: string) => Promise<{ channel: 'sms' | 'email'; sent: boolean }>;
   signInWithOtp: (identifier: string, code: string) => Promise<void>;
+  setPassword: (args: { token: string; password: string }) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -18,6 +20,59 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(authReducer, initialAuthState);
+
+  // Wire the client's refresh + session-expired handlers once. The refresh
+  // handler loads the persisted refresh token, exchanges it, and re-persists.
+  useEffect(() => {
+    setRefreshHandler(async () => {
+      const persisted = await tokenStore.load();
+      if (!persisted?.refresh) return null;
+      try {
+        const { access, refresh } = await services.auth.refresh(persisted.refresh);
+        await tokenStore.save({ ...persisted, access, refresh: refresh ?? persisted.refresh });
+        return access;
+      } catch {
+        return null;
+      }
+    });
+    setSessionExpiredHandler(() => {
+      void tokenStore.clear();
+      dispatch({ type: 'SIGNED_OUT' });
+    });
+    return () => {
+      setRefreshHandler(null);
+      setSessionExpiredHandler(null);
+    };
+  }, []);
+
+  // Launch bootstrap: restore the persisted session and validate it via /me.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const persisted = await tokenStore.load();
+      if (!persisted?.access) {
+        if (!cancelled) dispatch({ type: 'RESTORE_FAILED' });
+        return;
+      }
+      setAuthToken(persisted.access);
+      try {
+        const me = await services.auth.getMe();
+        if (!cancelled) {
+          dispatch({
+            type: 'SIGNED_IN',
+            session: { token: persisted.access, role: me.role, email: me.email },
+          });
+        }
+      } catch {
+        await tokenStore.clear();
+        setAuthToken(null);
+        if (!cancelled) dispatch({ type: 'RESTORE_FAILED' });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -35,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthToken(session.token);
         dispatch({ type: 'SIGNED_IN', session });
       },
+      setPassword: (args) => services.auth.setPassword(args),
       signOut: async () => {
         await services.auth.signOut();
         setAuthToken(null);

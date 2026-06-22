@@ -1,6 +1,14 @@
 import { authReducer, initialAuthState } from './authReducer';
 
 describe('authReducer', () => {
+  test('starts in restoring', () => {
+    expect(initialAuthState.status).toBe('restoring');
+  });
+
+  test('RESTORE_FAILED → unauthenticated', () => {
+    expect(authReducer(initialAuthState, { type: 'RESTORE_FAILED' }).status).toBe('unauthenticated');
+  });
+
   test('signed-in sets session and role', () => {
     const next = authReducer(initialAuthState, {
       type: 'SIGNED_IN',
