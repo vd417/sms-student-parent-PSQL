@@ -53,3 +53,27 @@ describe('authMock.verifyOtp', () => {
     });
   });
 });
+
+describe('authMock — refresh/setPassword/getMe', () => {
+  it('refresh returns a fresh access token', async () => {
+    const r = await auth.refresh('any');
+    expect(typeof r.access).toBe('string');
+    expect(r.access.length).toBeGreaterThan(0);
+  });
+
+  it('setPassword resolves for a non-empty password', async () => {
+    await expect(auth.setPassword({ token: 't', password: 'secret12' })).resolves.toBeUndefined();
+  });
+
+  it('setPassword rejects a too-short password', async () => {
+    await expect(auth.setPassword({ token: 't', password: 'ab' })).rejects.toMatchObject({
+      status: 400,
+    });
+  });
+
+  it('getMe returns the demo identity', async () => {
+    const me = await auth.getMe();
+    expect(me).toHaveProperty('role');
+    expect(me).toHaveProperty('email');
+  });
+});

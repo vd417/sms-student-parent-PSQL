@@ -31,6 +31,9 @@ export interface AuthService {
   signOut(): Promise<void>;
   requestOtp(identifier: string): Promise<{ channel: 'sms' | 'email'; sent: boolean }>;
   verifyOtp(identifier: string, code: string): Promise<Session>;
+  refresh(refreshToken: string): Promise<{ access: string; refresh: string | null }>;
+  setPassword(args: { token: string; password: string }): Promise<void>;
+  getMe(): Promise<{ role: Role; email: string }>;
 }
 
 export interface StudentService {

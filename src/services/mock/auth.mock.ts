@@ -78,5 +78,16 @@ export function authMock(opts: Opts = {}): AuthService {
           email: match.email,
         };
       }),
+    refresh: () =>
+      delayed(() => ({
+        access: `mock-token-refreshed-${Date.now()}`,
+        refresh: `mock-refresh-${Date.now()}`,
+      })),
+    setPassword: ({ password }) =>
+      delayed(() => {
+        if (!password || password.length < 4) throw new ApiError('Password is too short', 400);
+        return undefined;
+      }),
+    getMe: () => delayed(() => ({ role: 'student' as const, email: db.student.email })),
   };
 }
