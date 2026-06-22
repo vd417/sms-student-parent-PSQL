@@ -51,8 +51,15 @@ export function LoginScreen() {
     defaultValues: { studentId: 'WBA-2024-1042', password: '' },
   });
 
+  const [loginError, setLoginError] = useState<string | null>(null);
+
   const submit = handleSubmit(async (data) => {
-    await signIn(data.studentId, data.password, role);
+    setLoginError(null);
+    try {
+      await signIn(data.studentId, data.password, role);
+    } catch (err) {
+      setLoginError(mapAuthError(err));
+    }
   });
 
   // --- Parent: mobile/email + OTP ---
@@ -76,9 +83,10 @@ export function LoginScreen() {
     resetOtp();
   };
 
-  const mapOtpError = (err: unknown): string => {
+  const mapAuthError = (err: unknown): string => {
     if (err instanceof ApiError) {
-      if (err.status === 404) return 'Not registered — contact your school.';
+      if (err.status === 404)
+        return 'No account is registered for this email/mobile. Contact your school to get set up.';
       if (err.status === 401) return 'Incorrect or expired code. Try again.';
     }
     return 'Something went wrong. Please try again.';
@@ -97,7 +105,7 @@ export function LoginScreen() {
       setOtpStep('sent');
       setCode('');
     } catch (err) {
-      setOtpError(mapOtpError(err));
+      setOtpError(mapAuthError(err));
     } finally {
       setOtpLoading(false);
     }
@@ -113,7 +121,7 @@ export function LoginScreen() {
     try {
       await signInWithOtp(identifier.trim(), code.trim());
     } catch (err) {
-      setOtpError(mapOtpError(err));
+      setOtpError(mapAuthError(err));
     } finally {
       setOtpLoading(false);
     }
@@ -209,6 +217,7 @@ export function LoginScreen() {
                   )}
                 />
 
+                {loginError ? <Text style={styles.error}>{loginError}</Text> : null}
                 <Button
                   variant="primary"
                   size="lg"
