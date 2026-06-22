@@ -1,7 +1,8 @@
 import type { Services } from '@/services/types';
-import { apiFetch } from '@/api/client';
+import { apiFetch, setAuthToken } from '@/api/client';
+import { tokenStore } from '@/services/auth/tokenStore';
 import type {
-  SessionDTO, SchoolDTO, StudentDTO, SubjectDTO, TodayBlockDTO, PeerDTO, AchievementDTO,
+  SessionDTO, SessionUserDTO, SchoolDTO, StudentDTO, SubjectDTO, TodayBlockDTO, PeerDTO, AchievementDTO,
   HomeworkDTO, ExamPaperDTO, GradeDTO, AnnouncementDTO, ChatThreadDTO, ChatMessageDTO,
   TeacherDTO, ParentDTO, ChildDTO, ChildTodayDTO, FeeInvoiceDTO, PTMMeetingDTO,
   TransportDTO, AttendanceMonthDTO, LeaveRequestDTO,
@@ -18,16 +19,52 @@ const post = <T>(path: string, body: unknown) =>
 const patch = <T>(path: string, body: unknown) =>
   apiFetch<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
 
+// Set the in-memory access token and persist the full session so a later launch
+// can restore it. Called on every successful sign-in (password or OTP).
+async function persistSession(dto: SessionDTO): Promise<void> {
+  setAuthToken(dto.access_token);
+  await tokenStore.save({
+    access: dto.access_token,
+    refresh: dto.refresh_token ?? null,
+    role: dto.user.role,
+    email: dto.user.email,
+    tenantId: dto.tenant?.id ?? null,
+  });
+}
+
 export const httpServices: Services = {
   school: { getCurrent: () => getJson<SchoolDTO>('/school').then(toSchool) },
   auth: {
-    signIn: (email, password, role) =>
-      post<SessionDTO>('/auth/login', { email, password, role }).then(toSession),
-    signOut: () => post<void>('/auth/logout', {}).then(() => undefined),
+    signIn: async (email, password, role) => {
+      const dto = await post<SessionDTO>('/auth/login', { email, password, role });
+      await persistSession(dto);
+      return toSession(dto);
+    },
+    signOut: async () => {
+      await post<void>('/auth/logout', {}).catch(() => undefined);
+      await tokenStore.clear();
+      setAuthToken(null);
+    },
     requestOtp: (identifier) =>
       post<{ channel: 'sms' | 'email'; sent: boolean }>('/auth/otp/request', { identifier }),
-    verifyOtp: (identifier, code) =>
-      post<SessionDTO>('/auth/otp/verify', { identifier, code }).then(toSession),
+    verifyOtp: async (identifier, code) => {
+      const dto = await post<SessionDTO>('/auth/otp/verify', { identifier, code });
+      await persistSession(dto);
+      return toSession(dto);
+    },
+    refresh: async (refreshToken) => {
+      const dto = await post<{ access_token: string; refresh_token: string }>('/auth/refresh', {
+        refresh_token: refreshToken,
+      });
+      return { access: dto.access_token, refresh: dto.refresh_token ?? null };
+    },
+    setPassword: async ({ token, password }) => {
+      await post<void>('/auth/set-password', { token, password });
+    },
+    getMe: async () => {
+      const me = await getJson<SessionUserDTO>('/auth/me');
+      return { role: me.role, email: me.email };
+    },
   },
   student: {
     getProfile: () => getJson<StudentDTO>('/students/me').then(toStudent),

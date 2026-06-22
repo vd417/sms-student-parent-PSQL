@@ -1,5 +1,11 @@
 import { httpServices } from '@/services/http';
+import * as client from '@/api/client';
 import { setAuthToken } from '@/api/client';
+import { tokenStore } from '@/services/auth/tokenStore';
+
+jest.mock('@/services/auth/tokenStore', () => ({
+  tokenStore: { save: jest.fn(async () => undefined), load: jest.fn(), clear: jest.fn(async () => undefined) },
+}));
 
 function mockFetchOnce(body: unknown) {
   (global as any).fetch = jest.fn().mockResolvedValue({
@@ -40,5 +46,37 @@ describe('httpServices', () => {
     const fees = await httpServices.fees.list('c1');
     expect(fees[0].dueDate).toBe('2026-07-10');
     expect((global as any).fetch).toHaveBeenCalledWith(expect.stringContaining('/children/c1/fees'), expect.anything());
+  });
+});
+
+describe('httpServices.auth', () => {
+  const sessionDto = {
+    access_token: 'ACC',
+    refresh_token: 'REF',
+    user: { id: 'u1', name: 'Asha', email: 'asha@school.edu', role: 'student' as const },
+    tenant: { id: 'sch1', name: 'WBA' },
+  };
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('signIn persists tokens and returns a mapped Session', async () => {
+    jest.spyOn(client, 'apiFetch').mockResolvedValue(sessionDto as any);
+    const setToken = jest.spyOn(client, 'setAuthToken');
+    const session = await httpServices.auth.signIn('asha@school.edu', 'pw', 'student');
+    expect(session).toEqual({ token: 'ACC', role: 'student', email: 'asha@school.edu' });
+    expect(setToken).toHaveBeenCalledWith('ACC');
+    expect(tokenStore.save).toHaveBeenCalledWith({
+      access: 'ACC', refresh: 'REF', role: 'student', email: 'asha@school.edu', tenantId: 'sch1',
+    });
+  });
+
+  it('refresh maps token fields', async () => {
+    jest.spyOn(client, 'apiFetch').mockResolvedValue({ access_token: 'A2', refresh_token: 'R2' } as any);
+    await expect(httpServices.auth.refresh('REF')).resolves.toEqual({ access: 'A2', refresh: 'R2' });
+  });
+
+  it('getMe returns role + email', async () => {
+    jest.spyOn(client, 'apiFetch').mockResolvedValue({ id: 'u1', name: 'Asha', email: 'asha@school.edu', role: 'student' } as any);
+    await expect(httpServices.auth.getMe()).resolves.toEqual({ role: 'student', email: 'asha@school.edu' });
   });
 });
