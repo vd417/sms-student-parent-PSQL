@@ -81,7 +81,6 @@ export function buildServices(source: DataSource = DATA_SOURCE): Services {
   };
 
   if (MOCK_BACKED.length) {
-    // eslint-disable-next-line no-console
     console.info(
       `[data] live /v1 backend; mock-backed (no endpoint yet): ${MOCK_BACKED.join(', ')}`,
     );
