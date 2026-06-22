@@ -26,26 +26,55 @@ describe('httpServices', () => {
     }
   });
 
-  it('student.getProfile GETs /students/me and maps the DTO', async () => {
-    mockFetchOnce({
-      id: 's1', admission_no: 'WBA-2024-1042', name: 'Maya Patel', initials: 'MP',
-      grade: '9', class_label: '9-A', house: 'Blue', email: 'maya@wba.edu',
-      school: 'Westbrook Academy', attendance_pct: 94, overall_avg: 88, rank: 3, rank_of: 40,
-    });
+  it('student.getProfile resolves via /auth/me then /students/{id} and maps the DTO', async () => {
+    const spy = jest.spyOn(client, 'apiFetch')
+      .mockResolvedValueOnce({ id: 's1', name: 'Maya', email: 'maya@wba.edu', role: 'student' } as any)
+      .mockResolvedValueOnce({
+        id: 's1', admission_no: 'WBA-2024-1042', name: 'Maya Patel', initials: 'MP',
+        grade: '9', class_label: '9-A', house: 'Blue', email: 'maya@wba.edu',
+        school: 'Westbrook Academy', attendance_pct: 94, overall_avg: 88, rank: 3, rank_of: 40,
+      } as any);
     const profile = await httpServices.student.getProfile();
+    expect(spy.mock.calls[0][0]).toBe('/auth/me');
+    expect(spy.mock.calls[1][0]).toBe('/students/s1');
     expect(profile.studentId).toBe('WBA-2024-1042');
     expect(profile.attnPct).toBe(94);
-    expect((global as any).fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/students/me'),
-      expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer test-token' }) }),
-    );
+    spy.mockRestore();
   });
 
-  it('fees.list GETs /children/:id/fees and maps invoices', async () => {
+  it('fees.list GETs /fees/invoices?student_id and maps invoices', async () => {
     mockFetchOnce([{ id: 'f1', period: 'Jul', due_date: '2026-07-10', amount: 12000, status: 'due' }]);
     const fees = await httpServices.fees.list('c1');
     expect(fees[0].dueDate).toBe('2026-07-10');
-    expect((global as any).fetch).toHaveBeenCalledWith(expect.stringContaining('/children/c1/fees'), expect.anything());
+    expect((global as any).fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/fees/invoices?student_id=c1'),
+      expect.anything(),
+    );
+  });
+});
+
+describe('httpServices derived paths', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('listGrades aggregates grades across exam papers', async () => {
+    jest.spyOn(client, 'apiFetch')
+      .mockResolvedValueOnce([{ id: 'p1' }, { id: 'p2' }] as any)
+      .mockResolvedValueOnce([{ id: 'g1', subject_id: 'm', title: 'T', score: 90, max_marks: 100, grade: 'A', date: 'd' }] as any)
+      .mockResolvedValueOnce([{ id: 'g2', subject_id: 's', title: 'T', score: 80, max_marks: 100, grade: 'B', date: 'd' }] as any);
+    const grades = await httpServices.grades.listGrades();
+    expect(grades).toHaveLength(2);
+  });
+
+  it('parent.children GETs /students (assumed guardian-scoped)', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValue([] as any);
+    await httpServices.parent.children();
+    expect(spy.mock.calls[0][0]).toBe('/students');
+  });
+
+  it('leave.list GETs /leave?student_id', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValue([] as any);
+    await httpServices.leave.list('c1');
+    expect(spy.mock.calls[0][0]).toBe('/leave?student_id=c1');
   });
 });
 

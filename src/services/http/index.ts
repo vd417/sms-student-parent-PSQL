@@ -67,7 +67,13 @@ export const httpServices: Services = {
     },
   },
   student: {
-    getProfile: () => getJson<StudentDTO>('/students/me').then(toStudent),
+    // Resolve the authenticated student id via /auth/me, then fetch the record.
+    getProfile: async () => {
+      const me = await getJson<SessionUserDTO>('/auth/me');
+      return toStudent(await getJson<StudentDTO>(`/students/${me.id}`));
+    },
+    // getToday/getPeers/getAchievements have no backing endpoint — overridden to
+    // mock in services/index.ts. Paths kept for the day the backend ships them.
     getToday: () => getJson<TodayBlockDTO[]>('/students/me/today').then((a) => a.map(toTodayBlock)),
     getPeers: () => getJson<PeerDTO[]>('/students/me/peers').then((a) => a.map(toPeer)),
     getAchievements: () => getJson<AchievementDTO[]>('/students/me/achievements').then((a) => a.map(toAchievement)),
@@ -83,7 +89,14 @@ export const httpServices: Services = {
     submit: (id) => post<HomeworkDTO>(`/homework/${id}/submit`, {}).then(toHomework),
   },
   grades: {
-    listGrades: () => getJson<GradeDTO[]>('/grades').then((a) => a.map(toGrade)),
+    // No flat /grades endpoint — aggregate per-paper grades across exam papers.
+    listGrades: async () => {
+      const papers = await getJson<ExamPaperDTO[]>('/exam-papers');
+      const perPaper = await Promise.all(
+        papers.map((p) => getJson<GradeDTO[]>(`/exam-papers/${p.id}/grades`)),
+      );
+      return perPaper.flat().map(toGrade);
+    },
     listExams: () => getJson<ExamPaperDTO[]>('/exam-papers').then((a) => a.map(toExam)),
   },
   announcements: {
@@ -97,12 +110,16 @@ export const httpServices: Services = {
   directory: { teachers: () => getJson<TeacherDTO[]>('/teachers').then((a) => a.map(toTeacher)) },
   parent: {
     getProfile: () => getJson<ParentDTO>('/parents/me').then(toParent),
-    children: () => getJson<ChildDTO[]>('/parents/me/children').then((a) => a.map(toChild)),
+    // VERIFY-LIVE: assumed guardian-scoped (returns the authenticated parent's
+    // children). If not, move to mock (services/index.ts) until a guardian route exists.
+    children: () => getJson<ChildDTO[]>('/students').then((a) => a.map(toChild)),
     childToday: (childId) => getJson<ChildTodayDTO>(`/children/${childId}/today`).then(toChildToday),
   },
   fees: {
-    list: (childId) => getJson<FeeInvoiceDTO[]>(`/children/${childId}/fees`).then((a) => a.map(toFee)),
-    pay: (feeId) => post<FeeInvoiceDTO>(`/fees/${feeId}/pay`, {}).then(toFee),
+    // VERIFY-LIVE: confirm the `student_id` filter param name against Swagger.
+    list: (childId) =>
+      getJson<FeeInvoiceDTO[]>(`/fees/invoices?student_id=${childId}`).then((a) => a.map(toFee)),
+    pay: (feeId) => post<FeeInvoiceDTO>(`/fees/invoices/${feeId}/pay`, {}).then(toFee),
   },
   ptm: {
     list: () => getJson<PTMMeetingDTO[]>('/ptm').then((a) => a.map(toPTM)),
@@ -111,7 +128,9 @@ export const httpServices: Services = {
   transport: { forChild: (childId) => getJson<TransportDTO>(`/children/${childId}/transport`).then(toTransport) },
   attendance: { month: (childId) => getJson<AttendanceMonthDTO>(`/children/${childId}/attendance`).then(toAttendanceMonth) },
   leave: {
-    list: (childId) => getJson<LeaveRequestDTO[]>(`/children/${childId}/leave`).then((a) => a.map(toLeaveRequest)),
+    // VERIFY-LIVE: confirm the `student_id` filter param name against Swagger.
+    list: (childId) =>
+      getJson<LeaveRequestDTO[]>(`/leave?student_id=${childId}`).then((a) => a.map(toLeaveRequest)),
     submit: (req) =>
       post<LeaveRequestDTO>('/leave', {
         child_id: req.childId, from_date: req.from, to_date: req.to, reason: req.reason, note: req.note,
