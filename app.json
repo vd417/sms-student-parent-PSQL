@@ -31,7 +31,9 @@
     "extra": {
       "eas": {
         "projectId": "789277f1-7308-4b88-8b93-12fed225b44e"
-      }
+      },
+      "dataSource": "http",
+      "apiBaseUrl": "https://api.schooldesk.example/v1"
     },
     "owner": "catre"
   }
