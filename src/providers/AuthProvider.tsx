@@ -11,6 +11,7 @@ interface AuthContextValue {
   status: 'restoring' | 'unauthenticated' | 'authenticated';
   signIn: (email: string, password: string, role: Role) => Promise<void>;
   requestOtp: (identifier: string) => Promise<{ channel: 'sms' | 'email'; sent: boolean }>;
+  verifyResetCode: (identifier: string, code: string) => Promise<{ resetToken: string; expiresIn: number }>;
   signInWithOtp: (identifier: string, code: string) => Promise<void>;
   setPassword: (args: { token: string; password: string }) => Promise<void>;
   signOut: () => Promise<void>;
@@ -85,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SIGNED_IN', session });
       },
       requestOtp: (identifier) => services.auth.requestOtp(identifier),
+      verifyResetCode: (identifier, code) => services.auth.verifyOtpForReset(identifier, code),
       signInWithOtp: async (identifier, code) => {
         const session = await services.auth.verifyOtp(identifier, code);
         setAuthToken(session.token);
