@@ -48,13 +48,8 @@ export const httpServices: Services = {
     },
     requestOtp: (identifier) =>
       post<{ channel: 'sms' | 'email'; sent: boolean }>('/auth/otp/request', { identifier }),
-    verifyOtp: async (identifier, code) => {
-      const dto = await post<SessionDTO>('/auth/otp/verify', { identifier, code });
-      await persistSession(dto);
-      return toSession(dto);
-    },
     // VERIFY-LIVE: confirm /auth/otp/verify returns { reset_token, expires_in }.
-    verifyOtpForReset: async (identifier, code) => {
+    verifyOtp: async (identifier, code) => {
       const dto = await post<{ reset_token: string; expires_in: number }>('/auth/otp/verify', {
         identifier,
         code,

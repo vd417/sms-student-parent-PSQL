@@ -86,13 +86,6 @@ export function authMock(opts: Opts = {}): AuthService {
         const match = findAccount(identifier);
         if (!match) throw new ApiError('Not registered', 404);
         if (code !== MOCK_OTP_CODE) throw new ApiError('Incorrect or expired code', 401);
-        return { token: `mock-token-${match.role}-${Date.now()}`, role: match.role, email: match.email };
-      }),
-    verifyOtpForReset: (identifier, code) =>
-      delayed(() => {
-        const match = findAccount(identifier);
-        if (!match) throw new ApiError('Not registered', 404);
-        if (code !== MOCK_OTP_CODE) throw new ApiError('Incorrect or expired code', 401);
         const resetToken = `reset-${match.email}-${Date.now()}`;
         resetTokens.set(resetToken, match.email);
         return { resetToken, expiresIn: RESET_TTL_SECONDS };
