@@ -54,6 +54,18 @@ export function LoginScreen() {
 
   const [loginError, setLoginError] = useState<string | null>(null);
 
+  const mapAuthError = (err: unknown): string => {
+    if (err instanceof ApiError) {
+      if (err.status === 404)
+        return 'No account is registered for this email/mobile. Contact your school to get set up.';
+      if (err.status === 401) return 'Incorrect code or password. Try again.';
+      if (err.status === 409)
+        return 'No password yet — use "First time or forgot password?" below.';
+      if (err.status === 410) return 'That code expired. Request a new one.';
+    }
+    return 'Something went wrong. Please try again.';
+  };
+
   const submit = handleSubmit(async (data) => {
     setLoginError(null);
     try {
@@ -92,18 +104,6 @@ export function LoginScreen() {
     setRole(next);
     resetParentFlow();
     setNotice(null);
-  };
-
-  const mapAuthError = (err: unknown): string => {
-    if (err instanceof ApiError) {
-      if (err.status === 404)
-        return 'No account is registered for this email/mobile. Contact your school to get set up.';
-      if (err.status === 401) return 'Incorrect code or password. Try again.';
-      if (err.status === 409)
-        return 'No password yet — use "First time or forgot password?" below.';
-      if (err.status === 410) return 'That code expired. Request a new one.';
-    }
-    return 'Something went wrong. Please try again.';
   };
 
   const parentLogin = async () => {
