@@ -1,7 +1,8 @@
 import { authMock } from './auth.mock';
 import { ApiError } from '@/services/errors';
 
-const auth = authMock({ ms: 0 });
+let auth = authMock({ ms: 0 });
+beforeEach(() => { auth = authMock({ ms: 0 }); });
 
 describe('authMock.requestOtp', () => {
   it('finds a registered student by email (case/space normalized)', async () => {

@@ -63,7 +63,8 @@ export const httpServices: Services = {
       return { access: dto.access_token, refresh: dto.refresh_token ?? null };
     },
     setPassword: async ({ token, password }) => {
-      await post<void>('/auth/set-password', { token, password });
+      // VERIFY-LIVE: confirm set-password body field name (reset_token) against Swagger.
+      await post<void>('/auth/set-password', { reset_token: token, password });
     },
     getMe: async () => {
       const me = await getJson<SessionUserDTO>('/auth/me');
