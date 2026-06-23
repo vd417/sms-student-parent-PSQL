@@ -35,8 +35,9 @@ async function persistSession(dto: SessionDTO): Promise<void> {
 export const httpServices: Services = {
   school: { getCurrent: () => getJson<SchoolDTO>('/school').then(toSchool) },
   auth: {
-    signIn: async (email, password, role) => {
-      const dto = await post<SessionDTO>('/auth/login', { email, password, role });
+    signIn: async (identifier, password, role) => {
+      // VERIFY-LIVE: confirm login body field name (`identifier`) against Swagger.
+      const dto = await post<SessionDTO>('/auth/login', { identifier, password, role });
       await persistSession(dto);
       return toSession(dto);
     },
@@ -51,6 +52,14 @@ export const httpServices: Services = {
       const dto = await post<SessionDTO>('/auth/otp/verify', { identifier, code });
       await persistSession(dto);
       return toSession(dto);
+    },
+    // VERIFY-LIVE: confirm /auth/otp/verify returns { reset_token, expires_in }.
+    verifyOtpForReset: async (identifier, code) => {
+      const dto = await post<{ reset_token: string; expires_in: number }>('/auth/otp/verify', {
+        identifier,
+        code,
+      });
+      return { resetToken: dto.reset_token, expiresIn: dto.expires_in };
     },
     refresh: async (refreshToken) => {
       const dto = await post<{ access_token: string; refresh_token: string }>('/auth/refresh', {

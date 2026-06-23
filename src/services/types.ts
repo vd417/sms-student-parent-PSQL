@@ -27,10 +27,14 @@ import type {
 } from '@/models';
 
 export interface AuthService {
-  signIn(email: string, password: string, role: Role): Promise<Session>;
+  signIn(identifier: string, password: string, role: Role): Promise<Session>;
   signOut(): Promise<void>;
   requestOtp(identifier: string): Promise<{ channel: 'sms' | 'email'; sent: boolean }>;
   verifyOtp(identifier: string, code: string): Promise<Session>;
+  verifyOtpForReset(
+    identifier: string,
+    code: string,
+  ): Promise<{ resetToken: string; expiresIn: number }>;
   refresh(refreshToken: string): Promise<{ access: string; refresh: string | null }>;
   setPassword(args: { token: string; password: string }): Promise<void>;
   getMe(): Promise<{ role: Role; email: string }>;

@@ -1,6 +1,7 @@
 import type { AuthService } from '@/services/types';
 import type { Role } from '@/models';
 import { ApiError } from '@/services/errors';
+import { isStrongPassword } from '@/services/auth/password';
 import { withLatency } from './latency';
 import { db } from './db';
 
@@ -10,18 +11,18 @@ interface Opts {
 }
 
 const MOCK_OTP_CODE = '123456';
+const RESET_TTL_SECONDS = 600;
 
 const normEmail = (v: string) => v.trim().toLowerCase();
 const normPhone = (v: string) => v.replace(/\D/g, '');
 const isEmail = (v: string) => v.includes('@');
 
-// Match phones tolerant of a country-code prefix by comparing trailing digits.
 function phonesMatch(a: string, b: string): boolean {
   const da = normPhone(a);
-  const db = normPhone(b);
-  if (da.length < 7 || db.length < 7) return false;
-  const len = Math.min(da.length, db.length);
-  return da.slice(-len) === db.slice(-len);
+  const dbq = normPhone(b);
+  if (da.length < 7 || dbq.length < 7) return false;
+  const len = Math.min(da.length, dbq.length);
+  return da.slice(-len) === dbq.slice(-len);
 }
 
 interface Match {
@@ -50,16 +51,29 @@ function findAccount(identifier: string): Match | null {
 }
 
 export function authMock(opts: Opts = {}): AuthService {
-  // Add latency, then run the thunk. A synchronous throw rejects the promise
-  // (withLatency runs its own thunk inside setTimeout, so it can't do this).
+  // Per-instance credential store. Parent accounts are "admin-provisioned":
+  // they exist in `db` but have no password until set via the reset flow.
+  const resetTokens = new Map<string, string>(); // resetToken -> canonical email
+  const passwords = new Map<string, string>(); //   canonical email -> password
+
   const delayed = async <T>(fn: () => T): Promise<T> => {
     await withLatency(undefined, opts);
     return fn();
   };
 
   return {
-    signIn: (email, _password, role: Role) =>
-      withLatency(() => ({ token: `mock-token-${role}-${Date.now()}`, role, email }), opts),
+    signIn: (identifier, password, role: Role) =>
+      delayed(() => {
+        if (role === 'parent') {
+          const match = findAccount(identifier);
+          if (!match) throw new ApiError('Not registered', 404);
+          const stored = passwords.get(match.email);
+          if (!stored) throw new ApiError('Set up your password first', 409);
+          if (stored !== password) throw new ApiError('Incorrect password', 401);
+          return { token: `mock-token-parent-${Date.now()}`, role: 'parent', email: match.email };
+        }
+        return { token: `mock-token-${role}-${Date.now()}`, role, email: identifier };
+      }),
     signOut: () => withLatency(undefined, opts),
     requestOtp: (identifier) =>
       delayed(() => {
@@ -72,20 +86,29 @@ export function authMock(opts: Opts = {}): AuthService {
         const match = findAccount(identifier);
         if (!match) throw new ApiError('Not registered', 404);
         if (code !== MOCK_OTP_CODE) throw new ApiError('Incorrect or expired code', 401);
-        return {
-          token: `mock-token-${match.role}-${Date.now()}`,
-          role: match.role,
-          email: match.email,
-        };
+        return { token: `mock-token-${match.role}-${Date.now()}`, role: match.role, email: match.email };
+      }),
+    verifyOtpForReset: (identifier, code) =>
+      delayed(() => {
+        const match = findAccount(identifier);
+        if (!match) throw new ApiError('Not registered', 404);
+        if (code !== MOCK_OTP_CODE) throw new ApiError('Incorrect or expired code', 401);
+        const resetToken = `reset-${match.email}-${Date.now()}`;
+        resetTokens.set(resetToken, match.email);
+        return { resetToken, expiresIn: RESET_TTL_SECONDS };
       }),
     refresh: () =>
       delayed(() => ({
         access: `mock-token-refreshed-${Date.now()}`,
         refresh: `mock-refresh-${Date.now()}`,
       })),
-    setPassword: ({ password }) =>
+    setPassword: ({ token, password }) =>
       delayed(() => {
-        if (!password || password.length < 4) throw new ApiError('Password is too short', 400);
+        const email = resetTokens.get(token);
+        if (!email) throw new ApiError('Reset link expired', 410);
+        if (!isStrongPassword(password)) throw new ApiError('Password is too weak', 400);
+        passwords.set(email, password);
+        resetTokens.delete(token);
         return undefined;
       }),
     getMe: () => delayed(() => ({ role: 'student' as const, email: db.student.email })),
