@@ -22,6 +22,7 @@ import type { Role } from '@/models';
 import { useAuth } from '@/providers/AuthProvider';
 import { ApiError } from '@/services/errors';
 import type { AuthStackParamList } from '@/navigation/types';
+import { isStrongPassword, PASSWORD_RULE_TEXT } from '@/services/auth/password';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
@@ -41,7 +42,7 @@ function isValidIdentifier(value: string): boolean {
 
 export function LoginScreen() {
   const nav = useNavigation<Nav>();
-  const { signIn, requestOtp, signInWithOtp } = useAuth();
+  const { signIn, requestOtp, verifyResetCode, setPassword } = useAuth();
   const [role, setRole] = useState<Role>('student');
   const isParent = role === 'parent';
 
@@ -62,68 +63,129 @@ export function LoginScreen() {
     }
   });
 
-  // --- Parent: mobile/email + OTP ---
-  const [otpStep, setOtpStep] = useState<'idle' | 'sent'>('idle');
+  // --- Parent: password login + OTP-to-set-password reset flow ---
+  type ParentStep = 'password' | 'otp-request' | 'otp-verify' | 'set-password';
+  const [parentStep, setParentStep] = useState<ParentStep>('password');
   const [identifier, setIdentifier] = useState('');
+  const [parentPassword, setParentPassword] = useState('');
   const [code, setCode] = useState('');
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [otpError, setOtpError] = useState<string | null>(null);
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
+  const [parentLoading, setParentLoading] = useState(false);
+  const [parentError, setParentError] = useState<string | null>(null);
   const [sentChannel, setSentChannel] = useState<'sms' | 'email' | null>(null);
 
-  const resetOtp = () => {
-    setOtpStep('idle');
+  const resetParentFlow = () => {
+    setParentStep('password');
     setCode('');
-    setOtpError(null);
+    setResetToken('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setParentError(null);
     setSentChannel(null);
   };
 
   const switchRole = (next: Role) => {
     if (next === role) return;
     setRole(next);
-    resetOtp();
+    resetParentFlow();
+    setNotice(null);
   };
 
   const mapAuthError = (err: unknown): string => {
     if (err instanceof ApiError) {
       if (err.status === 404)
         return 'No account is registered for this email/mobile. Contact your school to get set up.';
-      if (err.status === 401) return 'Incorrect or expired code. Try again.';
+      if (err.status === 401) return 'Incorrect code or password. Try again.';
+      if (err.status === 409)
+        return 'No password yet — use "First time or forgot password?" below.';
+      if (err.status === 410) return 'That code expired. Request a new one.';
     }
     return 'Something went wrong. Please try again.';
   };
 
-  const sendCode = async () => {
+  const parentLogin = async () => {
     if (!isValidIdentifier(identifier)) {
-      setOtpError('Enter a valid mobile number or email.');
+      setParentError('Enter a valid mobile number or email.');
       return;
     }
-    setOtpLoading(true);
-    setOtpError(null);
+    if (parentPassword.length === 0) {
+      setParentError('Enter your password.');
+      return;
+    }
+    setParentLoading(true);
+    setParentError(null);
+    try {
+      await signIn(identifier.trim(), parentPassword, 'parent');
+    } catch (err) {
+      setParentError(mapAuthError(err));
+    } finally {
+      setParentLoading(false);
+    }
+  };
+
+  const sendCode = async () => {
+    if (!isValidIdentifier(identifier)) {
+      setParentError('Enter a valid mobile number or email.');
+      return;
+    }
+    setParentLoading(true);
+    setParentError(null);
     try {
       const res = await requestOtp(identifier.trim());
       setSentChannel(res.channel);
-      setOtpStep('sent');
       setCode('');
+      setParentStep('otp-verify');
     } catch (err) {
-      setOtpError(mapAuthError(err));
+      setParentError(mapAuthError(err));
     } finally {
-      setOtpLoading(false);
+      setParentLoading(false);
     }
   };
 
   const verifyCode = async () => {
-    if (code.trim().length < 4) {
-      setOtpError('Enter the code we sent you.');
+    if (code.trim().length < 6) {
+      setParentError('Enter the 6-digit code we sent you.');
       return;
     }
-    setOtpLoading(true);
-    setOtpError(null);
+    setParentLoading(true);
+    setParentError(null);
     try {
-      await signInWithOtp(identifier.trim(), code.trim());
+      const { resetToken: token } = await verifyResetCode(identifier.trim(), code.trim());
+      setResetToken(token);
+      setNewPassword('');
+      setConfirmPassword('');
+      setParentStep('set-password');
     } catch (err) {
-      setOtpError(mapAuthError(err));
+      setParentError(mapAuthError(err));
     } finally {
-      setOtpLoading(false);
+      setParentLoading(false);
+    }
+  };
+
+  const submitNewPassword = async () => {
+    if (!isStrongPassword(newPassword)) {
+      setParentError(PASSWORD_RULE_TEXT);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setParentError('Passwords do not match.');
+      return;
+    }
+    setParentLoading(true);
+    setParentError(null);
+    try {
+      await setPassword({ token: resetToken, password: newPassword });
+      // Do NOT auto sign-in: send them back to login with identifier prefilled.
+      setParentPassword('');
+      resetParentFlow();
+      setNotice('Password set — please log in with your new password.');
+    } catch (err) {
+      setParentError(mapAuthError(err));
+    } finally {
+      setParentLoading(false);
     }
   };
 
@@ -228,14 +290,15 @@ export function LoginScreen() {
                   Sign in
                 </Button>
               </>
-            ) : otpStep === 'idle' ? (
+            ) : parentStep === 'password' ? (
               <View style={styles.otpBlock}>
+                {notice ? <Text style={styles.notice}>{notice}</Text> : null}
                 <Text style={styles.label}>Parent email or number</Text>
                 <TextInput
                   value={identifier}
                   onChangeText={(t) => {
                     setIdentifier(t);
-                    if (otpError) setOtpError(null);
+                    if (parentError) setParentError(null);
                   }}
                   placeholder="priya.patel@home.com or 415 555 0142"
                   placeholderTextColor={colors.inkMuted}
@@ -243,12 +306,63 @@ export function LoginScreen() {
                   keyboardType="email-address"
                   style={styles.input}
                 />
-                {otpError ? <Text style={styles.error}>{otpError}</Text> : null}
-                <Button variant="primary" size="lg" full loading={otpLoading} onPress={sendCode}>
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  value={parentPassword}
+                  onChangeText={(t) => {
+                    setParentPassword(t);
+                    if (parentError) setParentError(null);
+                  }}
+                  placeholder="••••••••"
+                  placeholderTextColor={colors.inkMuted}
+                  secureTextEntry
+                  style={styles.input}
+                />
+                {parentError ? <Text style={styles.error}>{parentError}</Text> : null}
+                <Button
+                  variant="primary"
+                  size="lg"
+                  full
+                  loading={parentLoading}
+                  onPress={parentLogin}
+                >
+                  Log in
+                </Button>
+                <Pressable
+                  onPress={() => {
+                    setNotice(null);
+                    setParentError(null);
+                    setParentStep('otp-request');
+                  }}
+                  hitSlop={8}
+                >
+                  <Text style={styles.otpLink}>First time or forgot password?</Text>
+                </Pressable>
+              </View>
+            ) : parentStep === 'otp-request' ? (
+              <View style={styles.otpBlock}>
+                <Text style={styles.label}>Parent email or number</Text>
+                <TextInput
+                  value={identifier}
+                  onChangeText={(t) => {
+                    setIdentifier(t);
+                    if (parentError) setParentError(null);
+                  }}
+                  placeholder="priya.patel@home.com or 415 555 0142"
+                  placeholderTextColor={colors.inkMuted}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  style={styles.input}
+                />
+                {parentError ? <Text style={styles.error}>{parentError}</Text> : null}
+                <Button variant="primary" size="lg" full loading={parentLoading} onPress={sendCode}>
                   Send code
                 </Button>
+                <Pressable onPress={resetParentFlow} hitSlop={8}>
+                  <Text style={styles.otpLink}>Back to login</Text>
+                </Pressable>
               </View>
-            ) : (
+            ) : parentStep === 'otp-verify' ? (
               <View style={styles.otpBlock}>
                 <Text style={styles.otpSentTo}>
                   Code sent via {sentChannel === 'sms' ? 'SMS' : 'email'} to{' '}
@@ -260,7 +374,7 @@ export function LoginScreen() {
                   value={code}
                   onChangeText={(t) => {
                     setCode(t.replace(/\D/g, ''));
-                    if (otpError) setOtpError(null);
+                    if (parentError) setParentError(null);
                   }}
                   placeholder="6-digit code"
                   placeholderTextColor={colors.inkMuted}
@@ -268,18 +382,66 @@ export function LoginScreen() {
                   maxLength={6}
                   style={styles.input}
                 />
-                {otpError ? <Text style={styles.error}>{otpError}</Text> : null}
-                <Button variant="primary" size="lg" full loading={otpLoading} onPress={verifyCode}>
-                  Verify &amp; sign in
+                {parentError ? <Text style={styles.error}>{parentError}</Text> : null}
+                <Button
+                  variant="primary"
+                  size="lg"
+                  full
+                  loading={parentLoading}
+                  onPress={verifyCode}
+                >
+                  Verify code
                 </Button>
                 <View style={styles.otpActions}>
-                  <Pressable onPress={sendCode} disabled={otpLoading} hitSlop={8}>
+                  <Pressable onPress={sendCode} disabled={parentLoading} hitSlop={8}>
                     <Text style={styles.otpLink}>Resend code</Text>
                   </Pressable>
-                  <Pressable onPress={resetOtp} disabled={otpLoading} hitSlop={8}>
-                    <Text style={styles.otpLink}>Change number/email</Text>
+                  <Pressable onPress={resetParentFlow} disabled={parentLoading} hitSlop={8}>
+                    <Text style={styles.otpLink}>Back to login</Text>
                   </Pressable>
                 </View>
+              </View>
+            ) : (
+              <View style={styles.otpBlock}>
+                <Text style={styles.otpSentTo}>Create your password</Text>
+                <Text style={styles.devHint}>{PASSWORD_RULE_TEXT}</Text>
+                <Text style={styles.label}>New password</Text>
+                <TextInput
+                  value={newPassword}
+                  onChangeText={(t) => {
+                    setNewPassword(t);
+                    if (parentError) setParentError(null);
+                  }}
+                  placeholder="••••••••"
+                  placeholderTextColor={colors.inkMuted}
+                  secureTextEntry
+                  style={styles.input}
+                />
+                <Text style={styles.label}>Confirm password</Text>
+                <TextInput
+                  value={confirmPassword}
+                  onChangeText={(t) => {
+                    setConfirmPassword(t);
+                    if (parentError) setParentError(null);
+                  }}
+                  placeholder="••••••••"
+                  placeholderTextColor={colors.inkMuted}
+                  secureTextEntry
+                  style={styles.input}
+                />
+                {parentError ? <Text style={styles.error}>{parentError}</Text> : null}
+                <Button
+                  variant="primary"
+                  size="lg"
+                  full
+                  loading={parentLoading}
+                  onPress={submitNewPassword}
+                >
+                  Set password
+                </Button>
+                <Pressable onPress={resetParentFlow} disabled={parentLoading} hitSlop={8}>
+                  <Text style={styles.otpLink}>Back to login</Text>
+                </Pressable>
               </View>
             )}
 
@@ -380,6 +542,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.absent,
     marginTop: 4,
+  },
+  notice: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 12,
+    color: colors.primary,
+    marginBottom: 2,
   },
   help: {
     textAlign: 'center',
