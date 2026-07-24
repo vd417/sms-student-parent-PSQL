@@ -64,6 +64,16 @@ This phase touches two repos:
   - forgot-password via emailed code (student and parent)
 - Client: existing jest suite for the login state machine extended to cover the student-tab OTP path; remove/update any test asserting the old demo-hint UI.
 
+## Amendment: reset-flow correction (discovered during planning)
+
+Reading the actual `AuthService` implementation (not the spec doc, which is aspirational) revealed the client's existing 4-step flow doesn't match the real backend:
+
+- `otp/verify` doesn't return a reset token — it validates the code and **issues access+refresh tokens directly** (an OTP-login endpoint, unrelated to password reset).
+- `password/reset` is the real set-new-password-via-code endpoint, taking `{identifier, code, password}` **in a single call** — there is no separate verify-then-set-password step.
+- `set-password` requires an existing bearer token (`[Authorize]`) — it's for a signed-in user changing their own password, not part of the reset flow.
+
+**Corrected design:** the client flow becomes 3 steps, not 4: `password → code-request → code-and-password` (identifier → request code → enter code AND new password together, submitted as one call to `/auth/password/reset`). This replaces the `otp-verify`/`set-password` split for both parent (already shipped, needs correcting) and student (new in this phase). `verifyResetCode`/`setPassword` on `AuthContextValue` collapse into one `resetPassword(identifier, code, password): Promise<void>` call. The `otp/verify` and `set-password` endpoints are not used by this flow at all going forward (no client code should call them for the forgot/first-time path).
+
 ## Out of scope for this phase (tracked as later phases)
 
 - All non-auth domain endpoints (school, students/me/today, peers, achievements, parents/me/children, children/{id}/today|fees|transport|attendance|leave, ptm) — zero backend implementation today; each is its own phase.
