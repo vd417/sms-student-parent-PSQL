@@ -243,10 +243,7 @@ export interface School {
   id: string;
   name: string;
   shortName?: string;
-  /** Primary brand mark (logo). */
   logoUrl: string;
-  /** Cover / school photo — used when logo is missing or too large to render. */
-  imageUrl?: string;
 }
 
 // ---------- auth ----------

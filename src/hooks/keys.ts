@@ -3,7 +3,6 @@ export const qk = {
   studentProfile: ['student', 'profile'] as const,
   today: ['student', 'today'] as const,
   todayAttendance: ['student', 'today', 'attendance'] as const,
-  timetable: ['student', 'timetable'] as const,
   peers: ['student', 'peers'] as const,
   achievements: ['student', 'achievements'] as const,
   subjects: ['subjects'] as const,

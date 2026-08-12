@@ -12,7 +12,6 @@ import {
   Loading,
   Pill,
   SchoolBadge,
-  ScreenHeader,
   SectionHeader,
 } from '@/components/ui';
 import type { PillTone } from '@/components/ui';
@@ -21,7 +20,7 @@ import { useChildren, useChildToday, useParentProfile } from '@/hooks/useParent'
 import { useAnnouncements } from '@/hooks/useAnnouncements';
 import { useSelectedChild } from '@/providers/ChildProvider';
 import { useToast } from '@/providers/ToastProvider';
-import { colors, fontFamily, hueColor, radius, spacing } from '@/theme';
+import { colors, fontFamily, hueColor, radius, spacing, typography } from '@/theme';
 import type { DailyAttendanceStatus } from '@/models';
 import type { ParentStackParamList, ParentTabParamList } from '@/navigation/types';
 
@@ -58,7 +57,6 @@ export function ParentHomeScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader title="Today" />
         <Loading />
       </SafeAreaView>
     );
@@ -66,7 +64,6 @@ export function ParentHomeScreen() {
   if (isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader title="Today" />
         <ErrorState onRetry={onRefresh} />
       </SafeAreaView>
     );
@@ -77,20 +74,23 @@ export function ParentHomeScreen() {
   const child = children.find((c) => c.id === childId) ?? children[0];
   const today = todayQ.data!;
   const firstAnn = annQ.data![0];
+  const doneClasses = today.classes.filter((x) => x.done).length;
   const attendanceChip = dailyAttendanceChip(today.todayAttn);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScreenHeader
-        kicker={`Hello ${parent.name.split(' ')[0]}`}
-        title="Today"
-        right={<IconButton icon="notifications-outline" badge onPress={() => toast('Coming soon')} />}
-      />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={profileQ.isRefetching} onRefresh={onRefresh} />}
       >
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greet}>Hello {parent.name.split(' ')[0]} 👋</Text>
+            <Text style={[typography.h1, { marginTop: 2 }]}>Friday, Apr 25</Text>
+          </View>
+          <IconButton icon="notifications-outline" badge onPress={() => toast('Coming soon')} />
+        </View>
 
         <KidSwitcher />
 
@@ -113,7 +113,7 @@ export function ParentHomeScreen() {
               </View>
             </View>
             <View style={styles.heroStats}>
-              <HeroStat label="Classes" value={String(today.classes.length)} />
+              <HeroStat label="Classes done" value={`${doneClasses}/${today.classes.length}`} />
               <HeroStat label="Pickup" value={today.pickup} divider />
               <HeroStat label="Avg" value={`${child.avg}%`} />
             </View>

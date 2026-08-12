@@ -2,7 +2,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ErrorState, Loading, ScreenHeader } from '@/components/ui';
+import { ErrorState, Loading } from '@/components/ui';
 import { KidSwitcher } from '../components/KidSwitcher';
 import { useChildren } from '@/hooks/useParent';
 import { useSubjects } from '@/hooks/useSubjects';
@@ -37,7 +37,6 @@ export function ParentProgressScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader kicker="Term 4 · 2026" title="Progress" />
         <Loading />
       </SafeAreaView>
     );
@@ -45,7 +44,6 @@ export function ParentProgressScreen() {
   if (isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader kicker="Term 4 · 2026" title="Progress" />
         <ErrorState onRetry={onRefresh} />
       </SafeAreaView>
     );
@@ -58,10 +56,6 @@ export function ParentProgressScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScreenHeader
-        kicker="Term 4 · 2026"
-        title="Progress"
-      />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
@@ -69,6 +63,10 @@ export function ParentProgressScreen() {
           <RefreshControl refreshing={childrenQ.isRefetching} onRefresh={onRefresh} />
         }
       >
+        <View style={styles.header}>
+          <Text style={styles.kicker}>Term 4 · 2026</Text>
+          <Text style={[typography.h1, { marginTop: 2 }]}>Progress</Text>
+        </View>
 
         <KidSwitcher />
 
