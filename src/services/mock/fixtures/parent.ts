@@ -51,24 +51,26 @@ export const children: Child[] = [
 export const childToday: Record<string, ChildToday> = {
   k1: {
     classes: [
-      { t: '09:00', label: 'Mathematics', done: true, attn: 'present' },
-      { t: '10:00', label: 'Physics', done: true, attn: 'present' },
-      { t: '11:30', label: 'English Lit', done: false, attn: null },
-      { t: '13:30', label: 'World History', done: false, attn: null },
-      { t: '14:30', label: 'Computer Sci', done: false, attn: null },
+      { t: '09:00', label: 'Mathematics', done: true },
+      { t: '10:00', label: 'Physics', done: true },
+      { t: '11:30', label: 'English Lit', done: false },
+      { t: '13:30', label: 'World History', done: false },
+      { t: '14:30', label: 'Computer Sci', done: false },
     ],
     meals: { breakfast: 'eaten · 8:15', lunch: 'served · 12:45' },
     pickup: '15:50',
+    todayAttn: 'present',
   },
   k2: {
     classes: [
-      { t: '09:00', label: 'English', done: true, attn: 'present' },
-      { t: '10:00', label: 'Mathematics', done: true, attn: 'late' },
-      { t: '11:30', label: 'Geography', done: false, attn: null },
-      { t: '13:30', label: 'Art & Craft', done: false, attn: null },
+      { t: '09:00', label: 'English', done: true },
+      { t: '10:00', label: 'Mathematics', done: true },
+      { t: '11:30', label: 'Geography', done: false },
+      { t: '13:30', label: 'Art & Craft', done: false },
     ],
     meals: { breakfast: 'eaten · 8:20', lunch: 'served · 12:40' },
     pickup: '15:30',
+    todayAttn: 'late',
   },
 };
 

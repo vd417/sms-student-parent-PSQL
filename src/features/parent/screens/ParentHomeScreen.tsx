@@ -12,14 +12,17 @@ import {
   Loading,
   Pill,
   SchoolBadge,
+  ScreenHeader,
   SectionHeader,
 } from '@/components/ui';
+import type { PillTone } from '@/components/ui';
 import { KidSwitcher } from '../components/KidSwitcher';
 import { useChildren, useChildToday, useParentProfile } from '@/hooks/useParent';
 import { useAnnouncements } from '@/hooks/useAnnouncements';
 import { useSelectedChild } from '@/providers/ChildProvider';
 import { useToast } from '@/providers/ToastProvider';
-import { colors, fontFamily, hueColor, radius, spacing, typography } from '@/theme';
+import { colors, fontFamily, hueColor, radius, spacing } from '@/theme';
+import type { DailyAttendanceStatus } from '@/models';
 import type { ParentStackParamList, ParentTabParamList } from '@/navigation/types';
 
 type Nav = BottomTabNavigationProp<ParentTabParamList, 'Home'> & {
@@ -55,6 +58,7 @@ export function ParentHomeScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader title="Today" />
         <Loading />
       </SafeAreaView>
     );
@@ -62,6 +66,7 @@ export function ParentHomeScreen() {
   if (isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader title="Today" />
         <ErrorState onRetry={onRefresh} />
       </SafeAreaView>
     );
@@ -72,22 +77,20 @@ export function ParentHomeScreen() {
   const child = children.find((c) => c.id === childId) ?? children[0];
   const today = todayQ.data!;
   const firstAnn = annQ.data![0];
-  const doneClasses = today.classes.filter((x) => x.done).length;
+  const attendanceChip = dailyAttendanceChip(today.todayAttn);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <ScreenHeader
+        kicker={`Hello ${parent.name.split(' ')[0]}`}
+        title="Today"
+        right={<IconButton icon="notifications-outline" badge onPress={() => toast('Coming soon')} />}
+      />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={profileQ.isRefetching} onRefresh={onRefresh} />}
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greet}>Hello {parent.name.split(' ')[0]} 👋</Text>
-            <Text style={[typography.h1, { marginTop: 2 }]}>Friday, Apr 25</Text>
-          </View>
-          <IconButton icon="notifications-outline" badge onPress={() => toast('Coming soon')} />
-        </View>
 
         <KidSwitcher />
 
@@ -100,15 +103,17 @@ export function ParentHomeScreen() {
             <View style={styles.heroTop}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.heroEyebrow}>{child.name}&apos;s day</Text>
-                <Text style={styles.heroTitle}>At school · safe</Text>
-                <Text style={styles.heroSub}>Marked present at 8:42 AM</Text>
+                <Text style={styles.heroTitle}>Attendance today</Text>
+                <Pressable onPress={() => nav.navigate('Attendance')} style={styles.attendanceChip}>
+                  <Pill tone={attendanceChip.tone}>{attendanceChip.label}</Pill>
+                </Pressable>
               </View>
               <View style={styles.heroIcon}>
                 <Ionicons name="shield-checkmark" size={20} color={colors.white} />
               </View>
             </View>
             <View style={styles.heroStats}>
-              <HeroStat label="Classes done" value={`${doneClasses}/${today.classes.length}`} />
+              <HeroStat label="Classes" value={String(today.classes.length)} />
               <HeroStat label="Pickup" value={today.pickup} divider />
               <HeroStat label="Avg" value={`${child.avg}%`} />
             </View>
@@ -125,26 +130,7 @@ export function ParentHomeScreen() {
                 style={[styles.classRow, i !== today.classes.length - 1 && styles.classDivider]}
               >
                 <Text style={styles.classTime}>{cl.t}</Text>
-                <View
-                  style={[
-                    styles.classDot,
-                    { backgroundColor: cl.done ? colors.present : colors.rule },
-                  ]}
-                />
-                <Text
-                  style={[styles.classLabel, { color: cl.done ? colors.inkMuted : colors.ink }]}
-                >
-                  {cl.label}
-                </Text>
-                {cl.attn === 'present' ? (
-                  <Pill tone="present">Present</Pill>
-                ) : cl.attn === 'late' ? (
-                  <Pill tone="late">Late</Pill>
-                ) : cl.done ? (
-                  <Pill tone="neutral">—</Pill>
-                ) : (
-                  <Text style={styles.upcoming}>upcoming</Text>
-                )}
+                <Text style={styles.classLabel}>{cl.label}</Text>
               </View>
             ))}
           </Card>
@@ -216,6 +202,14 @@ export function ParentHomeScreen() {
   );
 }
 
+function dailyAttendanceChip(status: DailyAttendanceStatus): { label: string; tone: PillTone } {
+  if (status === 'present') return { label: 'Present today', tone: 'present' };
+  if (status === 'absent') return { label: 'Absent', tone: 'absent' };
+  if (status === 'late') return { label: 'Late', tone: 'late' };
+  if (status === 'leave') return { label: 'On leave', tone: 'primary' };
+  return { label: 'Not marked', tone: 'neutral' };
+}
+
 function HeroStat({ label, value, divider }: { label: string; value: string; divider?: boolean }) {
   return (
     <View style={[styles.heroStat, divider && styles.heroStatDivider]}>
@@ -253,12 +247,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     letterSpacing: -0.2,
   },
-  heroSub: {
-    fontFamily: fontFamily.medium,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: 4,
-  },
+  attendanceChip: { alignSelf: 'flex-start', marginTop: 8 },
   heroIcon: {
     width: 44,
     height: 44,
@@ -297,9 +286,7 @@ const styles = StyleSheet.create({
   classRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   classDivider: { borderBottomWidth: 1, borderBottomColor: colors.ruleSoft },
   classTime: { width: 50, fontFamily: fontFamily.bold, fontSize: 12, color: colors.ink3 },
-  classDot: { width: 8, height: 8, borderRadius: 4 },
   classLabel: { flex: 1, fontFamily: fontFamily.bold, fontSize: 13 },
-  upcoming: { fontFamily: fontFamily.semiBold, fontSize: 11, color: colors.inkMuted },
   actions: { flexDirection: 'row', gap: 10 },
   action: { flex: 1, alignItems: 'center' },
   actionIcon: {

@@ -1,6 +1,8 @@
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ErrorState, Loading } from '@/components/ui';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ErrorState, Loading, ScreenHeader } from '@/components/ui';
 import { KidSwitcher } from '../components/KidSwitcher';
 import { useChildren } from '@/hooks/useParent';
 import { useSubjects } from '@/hooks/useSubjects';
@@ -15,8 +17,12 @@ import {
   typography,
 } from '@/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import type { ParentStackParamList } from '@/navigation/types';
+
+type Nav = NativeStackNavigationProp<ParentStackParamList>;
 
 export function ParentProgressScreen() {
+  const nav = useNavigation<Nav>();
   const { childId } = useSelectedChild();
   const childrenQ = useChildren();
   const subjectsQ = useSubjects();
@@ -31,6 +37,7 @@ export function ParentProgressScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader kicker="Term 4 · 2026" title="Progress" />
         <Loading />
       </SafeAreaView>
     );
@@ -38,6 +45,7 @@ export function ParentProgressScreen() {
   if (isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader kicker="Term 4 · 2026" title="Progress" />
         <ErrorState onRetry={onRefresh} />
       </SafeAreaView>
     );
@@ -50,6 +58,10 @@ export function ParentProgressScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <ScreenHeader
+        kicker="Term 4 · 2026"
+        title="Progress"
+      />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
@@ -57,10 +69,6 @@ export function ParentProgressScreen() {
           <RefreshControl refreshing={childrenQ.isRefetching} onRefresh={onRefresh} />
         }
       >
-        <View style={styles.header}>
-          <Text style={styles.kicker}>Term 4 · 2026</Text>
-          <Text style={[typography.h1, { marginTop: 2 }]}>Progress</Text>
-        </View>
 
         <KidSwitcher />
 
@@ -84,7 +92,12 @@ export function ParentProgressScreen() {
             </View>
             <View style={styles.heroStats}>
               <HeroStat label="Class rank" value="4 / 28" />
-              <HeroStat label="Attendance" value={`${child.attn}%`} divider />
+              <HeroStat
+                label="Attendance"
+                value={`${child.attn}%`}
+                divider
+                onPress={() => nav.navigate('Attendance')}
+              />
               <HeroStat label="Best" value="CS" />
             </View>
           </LinearGradient>
@@ -136,12 +149,26 @@ export function ParentProgressScreen() {
   );
 }
 
-function HeroStat({ label, value, divider }: { label: string; value: string; divider?: boolean }) {
+function HeroStat({
+  label,
+  value,
+  divider,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  divider?: boolean;
+  onPress?: () => void;
+}) {
   return (
-    <View style={[styles.heroStat, divider && styles.heroStatDivider]}>
+    <Pressable
+      disabled={!onPress}
+      onPress={onPress}
+      style={[styles.heroStat, divider && styles.heroStatDivider]}
+    >
       <Text style={styles.heroStatLabel}>{label}</Text>
       <Text style={styles.heroStatValue}>{value}</Text>
-    </View>
+    </Pressable>
   );
 }
 

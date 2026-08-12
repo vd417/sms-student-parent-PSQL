@@ -154,13 +154,15 @@ export interface ChildClass {
   t: string;
   label: string;
   done: boolean;
-  attn: 'present' | 'late' | null;
 }
+
+export type DailyAttendanceStatus = 'present' | 'absent' | 'late' | 'leave' | null;
 
 export interface ChildToday {
   classes: ChildClass[];
   meals: { breakfast: string; lunch: string };
   pickup: string;
+  todayAttn: DailyAttendanceStatus;
 }
 
 export interface FeeItem {
@@ -241,7 +243,10 @@ export interface School {
   id: string;
   name: string;
   shortName?: string;
+  /** Primary brand mark (logo). */
   logoUrl: string;
+  /** Cover / school photo — used when logo is missing or too large to render. */
+  imageUrl?: string;
 }
 
 // ---------- auth ----------

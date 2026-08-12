@@ -57,7 +57,10 @@ export function transportMock(opts: Opts = {}): TransportService {
 }
 
 export function attendanceMock(opts: Opts = {}): AttendanceService {
-  return { month: (childId) => withLatency(() => attendanceFor(childId), opts) };
+  return {
+    month: (childId) => withLatency(() => attendanceFor(childId), opts),
+    today: () => withLatency(() => 'present', opts),
+  };
 }
 
 export function leaveMock(opts: Opts = {}): LeaveService {

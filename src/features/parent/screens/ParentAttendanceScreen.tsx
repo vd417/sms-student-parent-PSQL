@@ -1,7 +1,5 @@
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Card, ErrorState, IconButton, Loading, ScreenHeader } from '@/components/ui';
 import { useAttendance } from '@/hooks/useAttendance';
 import { useLeave } from '@/hooks/useLeave';
@@ -10,9 +8,6 @@ import { useSelectedChild } from '@/providers/ChildProvider';
 import { useToast } from '@/providers/ToastProvider';
 import type { AttendanceKind } from '@/models';
 import { colors, fontFamily, radius } from '@/theme';
-import type { ParentStackParamList } from '@/navigation/types';
-
-type Nav = NativeStackNavigationProp<ParentStackParamList>;
 
 const TONES: Record<AttendanceKind, { bg: string; fg: string; border?: string }> = {
   present: { bg: colors.present, fg: colors.white },
@@ -23,7 +18,6 @@ const TONES: Record<AttendanceKind, { bg: string; fg: string; border?: string }>
 };
 
 export function ParentAttendanceScreen() {
-  const nav = useNavigation<Nav>();
   const toast = useToast();
   const { childId } = useSelectedChild();
   const attnQ = useAttendance(childId);
@@ -39,11 +33,15 @@ export function ParentAttendanceScreen() {
   };
 
   const child = childrenQ.data?.find((c) => c.id === childId);
+  const monthTitle = new Date().toLocaleDateString(undefined, {
+    month: 'long',
+    year: 'numeric',
+  });
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader title="Attendance" onBack={() => nav.goBack()} />
+        <ScreenHeader title="Attendance" />
         <Loading />
       </SafeAreaView>
     );
@@ -51,7 +49,7 @@ export function ParentAttendanceScreen() {
   if (isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader title="Attendance" onBack={() => nav.goBack()} />
+        <ScreenHeader title="Attendance" />
         <ErrorState onRetry={onRefresh} />
       </SafeAreaView>
     );
@@ -70,7 +68,6 @@ export function ParentAttendanceScreen() {
       <ScreenHeader
         kicker={child?.name}
         title="Attendance"
-        onBack={() => nav.goBack()}
         right={<IconButton icon="filter" onPress={() => toast('Coming soon')} />}
       />
       <ScrollView
@@ -87,7 +84,7 @@ export function ParentAttendanceScreen() {
 
         <View style={{ paddingHorizontal: 18, paddingBottom: 14 }}>
           <Card style={{ padding: 16 }}>
-            <Text style={styles.monthTitle}>April 2026</Text>
+            <Text style={styles.monthTitle}>{monthTitle}</Text>
             <View style={styles.weekRow}>
               {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((x, i) => (
                 <Text key={i} style={styles.weekLabel}>

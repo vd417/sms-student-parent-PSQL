@@ -7,6 +7,7 @@ import type {
   ChatThread,
   Child,
   ChildToday,
+  DailyAttendanceStatus,
   Exam,
   Fee,
   Grade,
@@ -26,19 +27,29 @@ import type {
   Transport,
 } from '@/models';
 
+/** Result of POST /auth/password/forgot — never echo the raw admission ID. */
+export interface PasswordResetSent {
+  channel: 'sms' | 'email';
+  sent: boolean;
+  /** Masked destination shown in UI, e.g. m***@school.edu */
+  sentTo: string;
+  /** Who received the code: the account holder or linked parent/caregiver. */
+  recipient: 'self' | 'parent';
+}
+
 export interface AuthService {
   signIn(identifier: string, password: string, role: Role): Promise<Session>;
   signOut(): Promise<void>;
-  requestOtp(identifier: string): Promise<{ channel: 'sms' | 'email'; sent: boolean }>;
-  verifyOtp(identifier: string, code: string): Promise<{ resetToken: string; expiresIn: number }>;
+  requestPasswordReset(identifier: string): Promise<PasswordResetSent>;
+  resetPassword(identifier: string, code: string, password: string): Promise<void>;
   refresh(refreshToken: string): Promise<{ access: string; refresh: string | null }>;
-  setPassword(args: { token: string; password: string }): Promise<void>;
   getMe(): Promise<{ role: Role; email: string }>;
 }
 
 export interface StudentService {
   getProfile(): Promise<Student>;
   getToday(): Promise<TodayBlock[]>;
+  getTimetable(): Promise<Array<TodayBlock & { day: string }>>;
   getPeers(): Promise<Peer[]>;
   getAchievements(): Promise<Achievement[]>;
 }
@@ -96,6 +107,7 @@ export interface TransportService {
 
 export interface AttendanceService {
   month(childId: string): Promise<{ days: AttendanceDay[]; flags: AttendanceFlag[] }>;
+  today(childId?: string): Promise<DailyAttendanceStatus>;
 }
 
 export interface LeaveService {
