@@ -1,3 +1,8 @@
+/** Student screens omit the id (own roster). Parent screens pass the selected child id. */
+export function enabledWhenOwnOrChild(studentId?: string) {
+  return studentId === undefined || Boolean(studentId);
+}
+
 export const qk = {
   school: ['school'] as const,
   studentProfile: (id?: string) => ['student', 'profile', id ?? 'me'] as const,

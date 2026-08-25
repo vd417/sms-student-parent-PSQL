@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Card, ErrorState, IconButton, Loading, Pill, ScreenHeader, SectionHeader } from '@/components/ui';
+import { Card, Empty, ErrorState, IconButton, Loading, Pill, ScreenHeader, SectionHeader } from '@/components/ui';
 import { useChildren, useParentProfile } from '@/hooks/useParent';
 import { useAuth } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
@@ -47,7 +47,7 @@ export function ParentProfileScreen() {
   }
 
   const parent = profileQ.data!;
-  const children = childrenQ.data!;
+  const children = childrenQ.data ?? [];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -83,7 +83,10 @@ export function ParentProfileScreen() {
         <View style={{ marginTop: 18 }}>
           <SectionHeader title="My children" action={{ label: 'Add child' }} />
           <View style={{ gap: 10, marginTop: 10 }}>
-            {children.map((c) => (
+            {children.length === 0 ? (
+              <Empty message="No children are linked to this account yet." />
+            ) : (
+              children.map((c) => (
               <Pressable
                 key={c.id}
                 onPress={() => {
@@ -98,7 +101,7 @@ export function ParentProfileScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.childName}>{c.name}</Text>
                   <Text style={styles.childMeta}>
-                    {c.grade} · {c.school}
+                    {[c.grade, c.studentId || c.school].filter(Boolean).join(' · ')}
                   </Text>
                   <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
                     <Pill tone="primary">{c.avg}% avg</Pill>
@@ -107,7 +110,8 @@ export function ParentProfileScreen() {
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.inkSoft} />
               </Pressable>
-            ))}
+              ))
+            )}
           </View>
         </View>
 

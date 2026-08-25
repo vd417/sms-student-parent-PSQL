@@ -166,7 +166,7 @@ function ParentPersonalInfo({ emailFallback }: { emailFallback?: string }) {
               <InfoRow
                 key={c.id}
                 label={dash(properName(c.name))}
-                value={dash(c.grade)}
+                value={dash(c.grade ? `${c.grade}${c.studentId ? ` · ${c.studentId}` : ''}` : c.studentId)}
                 last={i === children.length - 1}
               />
             ))

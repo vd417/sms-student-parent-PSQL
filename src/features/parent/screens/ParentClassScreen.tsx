@@ -90,6 +90,17 @@ export function ParentClassScreen() {
   }
 
   const children = childrenQ.data ?? [];
+  if (children.length === 0) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.kicker}>Class</Text>
+          <Text style={[typography.h1, { marginTop: 2 }]}>Class</Text>
+        </View>
+        <Empty message="No children are linked to this account yet." />
+      </SafeAreaView>
+    );
+  }
   const child = children.find((c) => c.id === childId) ?? children[0];
   const subjects = subjectsQ.data ?? [];
   const report = buildReportFromGrades(gradesQ.data ?? [], subjects);
@@ -179,7 +190,7 @@ export function ParentClassScreen() {
         </View>
 
         <Text style={[typography.eyebrow, { paddingHorizontal: 18, marginBottom: 8 }]}>
-          Today's timetable
+          {"Today's timetable"}
         </Text>
         <View style={{ paddingHorizontal: 18, gap: 8, marginBottom: 16 }}>
           {todayBlocks.length === 0 ? (
@@ -329,7 +340,7 @@ export function ParentClassScreen() {
             homeworkRows.map((h) => (
               <Pressable
                 key={h.id}
-                onPress={() => nav.navigate('HomeworkDetail', { id: h.id })}
+                onPress={() => nav.navigate('HomeworkDetail', { id: h.id, studentId: childId })}
                 style={styles.subjCard}
               >
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -14,7 +14,7 @@ type Route = RouteProp<RootStackParamList, 'HomeworkDetail'>;
 export function HomeworkDetailScreen() {
   const route = useRoute<Route>();
   const hwQ = useHomeworkItem(route.params.id);
-  const subjectsQ = useSubjects();
+  const subjectsQ = useSubjects(route.params.studentId);
   const submitMut = useSubmitHomework();
   const statusMut = useSetHomeworkStatus();
   const [toast, setToast] = useState(false);

@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, ReactNode, useContext, useMemo, useState } from 'react';
 import { useChildren } from '@/hooks/useParent';
 
 interface ChildContextValue {
@@ -9,17 +9,15 @@ interface ChildContextValue {
 const ChildContext = createContext<ChildContextValue | null>(null);
 
 export function ChildProvider({ children }: { children: ReactNode }) {
-  const [childId, setChildId] = useState('');
+  const [pickedId, setChildId] = useState('');
   const { data: kids } = useChildren();
 
-  // Default to the first real child once the roster loads, and re-anchor if the
-  // selected child disappears (e.g. session switched to a different parent).
-  useEffect(() => {
-    if (!kids?.length) return;
-    if (!kids.some((k) => k.id === childId)) setChildId(kids[0].id);
-  }, [kids, childId]);
+  // Derive on the same render the roster arrives so Class/Fees/Homework do not
+  // fire one request against /students/me (empty childId) before the effect runs.
+  const childId =
+    kids?.some((k) => k.id === pickedId) ? pickedId : (kids?.[0]?.id ?? '');
 
-  const value = useMemo(() => ({ childId, setChildId }), [childId]);
+  const value = useMemo(() => ({ childId, setChildId }), [childId, setChildId]);
   return <ChildContext.Provider value={value}>{children}</ChildContext.Provider>;
 }
 

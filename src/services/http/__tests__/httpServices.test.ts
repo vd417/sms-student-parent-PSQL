@@ -167,6 +167,20 @@ describe('httpServices derived paths', () => {
     spy.mockRestore();
   });
 
+  it('getTimetable for a parent child uses /students/{id}/timetable, not /timetable', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockImplementation(async (path: unknown) => {
+      const p = String(path);
+      if (p === '/students/sis-b/timetable') return [] as any;
+      if (p === '/subjects?student_id=sis-b') return [] as any;
+      throw new Error(`unexpected ${p}`);
+    });
+    await httpServices.student.getTimetable('sis-b');
+    const paths = spy.mock.calls.map((c) => c[0]);
+    expect(paths).toEqual(expect.arrayContaining(['/students/sis-b/timetable', '/subjects?student_id=sis-b']));
+    expect(paths).not.toContain('/timetable');
+    spy.mockRestore();
+  });
+
   it('homework.list loads GET /homework?student_id from roster id', async () => {
     const spy = jest
       .spyOn(client, 'apiFetch')
@@ -205,10 +219,33 @@ describe('httpServices derived paths', () => {
     expect(kids.map((k) => k.name)).toEqual(['Kid One', 'Kid Two']);
   });
 
-  it('parent.children returns [] when the endpoint call fails', async () => {
+  it('parent.children surfaces roster errors (does not swallow them)', async () => {
     jest.spyOn(client, 'apiFetch').mockRejectedValue(new Error('network'));
+    await expect(httpServices.parent.children()).rejects.toThrow('network');
+  });
+
+  it('parent.children maps live StudentResponse fields onto Child', async () => {
+    jest.spyOn(client, 'apiFetch').mockResolvedValueOnce([
+      {
+        id: 'sis-1',
+        name: 'Ankit Rana',
+        admission_no: 'SCC/26/0002',
+        class_label: 'IV-B',
+        attendance_pct: 96,
+        fee_status: 'paid',
+      },
+    ] as any);
     const kids = await httpServices.parent.children();
-    expect(kids).toEqual([]);
+    expect(kids).toEqual([
+      expect.objectContaining({
+        id: 'sis-1',
+        name: 'Ankit Rana',
+        studentId: 'SCC/26/0002',
+        grade: 'IV-B',
+        attn: 96,
+        fee: 'Paid',
+      }),
+    ]);
   });
 
   it('parent.getProfile resolves via /auth/me (no dedicated /parents/me)', async () => {
@@ -226,7 +263,7 @@ describe('httpServices derived paths', () => {
     const today = weekdayShort();
     jest.spyOn(client, 'apiFetch').mockImplementation(async (path: unknown) => {
       const p = String(path);
-      if (p === '/timetable') {
+      if (p === '/students/c1/timetable') {
         return [
           { day: today, period: 1, subject: 'Math', start_time: '00:00', end_time: '00:01' },
           { day: today, period: 2, subject: 'Science', start_time: '00:02', end_time: '00:03' },
@@ -250,6 +287,19 @@ describe('httpServices derived paths', () => {
     expect(result?.meals).toEqual({ breakfast: '', lunch: '' });
     expect(result?.pickup).toBe('—');
     expect(result?.todayAttn).toBe('leave');
+  });
+
+  it('childToday does not fall back to /students/me when childId is missing', async () => {
+    const spy = jest.spyOn(client, 'apiFetch');
+    const result = await httpServices.parent.childToday('');
+    expect(spy).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      classes: [],
+      meals: { breakfast: '', lunch: '' },
+      pickup: '—',
+      todayAttn: null,
+    });
+    spy.mockRestore();
   });
 
   it('attendance.month uses local calendar date bounds', async () => {

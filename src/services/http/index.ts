@@ -55,7 +55,7 @@ async function loadTimetableBlocks(studentId?: string) {
   const path = studentId ? `/students/${encodeURIComponent(studentId)}/timetable` : '/timetable';
   const [slots, subjects] = await Promise.all([
     getJson<TimetableSlotDTO[]>(path),
-    emptyOnError(() => loadSubjectCatalog(), []),
+    emptyOnError(() => loadSubjectCatalog(studentId), []),
   ]);
   const mappedSubjects = Array.isArray(subjects) ? subjects : [];
   return (Array.isArray(slots) ? slots : [])
@@ -87,7 +87,8 @@ async function loadSubjectCatalog(studentId?: string) {
   const rows = await emptyOnError(() => getJson<SubjectDTO[]>(`/subjects${q}`), []);
   const fromApi = (Array.isArray(rows) ? rows : []).map(toSubject);
   if (fromApi.length) return fromApi;
-  const slots = await emptyOnError(() => getJson<TimetableSlotDTO[]>('/timetable'), []);
+  const slotsPath = studentId ? `/students/${encodeURIComponent(studentId)}/timetable` : '/timetable';
+  const slots = await emptyOnError(() => getJson<TimetableSlotDTO[]>(slotsPath), []);
   const byName = new Map<string, ReturnType<typeof toSubject>>();
   for (const s of Array.isArray(slots) ? slots : []) {
     const name = (s.subject ?? '').trim();
@@ -362,20 +363,26 @@ export const httpServices: Services = {
         phone: me.phone ?? '',
       });
     },
-    // GET /parents/me/children lists every child linked to this parent (ParentStudentLinks,
-    // backend-owned). Empty array when the account has no linked children.
-    children: () =>
-      emptyOnError(async () => (await getJson<StudentDTO[]>('/parents/me/children')).map(toChild), []),
+    // GET /parents/me/children lists every child linked to this parent.
+    // Empty array when the account has no linked children. Auth/network errors
+    // propagate so the parent UI can show ErrorState / existing 401 sign-out.
+    children: async () => {
+      const rows = await getJson<StudentDTO[]>('/parents/me/children');
+      return (Array.isArray(rows) ? rows : []).map(toChild);
+    },
     // No live per-child /children/{id}/today endpoint — GET /timetable already resolves
     // the caller's own linked student (same as the student app's "today"), so derive
     // classes from that. Meals have no backend field yet; pickup falls back to '—'.
     childToday: async (childId) => {
-      const id = childId || (await loadMyStudent()).id;
+      if (!childId) {
+        return { classes: [], meals: { breakfast: '', lunch: '' }, pickup: '—', todayAttn: null };
+      }
+      const id = childId;
       const day = weekdayShort();
       const todayDate = localDateLabel(new Date());
       const nowMin = minutesFromMidnight(new Date());
       const [blocks, todayAttn, periodRows] = await Promise.all([
-        emptyOnError(() => loadTimetableBlocks(), []),
+        emptyOnError(() => loadTimetableBlocks(id), []),
         loadDailyAttendance(id).catch(() => null),
         emptyOnError(
           () =>

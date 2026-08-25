@@ -81,7 +81,38 @@ export function ParentHomeScreen() {
   }
 
   const parent = profileQ.data!;
-  const children = childrenQ.data!;
+  const children = childrenQ.data ?? [];
+  if (children.length === 0) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 24 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={profileQ.isRefetching} onRefresh={onRefresh} />}
+        >
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.greet}>Hello {parent.name.split(' ')[0]} 👋</Text>
+              <Text style={[typography.h1, { marginTop: 2 }]}>
+                {new Date().toLocaleDateString(undefined, {
+                  weekday: 'long',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </Text>
+            </View>
+            <IconButton
+              icon="notifications-outline"
+              badge={(noticesQ.data ?? []).some((n) => n.unread)}
+              onPress={() => nav.navigate('Announcements')}
+            />
+          </View>
+          <Empty message="No children are linked to this account yet." />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   const child = children.find((c) => c.id === childId) ?? children[0];
   // No live "today" schedule/meals endpoint yet — render an empty state, not an error.
   const today = todayQ.data ?? { classes: [], meals: { breakfast: '', lunch: '' }, pickup: '—', todayAttn: null };

@@ -3,7 +3,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Card, ErrorState, IconButton, Loading, ScreenHeader } from '@/components/ui';
+import { Card, Empty, ErrorState, IconButton, Loading, ScreenHeader } from '@/components/ui';
 import { useAttendance, usePeriodAttendance, useAttendanceSummary } from '@/hooks/useAttendance';
 import { useLeave } from '@/hooks/useLeave';
 import { useChildren } from '@/hooks/useParent';
@@ -72,6 +72,14 @@ export function ParentAttendanceScreen() {
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScreenHeader title="Attendance" onBack={() => nav.goBack()} />
         <ErrorState onRetry={onRefresh} />
+      </SafeAreaView>
+    );
+  }
+  if (!childId || !attnQ.data) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader title="Attendance" onBack={() => nav.goBack()} />
+        <Empty message="No children are linked to this account yet." />
       </SafeAreaView>
     );
   }

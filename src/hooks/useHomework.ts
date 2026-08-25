@@ -1,10 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { HomeworkStatus } from '@/models';
 import { services } from '@/services';
-import { qk } from './keys';
+import { enabledWhenOwnOrChild, qk } from './keys';
 
 export const useHomework = (studentId?: string) =>
-  useQuery({ queryKey: qk.homework(studentId), queryFn: () => services.homework.list(studentId) });
+  useQuery({
+    queryKey: qk.homework(studentId),
+    queryFn: () => services.homework.list(studentId),
+    enabled: enabledWhenOwnOrChild(studentId),
+  });
 
 export const useHomeworkItem = (id: string) =>
   useQuery({ queryKey: qk.homeworkItem(id), queryFn: () => services.homework.byId(id) });

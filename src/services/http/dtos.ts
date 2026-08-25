@@ -56,6 +56,9 @@ export interface StudentDTO {
   overall_avg?: number;
   rank?: number;
   rank_of?: number;
+  fee_status?: string | null;
+  fee_due?: number | null;
+  avatar_hue?: number | null;
 }
 
 export interface SubjectDTO {

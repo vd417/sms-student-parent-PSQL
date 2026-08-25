@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { services } from '@/services';
-import { qk } from './keys';
+import { enabledWhenOwnOrChild, qk } from './keys';
 
 export const useSubjects = (studentId?: string) =>
   useQuery({
     queryKey: qk.subjects(studentId),
     queryFn: () => services.subjects.list(studentId),
+    enabled: enabledWhenOwnOrChild(studentId),
   });
 export const useSubject = (id: string, studentId?: string) =>
   useQuery({

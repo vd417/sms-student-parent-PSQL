@@ -13,6 +13,18 @@ export function ParentFeesScreen() {
   const toast = useToast();
   const feesQ = useFees(childId);
 
+  if (!childId) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader
+          kicker="Fees"
+          title="Fees & payments"
+        />
+        <Empty message="No children are linked to this account yet." />
+      </SafeAreaView>
+    );
+  }
+
   if (feesQ.isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>

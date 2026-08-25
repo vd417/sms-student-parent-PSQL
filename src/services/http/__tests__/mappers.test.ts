@@ -363,8 +363,10 @@ describe('http mappers → domain', () => {
         section: 'B',
         class_label: 'IV-B',
         school: 'SCC',
+        admission_no: 'SCC/26/0002',
         attendance_pct: 96,
         overall_avg: 88,
+        fee_status: 'due',
       } as any),
     ).toMatchObject({
       id: 'sis-1',
@@ -372,8 +374,39 @@ describe('http mappers → domain', () => {
       initials: 'AR',
       grade: 'IV-B',
       school: 'SCC',
+      studentId: 'SCC/26/0002',
       avg: 88,
       attn: 96,
+      fee: 'Due',
     });
+  });
+
+  it('toChild maps admission_no, fee_status, and avatar_hue from the live roster', () => {
+    expect(
+      toChild({
+        id: 'sis-2',
+        name: 'Maya Patel',
+        admission_no: 'WBA-2024-1042',
+        grade: '9',
+        section: 'A',
+        fee_status: 'paid',
+        avatar_hue: 1,
+      } as any),
+    ).toMatchObject({
+      studentId: 'WBA-2024-1042',
+      grade: '9-A',
+      fee: 'Paid',
+      hue: 'red',
+    });
+  });
+
+  it('toChild maps fee_due when fee_status is absent', () => {
+    expect(
+      toChild({
+        id: 'sis-3',
+        name: 'Kid',
+        fee_due: 2500,
+      } as any),
+    ).toMatchObject({ id: 'sis-3', fee: 'Due' });
   });
 });

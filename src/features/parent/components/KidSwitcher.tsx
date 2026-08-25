@@ -8,7 +8,7 @@ export function KidSwitcher() {
   const { data: children } = useChildren();
   const { childId, setChildId } = useSelectedChild();
 
-  if (!children) return null;
+  if (!children?.length) return null;
 
   return (
     <ScrollView
@@ -36,7 +36,7 @@ export function KidSwitcher() {
                 {c.name.split(' ')[0]}
               </Text>
               <Text style={[styles.grade, { color: on ? colors.white : colors.ink }]}>
-                {c.grade.replace('Grade ', 'G')}
+                {(c.grade ?? '').replace('Grade ', 'G')}
               </Text>
             </View>
             {c.unread > 0 && !on ? (

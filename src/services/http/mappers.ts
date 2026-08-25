@@ -1,4 +1,5 @@
 import { hueForName, type SubjectHue } from '@/theme';
+import { SUBJECT_HUES } from '@/theme/derive';
 import { monogramFromName } from '@/components/ui/monogram';
 import { receiptStatusFromDto } from '@/lib/chatReceipt';
 import type {
@@ -390,6 +391,23 @@ export function formatChatWhen(raw: string | null | undefined): string {
     : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+function feeLabelFromStudent(d: StudentDTO): string {
+  const status = (d.fee_status ?? '').trim();
+  if (status) {
+    const lower = status.toLowerCase();
+    if (lower === 'paid') return 'Paid';
+    if (lower === 'due' || lower === 'partial' || lower === 'overdue') return 'Due';
+    return status;
+  }
+  if (d.fee_due != null && Number(d.fee_due) > 0) return 'Due';
+  return '—';
+}
+
+function hueFromAvatar(n?: number | null): SubjectHue | undefined {
+  if (n == null || !Number.isFinite(Number(n))) return undefined;
+  return SUBJECT_HUES[Math.abs(Number(n)) % SUBJECT_HUES.length];
+}
+
 export const toParent = (d: ParentDTO): Parent => ({ name: d.name, initials: d.initials, relation: d.relation, email: d.email, phone: d.phone });
 export const toChild = (d: ChildDTO | StudentDTO): Child => {
   const student = d as StudentDTO;
@@ -403,11 +421,12 @@ export const toChild = (d: ChildDTO | StudentDTO): Child => {
     initials: child.initials || student.initials || initialsFrom(name),
     grade: classLabel || gradeFromParts || child.grade || '',
     school: child.school || student.school || '',
+    studentId: (student.admission_no ?? '').trim() || undefined,
     avg: Number(child.avg ?? student.overall_avg ?? 0) || 0,
     attn: Number(child.attn ?? student.attendance_pct ?? 0) || 0,
-    fee: child.fee || '—',
+    fee: child.fee || feeLabelFromStudent(student),
     unread: child.unread ?? 0,
-    hue: child.hue || hueForName(name),
+    hue: child.hue || hueFromAvatar(student.avatar_hue) || hueForName(name),
   };
 };
 

@@ -10,7 +10,7 @@ export type RootStackParamList = {
   Main: NavigatorScreenParams<TabParamList> | undefined;
   Schedule: undefined;
   Attendance: undefined;
-  HomeworkDetail: { id: string };
+  HomeworkDetail: { id: string; studentId?: string };
   SubjectDetail: { id: string; studentId?: string };
   Grades: { studentId?: string } | undefined;
   ChatThread: { id: string; name?: string; role?: string };
@@ -37,7 +37,7 @@ export type ParentStackParamList = {
   Leave: undefined;
   Announcements: undefined;
   ChatThread: { id: string; name?: string; role?: string; kid?: string | null };
-  HomeworkDetail: { id: string };
+  HomeworkDetail: { id: string; studentId?: string };
   Grades: { studentId?: string } | undefined;
   SubjectDetail: { id: string; studentId?: string };
   PersonalInfo: undefined;

@@ -175,6 +175,8 @@ export interface Child {
   initials: string;
   grade: string;
   school: string;
+  /** Admission number from the live roster (`admission_no`). */
+  studentId?: string;
   avg: number;
   attn: number;
   fee: string;

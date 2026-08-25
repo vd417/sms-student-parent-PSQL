@@ -332,7 +332,7 @@ export function SubjectDetailScreen() {
               <HomeworkCard
                 key={h.id}
                 homework={h}
-                onPress={() => nav.navigate('HomeworkDetail', { id: h.id })}
+                onPress={() => nav.navigate('HomeworkDetail', { id: h.id, studentId })}
               />
             ))
             )}
