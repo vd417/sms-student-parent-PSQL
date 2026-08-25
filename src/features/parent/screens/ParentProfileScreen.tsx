@@ -2,15 +2,23 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Card, ErrorState, IconButton, Loading, Pill, SectionHeader } from '@/components/ui';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Card, ErrorState, IconButton, Loading, Pill, ScreenHeader, SectionHeader } from '@/components/ui';
 import { useChildren, useParentProfile } from '@/hooks/useParent';
 import { useAuth } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
+import { useSelectedChild } from '@/providers/ChildProvider';
 import { colors, fontFamily, hueColor, primaryGradient, radius, spacing } from '@/theme';
+import type { ParentStackParamList } from '@/navigation/types';
+
+type Nav = NativeStackNavigationProp<ParentStackParamList>;
 
 export function ParentProfileScreen() {
+  const nav = useNavigation<Nav>();
   const { signOut } = useAuth();
   const toast = useToast();
+  const { setChildId } = useSelectedChild();
   const profileQ = useParentProfile();
   const childrenQ = useChildren();
 
@@ -24,6 +32,7 @@ export function ParentProfileScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader title="Profile" />
         <Loading />
       </SafeAreaView>
     );
@@ -31,6 +40,7 @@ export function ParentProfileScreen() {
   if (isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader title="Profile" />
         <ErrorState onRetry={onRefresh} />
       </SafeAreaView>
     );
@@ -41,6 +51,10 @@ export function ParentProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <ScreenHeader
+        title="Profile"
+        right={<IconButton icon="log-out-outline" onPress={() => signOut()} />}
+      />
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
@@ -52,10 +66,6 @@ export function ParentProfileScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.hero}
         >
-          <View style={styles.heroTop}>
-            <Text style={styles.heroTitle}>Profile</Text>
-            <IconButton icon="log-out-outline" dark onPress={() => signOut()} />
-          </View>
           <View style={styles.heroRow}>
             <View style={styles.avatar}>
               <Text style={styles.avatarTxt}>{parent.initials}</Text>
@@ -74,7 +84,14 @@ export function ParentProfileScreen() {
           <SectionHeader title="My children" action={{ label: 'Add child' }} />
           <View style={{ gap: 10, marginTop: 10 }}>
             {children.map((c) => (
-              <View key={c.id} style={styles.childRow}>
+              <Pressable
+                key={c.id}
+                onPress={() => {
+                  setChildId(c.id);
+                  nav.navigate('Main', { screen: 'Class' });
+                }}
+                style={({ pressed }) => [styles.childRow, pressed && { opacity: 0.85 }]}
+              >
                 <View style={[styles.childIcon, { backgroundColor: hueColor(c.hue) }]}>
                   <Text style={styles.childIconTxt}>{c.initials}</Text>
                 </View>
@@ -89,7 +106,7 @@ export function ParentProfileScreen() {
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={colors.inkSoft} />
-              </View>
+              </Pressable>
             ))}
           </View>
         </View>
@@ -101,7 +118,7 @@ export function ParentProfileScreen() {
               icon="person-outline"
               label="Personal info"
               chev
-              onPress={() => toast('Coming soon')}
+              onPress={() => nav.navigate('PersonalInfo')}
             />
             <ProfileRow
               icon="card-outline"
@@ -113,14 +130,14 @@ export function ParentProfileScreen() {
               icon="lock-closed-outline"
               label="Privacy & security"
               chev
-              onPress={() => toast('Coming soon')}
+              onPress={() => nav.navigate('Privacy')}
             />
             <ProfileRow
               icon="notifications-outline"
               label="Notifications"
               chev
               last
-              onPress={() => toast('Coming soon')}
+              onPress={() => nav.navigate('NotificationSettings')}
             />
           </Card>
         </View>

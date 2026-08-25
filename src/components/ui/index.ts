@@ -14,3 +14,4 @@ export { Loading } from './Loading';
 export { ErrorState } from './ErrorState';
 export { Empty } from './Empty';
 export { SchoolBadge } from './SchoolBadge';
+export { MessageTicks } from './MessageTicks';

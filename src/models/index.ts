@@ -17,9 +17,17 @@ export interface Student {
   classroom: string;
   house: string;
   overallAvg: number;
-  attnPct: number;
+  /** Official period attendance %; null when no marked periods. */
+  attnPct: number | null;
   rank: number;
   rankOf: number;
+  gender?: string;
+  section?: string;
+  dob?: string;
+  address?: string;
+  guardianName?: string;
+  guardianPhone?: string;
+  photoUrl?: string;
 }
 
 export interface Subject {
@@ -40,6 +48,13 @@ export interface TodayBlock {
   kind: 'class' | 'break' | 'meeting' | 'club';
   room?: string;
   teacher?: string;
+  teacherId?: string;
+  /** 1-based period from the published slot (preferred sort key). */
+  period?: number;
+  /** Minutes from midnight for chronological sort (handles 12h display strings). */
+  startMin?: number;
+  /** End clock label (optional); keep `t` as start-only for the narrow time column. */
+  endT?: string;
 }
 
 export interface Homework {
@@ -57,6 +72,8 @@ export interface Exam {
   id: string;
   title: string;
   subjId: string;
+  subjectName?: string;
+  classId?: string;
   date: string;
   time: string;
   dur: string;
@@ -69,6 +86,8 @@ export interface Exam {
 export interface Grade {
   id: string;
   subjId: string;
+  /** Subject display name from the grade/paper join (for matching when ids differ). */
+  subjectName?: string;
   title: string;
   score: number;
   max: number;
@@ -85,12 +104,23 @@ export interface Announcement {
   body: string;
 }
 
+export interface InboxNotice {
+  id: string;
+  title: string;
+  body: string;
+  unread: boolean;
+  tone: string;
+}
+
+export type TeacherRole = 'principal' | 'class_teacher' | 'subject_teacher';
+
 export interface Teacher {
   id: string;
   name: string;
   initials: string;
   subj: string;
   online: boolean;
+  role: TeacherRole;
 }
 
 export interface Peer {
@@ -126,6 +156,8 @@ export interface ChatMessage {
   from: 'me' | 'them';
   text: string;
   time: string;
+  /** Present on outgoing messages: grey ticks until the peer opens the chat. */
+  status?: 'sent' | 'delivered' | 'read';
 }
 
 // ---------- parent ----------
@@ -154,6 +186,8 @@ export interface ChildClass {
   t: string;
   label: string;
   done: boolean;
+  /** Per-period attendance mark; null when not yet taken for that period. */
+  attn: DailyAttendanceStatus;
 }
 
 export type DailyAttendanceStatus = 'present' | 'absent' | 'late' | 'leave' | null;
@@ -175,7 +209,9 @@ export interface Fee {
   period: string;
   dueDate: string;
   amount: number;
-  status: 'due' | 'paid';
+  status: 'due' | 'partial' | 'paid';
+  /** Amount already paid toward this invoice; only meaningful when status is 'partial'. */
+  paidAmount?: number;
   items?: FeeItem[];
   paidOn?: string;
   method?: string;
@@ -228,6 +264,28 @@ export interface AttendanceFlag {
   action: string;
 }
 
+/** One subject+period mark from SaaS PeriodAttendanceRecords. */
+export interface PeriodAttendanceEntry {
+  id: string;
+  date: string;
+  period: number;
+  subject: string;
+  subjectId?: string;
+  status: 'present' | 'absent' | 'late' | 'leave' | string;
+  markedByRole?: string;
+}
+
+/** Official period attendance aggregate from GET .../attendance/summary. */
+export interface PeriodAttendanceSummary {
+  totalMarkedPeriods: number;
+  presentPeriods: number;
+  latePeriods: number;
+  absentPeriods: number;
+  leavePeriods: number;
+  attendancePercentage: number | null;
+  presentTodayBadge: boolean | null;
+}
+
 export interface LeaveRequest {
   id: string;
   childId: string;
@@ -243,7 +301,10 @@ export interface School {
   id: string;
   name: string;
   shortName?: string;
+  /** Primary brand mark (logo). */
   logoUrl: string;
+  /** Cover / school photo — used when logo is missing or fails to paint. */
+  imageUrl?: string;
 }
 
 // ---------- auth ----------

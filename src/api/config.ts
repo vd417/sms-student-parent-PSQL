@@ -25,13 +25,4 @@ export const MOCK_ERROR_RATE = 0; // 0..1, set >0 to exercise error UI
 
 // Features with no backing endpoint — served by mock, surfaced in the startup
 // log. Each flips to live with a one-line change once the backend ships it.
-export const MOCK_BACKED: readonly string[] = [
-  'school.getCurrent',
-  'student.getToday',
-  'student.getPeers',
-  'student.getAchievements',
-  'parent.childToday',
-  'ptm',
-  'transport',
-  'attendance',
-];
+export const MOCK_BACKED: readonly string[] = [];

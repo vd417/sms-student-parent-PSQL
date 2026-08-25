@@ -1,6 +1,16 @@
-export { colors, hueColor, hueForName, primaryGradient } from './colors';
-export type { SubjectHue } from './colors';
+export { colors, hueColor, hueForName, primaryGradient, isLightSubjectHue } from './colors';
+export type { SubjectHue, AppColors } from './colors';
+export { deriveColorSet, hueForSeed, SUBJECT_HUES, SUBJECT_BOX_HUES, assignDistinctSubjectHues, colorSetForHue } from './derive';
+export type { ColorSet } from './derive';
 export { fontFamily, typography } from './typography';
+export {
+  deriveBrandPalette,
+  applyBrandPalette,
+  brandSeedFromSchool,
+  hashSeed,
+} from './brand';
+export type { BrandPalette } from './brand';
+export { useBrandColors } from './useBrandColors';
 
 export const spacing = {
   xs: 4,

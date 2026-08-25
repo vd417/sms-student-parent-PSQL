@@ -17,7 +17,9 @@ describe('normalizeError', () => {
     expect(normalizeError(403, { title: 'Forbidden' }).message).toBe('Forbidden');
   });
 
-  it('falls back to a status string when body is empty', () => {
-    expect(normalizeError(500, null).message).toBe('Request failed (500)');
+  it('uses the API error envelope message and code', () => {
+    const e = normalizeError(404, { error: { code: 'not_registered', message: 'No student account found for this ID. Contact your school.' } });
+    expect(e.message).toBe('No student account found for this ID. Contact your school.');
+    expect(e.code).toBe('not_registered');
   });
 });

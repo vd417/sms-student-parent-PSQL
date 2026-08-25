@@ -1,12 +1,14 @@
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useCallback } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import {
   Button,
   Card,
+  Empty,
   ErrorState,
   IconButton,
   Loading,
@@ -17,9 +19,10 @@ import {
 import type { PillTone } from '@/components/ui';
 import { KidSwitcher } from '../components/KidSwitcher';
 import { useChildren, useChildToday, useParentProfile } from '@/hooks/useParent';
+import { useFees } from '@/hooks/useFees';
 import { useAnnouncements } from '@/hooks/useAnnouncements';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useSelectedChild } from '@/providers/ChildProvider';
-import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueColor, radius, spacing, typography } from '@/theme';
 import type { DailyAttendanceStatus } from '@/models';
 import type { ParentStackParamList, ParentTabParamList } from '@/navigation/types';
@@ -37,13 +40,21 @@ const ACTIONS = [
 
 export function ParentHomeScreen() {
   const nav = useNavigation<Nav>();
-  const toast = useToast();
   const { childId } = useSelectedChild();
 
   const profileQ = useParentProfile();
   const childrenQ = useChildren();
   const todayQ = useChildToday(childId);
   const annQ = useAnnouncements('parent');
+  const noticesQ = useNotifications();
+  const feesQ = useFees(childId);
+
+  useFocusEffect(
+    useCallback(() => {
+      void todayQ.refetch();
+      void annQ.refetch();
+    }, [todayQ.refetch, annQ.refetch]),
+  );
 
   const isLoading = profileQ.isLoading || childrenQ.isLoading || todayQ.isLoading || annQ.isLoading;
   const isError = profileQ.isError || childrenQ.isError || todayQ.isError || annQ.isError;
@@ -72,7 +83,10 @@ export function ParentHomeScreen() {
   const parent = profileQ.data!;
   const children = childrenQ.data!;
   const child = children.find((c) => c.id === childId) ?? children[0];
-  const today = todayQ.data!;
+  // No live "today" schedule/meals endpoint yet — render an empty state, not an error.
+  const today = todayQ.data ?? { classes: [], meals: { breakfast: '', lunch: '' }, pickup: '—', todayAttn: null };
+  // 'partial' invoices are still outstanding — only fully-paid fees drop off this alert.
+  const dueFee = feesQ.data?.find((f) => f.status === 'due' || f.status === 'partial');
   const firstAnn = annQ.data![0];
   const doneClasses = today.classes.filter((x) => x.done).length;
   const attendanceChip = dailyAttendanceChip(today.todayAttn);
@@ -87,9 +101,19 @@ export function ParentHomeScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.greet}>Hello {parent.name.split(' ')[0]} 👋</Text>
-            <Text style={[typography.h1, { marginTop: 2 }]}>Friday, Apr 25</Text>
+            <Text style={[typography.h1, { marginTop: 2 }]}>
+              {new Date().toLocaleDateString(undefined, {
+                weekday: 'long',
+                month: 'short',
+                day: 'numeric',
+              })}
+            </Text>
           </View>
-          <IconButton icon="notifications-outline" badge onPress={() => toast('Coming soon')} />
+          <IconButton
+            icon="notifications-outline"
+            badge={(noticesQ.data ?? []).some((n) => n.unread)}
+            onPress={() => nav.navigate('Announcements')}
+          />
         </View>
 
         <KidSwitcher />
@@ -123,17 +147,28 @@ export function ParentHomeScreen() {
         {/* Today's classes */}
         <View style={styles.section}>
           <SectionHeader title="Today's classes" style={{ marginBottom: 12 }} />
-          <Card style={{ padding: 14 }}>
-            {today.classes.map((cl, i) => (
-              <View
-                key={`${cl.t}-${i}`}
-                style={[styles.classRow, i !== today.classes.length - 1 && styles.classDivider]}
-              >
-                <Text style={styles.classTime}>{cl.t}</Text>
-                <Text style={styles.classLabel}>{cl.label}</Text>
-              </View>
-            ))}
-          </Card>
+          {today.classes.length === 0 ? (
+            <Card style={{ padding: 14 }}>
+              <Empty message="No classes today." />
+            </Card>
+          ) : (
+            <Card style={{ padding: 14 }}>
+              {today.classes.map((cl, i) => (
+                <View
+                  key={`${cl.t}-${i}`}
+                  style={[styles.classRow, i !== today.classes.length - 1 && styles.classDivider]}
+                >
+                  <Text style={styles.classTime}>{cl.t}</Text>
+                  <Text style={styles.classLabel}>{cl.label}</Text>
+                  {cl.attn ? (
+                    <Pill tone={cl.attn === 'present' ? 'present' : cl.attn === 'late' ? 'late' : 'absent'}>
+                      {cl.attn}
+                    </Pill>
+                  ) : null}
+                </View>
+              ))}
+            </Card>
+          )}
         </View>
 
         {/* Quick actions */}
@@ -156,15 +191,18 @@ export function ParentHomeScreen() {
         </View>
 
         {/* Fee due alert */}
-        {child.fee !== 'Paid' ? (
+        {dueFee ? (
           <View style={styles.section}>
             <Card style={styles.feeAlert}>
               <View style={styles.feeIcon}>
                 <Ionicons name="alert-circle" size={20} color={colors.late} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.feeTitle}>Term 4 fee due</Text>
-                <Text style={styles.feeMeta}>$1,240 · {child.fee}</Text>
+                <Text style={styles.feeTitle}>{dueFee.period} fee due</Text>
+                <Text style={styles.feeMeta}>
+                  ₹{(dueFee.amount - (dueFee.paidAmount ?? 0)).toLocaleString()}
+                  {dueFee.dueDate ? ` · due ${dueFee.dueDate}` : ''}
+                </Text>
               </View>
               <Button size="md" variant="primary" onPress={() => nav.navigate('Fees')}>
                 Pay

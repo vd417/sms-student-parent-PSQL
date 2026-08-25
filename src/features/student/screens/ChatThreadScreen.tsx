@@ -3,6 +3,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,8 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Avatar, Empty, IconButton, Loading } from '@/components/ui';
-import { useThreads, useMessages, useSendMessage } from '@/hooks/useMessaging';
+import { Avatar, Empty, ErrorState, IconButton, Loading, MessageTicks } from '@/components/ui';
+import { useCachedThread, useMessages, useChatComposer } from '@/hooks/useMessaging';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueForName, radius, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
@@ -27,31 +28,62 @@ export function ChatThreadScreen() {
   const toast = useToast();
   const route = useRoute<Route>();
   const threadId = route.params.id;
-
-  const threadsQ = useThreads('student');
   const messagesQ = useMessages(threadId);
-  const sendMut = useSendMessage(threadId);
+  const cached = useCachedThread('student', threadId);
+  const {
+    sendMessage,
+    sendPending,
+    moderationError,
+    moderationWarning,
+    clearModerationError,
+  } = useChatComposer(threadId);
   const [draft, setDraft] = useState('');
 
-  const thread = threadsQ.data?.find((t) => t.id === threadId) ?? threadsQ.data?.[0];
+  const thread = cached;
+  const headerName = route.params.name ?? thread?.name ?? 'Conversation';
+  const headerSubj = route.params.role ?? thread?.role ?? '';
 
   const send = () => {
-    const text = draft.trim();
-    if (!text) return;
-    sendMut.mutate(text);
-    setDraft('');
+    sendMessage(draft, () => setDraft(''));
   };
 
-  if (threadsQ.isLoading || messagesQ.isLoading) {
+  const onRefresh = () => {
+    messagesQ.refetch();
+  };
+
+  if (messagesQ.isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => nav.goBack()}
+            style={({ pressed }) => [styles.back, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="chevron-back" size={20} color={colors.ink} />
+          </Pressable>
+          <View style={{ flex: 1 }} />
+        </View>
         <Loading />
       </SafeAreaView>
     );
   }
+  if (messagesQ.isError) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.header}>
+          <Pressable
+            onPress={() => nav.goBack()}
+            style={({ pressed }) => [styles.back, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="chevron-back" size={20} color={colors.ink} />
+          </Pressable>
+          <View style={{ flex: 1 }} />
+        </View>
+        <ErrorState onRetry={() => messagesQ.refetch()} />
+      </SafeAreaView>
+    );
+  }
 
-  const headerName = thread?.name ?? 'Conversation';
-  const headerSubj = thread?.role ?? '';
   const messages = messagesQ.data ?? [];
 
   return (
@@ -78,7 +110,13 @@ export function ChatThreadScreen() {
         {messages.length === 0 ? (
           <Empty message="No messages yet. Say hello!" />
         ) : (
-          <ScrollView contentContainerStyle={styles.thread} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={styles.thread}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={messagesQ.isRefetching} onRefresh={onRefresh} />
+            }
+          >
             {messages.map((m) => {
               const me = m.from === 'me';
               return (
@@ -93,17 +131,11 @@ export function ChatThreadScreen() {
                       { borderBottomRightRadius: me ? 4 : 18, borderBottomLeftRadius: me ? 18 : 4 },
                     ]}
                   >
-                    <Text style={[styles.msg, { color: me ? colors.white : colors.ink }]}>
-                      {m.text}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.time,
-                        { color: me ? 'rgba(255,255,255,0.75)' : colors.inkMuted },
-                      ]}
-                    >
-                      {m.time}
-                    </Text>
+                    <Text style={styles.msg}>{m.text}</Text>
+                    <View style={styles.metaRow}>
+                      <Text style={styles.time}>{m.time}</Text>
+                      {me && m.status ? <MessageTicks status={m.status} /> : null}
+                    </View>
                   </View>
                 </View>
               );
@@ -111,11 +143,16 @@ export function ChatThreadScreen() {
           </ScrollView>
         )}
 
+        {moderationError ? <Text style={styles.moderationErrorText}>{moderationWarning}</Text> : null}
+
         <View style={styles.composer}>
           <IconButton icon="attach" size={40} onPress={() => toast('Coming soon')} />
           <TextInput
             value={draft}
-            onChangeText={setDraft}
+            onChangeText={(v) => {
+              setDraft(v);
+              if (moderationError) clearModerationError();
+            }}
             placeholder="Message..."
             placeholderTextColor={colors.inkMuted}
             style={styles.input}
@@ -123,7 +160,7 @@ export function ChatThreadScreen() {
           />
           <Pressable
             onPress={send}
-            style={({ pressed }) => [styles.sendBtn, pressed && { opacity: 0.85 }]}
+            style={({ pressed }) => [styles.sendBtn, pressed && { opacity: 0.85 }, sendPending && { opacity: 0.6 }]}
           >
             <Ionicons name="send" size={18} color={colors.white} />
           </Pressable>
@@ -183,14 +220,28 @@ const styles = StyleSheet.create({
   },
   bubbleWrap: { maxWidth: '78%' },
   bubble: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 18 },
-  bubbleMe: { backgroundColor: colors.primary },
+  bubbleMe: { backgroundColor: colors.primarySoft },
   bubbleThem: {
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.rule,
   },
-  msg: { fontFamily: fontFamily.medium, fontSize: 13, lineHeight: 18 },
-  time: { fontFamily: fontFamily.semiBold, fontSize: 9.5, marginTop: 4 },
+  msg: { fontFamily: fontFamily.medium, fontSize: 13, lineHeight: 18, color: colors.ink },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
+  time: { fontFamily: fontFamily.semiBold, fontSize: 9.5, marginTop: 0, color: colors.inkMuted },
+  moderationErrorText: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 12,
+    color: colors.coral,
+    paddingHorizontal: spacing.l,
+    paddingTop: 8,
+  },
   composer: {
     flexDirection: 'row',
     alignItems: 'center',

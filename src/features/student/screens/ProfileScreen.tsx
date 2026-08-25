@@ -1,13 +1,16 @@
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Card, ErrorState, IconButton, Loading, SectionHeader } from '@/components/ui';
+import { Card, Empty, ErrorState, IconButton, Loading, ScreenHeader, SectionHeader } from '@/components/ui';
 import { useStudentProfile, useAchievements } from '@/hooks/useStudent';
+import { useGrades } from '@/hooks/useGrades';
+import { useSubjects } from '@/hooks/useSubjects';
 import { useAuth } from '@/providers/AuthProvider';
-import { useToast } from '@/providers/ToastProvider';
+import { buildReportFromGrades } from '@/lib/reportCardBuild';
+import { formatHomeAvg } from '@/lib/homeStats';
 import { colors, fontFamily, hueColor, primaryGradient, radius, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -22,22 +25,26 @@ const ACH_ICON: Record<'award' | 'star' | 'check' | 'flag', keyof typeof Ionicon
 
 export function ProfileScreen() {
   const nav = useNavigation<Nav>();
-  const toast = useToast();
   const { signOut } = useAuth();
 
   const profileQ = useStudentProfile();
   const achievementsQ = useAchievements();
+  const gradesQ = useGrades();
+  const subjectsQ = useSubjects();
 
-  const isLoading = profileQ.isLoading || achievementsQ.isLoading;
-  const isError = profileQ.isError || achievementsQ.isError;
+  const isLoading = profileQ.isLoading;
+  const isError = profileQ.isError;
   const onRefresh = () => {
     profileQ.refetch();
     achievementsQ.refetch();
+    gradesQ.refetch();
+    subjectsQ.refetch();
   };
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader title="Profile" />
         <Loading />
       </SafeAreaView>
     );
@@ -45,16 +52,23 @@ export function ProfileScreen() {
   if (isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader title="Profile" />
         <ErrorState onRetry={onRefresh} />
       </SafeAreaView>
     );
   }
 
   const student = profileQ.data!;
-  const achievements = achievementsQ.data!;
+  const achievements = achievementsQ.data ?? [];
+  const report = buildReportFromGrades(gradesQ.data ?? [], subjectsQ.data ?? []);
+  const avgLabel = report.rows.length ? `${Math.round(report.pct)}%` : formatHomeAvg(student.overallAvg);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <ScreenHeader
+        title="Profile"
+        right={<IconButton icon="log-out-outline" onPress={() => signOut()} />}
+      />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -66,18 +80,19 @@ export function ProfileScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.hero}
         >
-          <View style={styles.heroTop}>
-            <Text style={styles.heroTitle}>Profile</Text>
-            <IconButton icon="log-out-outline" dark onPress={() => signOut()} />
-          </View>
           <View style={styles.heroRow}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarTxt}>{student.initials}</Text>
+              {student.photoUrl ? (
+                <Image source={{ uri: student.photoUrl }} style={styles.avatarImg} />
+              ) : (
+                <Text style={styles.avatarTxt}>{student.initials}</Text>
+              )}
             </View>
             <View>
               <Text style={styles.name}>{student.name}</Text>
               <Text style={styles.gradeTxt}>
-                {student.grade} · Roll #{student.roll}
+                {student.classroom || student.grade}
+                {student.roll > 0 ? ` · Roll #${student.roll}` : ''}
               </Text>
               <Text style={styles.school}>
                 {student.school} · {student.studentId}
@@ -87,9 +102,14 @@ export function ProfileScreen() {
         </LinearGradient>
 
         <View style={{ marginTop: 18 }}>
-          <SectionHeader title="Achievements" action={{ label: 'See all' }} />
+          <SectionHeader title="Achievements" />
           <View style={styles.grid}>
-            {achievements.map((a, i) => (
+            {achievements.length === 0 ? (
+              <View style={{ width: '100%' }}>
+                <Empty message="No achievements recorded yet." />
+              </View>
+            ) : (
+              achievements.map((a, i) => (
               <View
                 key={a.id}
                 style={[styles.gridCell, i % 2 === 0 ? { paddingRight: 5 } : { paddingLeft: 5 }]}
@@ -110,25 +130,26 @@ export function ProfileScreen() {
                   <Text style={styles.achWhen}>{a.when}</Text>
                 </View>
               </View>
-            ))}
+            ))
+            )}
           </View>
         </View>
 
         <View style={{ marginTop: 18 }}>
           <SectionHeader title="This term" />
           <Card style={{ padding: 4, marginTop: 10 }}>
-            <ProfileRow icon="checkmark-circle-outline" label="Days present" value="84/87" />
+            <ProfileRow icon="checkmark-circle-outline" label="Attendance" value={student.attnPct == null ? 'Not marked' : `${student.attnPct || 0}%`} />
             <ProfileRow
               icon="trophy-outline"
               label="Class rank"
-              value={`${student.rank}/${student.rankOf}`}
+              value={student.rankOf > 0 ? `${student.rank}/${student.rankOf}` : '—'}
             />
-            <ProfileRow
-              icon="bar-chart-outline"
-              label="Avg score"
-              value={`${student.overallAvg}%`}
-            />
-            <ProfileRow icon="flag-outline" label="Days off" value="3" last />
+              <ProfileRow
+                icon="bar-chart-outline"
+                label="Avg score"
+                value={avgLabel}
+              />
+            <ProfileRow icon="school-outline" label="Class" value={student.classroom || student.grade || '—'} last />
           </Card>
         </View>
 
@@ -139,20 +160,20 @@ export function ProfileScreen() {
               icon="person-outline"
               label="Personal info"
               chev
-              onPress={() => toast('Coming soon')}
+              onPress={() => nav.navigate('PersonalInfo')}
             />
             <ProfileRow
               icon="lock-closed-outline"
               label="Privacy & parental controls"
               chev
-              onPress={() => toast('Coming soon')}
+              onPress={() => nav.navigate('Privacy')}
             />
             <ProfileRow
               icon="notifications-outline"
               label="Notifications"
               chev
               last
-              onPress={() => toast('Coming soon')}
+              onPress={() => nav.navigate('NotificationSettings')}
             />
           </Card>
         </View>
@@ -242,10 +263,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.22)',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.3)',
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarTxt: { fontFamily: fontFamily.extraBold, fontSize: 22, color: colors.white },
+  avatarImg: { width: '100%', height: '100%' },
   name: { fontFamily: fontFamily.extraBold, fontSize: 18, color: colors.white },
   gradeTxt: {
     fontFamily: fontFamily.semiBold,

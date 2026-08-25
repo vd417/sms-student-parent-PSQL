@@ -5,24 +5,20 @@ import {
   Avatar,
   Button,
   Card,
+  Empty,
   ErrorState,
   IconButton,
   Loading,
   ScreenHeader,
 } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
+import { monogramFromName } from '@/components/ui/monogram';
 import { useTransport } from '@/hooks/useTransport';
 import { useSelectedChild } from '@/providers/ChildProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, radius } from '@/theme';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { ParentStackParamList } from '@/navigation/types';
-
-type Nav = NativeStackNavigationProp<ParentStackParamList>;
 
 export function ParentTransportScreen() {
-  const nav = useNavigation<Nav>();
   const toast = useToast();
   const { childId } = useSelectedChild();
   const trQ = useTransport(childId);
@@ -30,7 +26,7 @@ export function ParentTransportScreen() {
   if (trQ.isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader title="Bus track" onBack={() => nav.goBack()} />
+        <ScreenHeader title="Bus track" />
         <Loading />
       </SafeAreaView>
     );
@@ -38,20 +34,27 @@ export function ParentTransportScreen() {
   if (trQ.isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader title="Bus track" onBack={() => nav.goBack()} />
+        <ScreenHeader title="Bus track" />
         <ErrorState onRetry={() => trQ.refetch()} />
       </SafeAreaView>
     );
   }
+  if (!trQ.data) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader title="Bus track" />
+        <Empty message="No transport info yet." />
+      </SafeAreaView>
+    );
+  }
 
-  const tr = trQ.data!;
+  const tr = trQ.data;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScreenHeader
         kicker={`Bus #${tr.busNo} · ${tr.plate}`}
         title="Bus track"
-        onBack={() => nav.goBack()}
         right={<IconButton icon="notifications-outline" onPress={() => toast('Coming soon')} />}
       />
       <ScrollView
@@ -103,7 +106,9 @@ export function ParentTransportScreen() {
                 <Ionicons name="location" size={20} color={colors.white} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.mapTitle}>3 stops away</Text>
+                <Text style={styles.mapTitle}>
+                  {tr.nextStops.length} stop{tr.nextStops.length === 1 ? '' : 's'} away
+                </Text>
                 <Text style={styles.mapMeta}>ETA at your stop · {tr.eta}</Text>
               </View>
               <Button size="md" variant="primary">
@@ -116,10 +121,10 @@ export function ParentTransportScreen() {
         <Text style={[styles.eyebrow, { paddingHorizontal: 18, marginBottom: 8 }]}>Driver</Text>
         <View style={{ paddingHorizontal: 18, paddingBottom: 14 }}>
           <Card style={styles.driver}>
-            <Avatar initials="SR" size={44} hue="mint" />
+            <Avatar initials={monogramFromName(tr.driver)} size={44} hue="mint" />
             <View style={{ flex: 1 }}>
               <Text style={styles.driverName}>{tr.driver}</Text>
-              <Text style={styles.driverMeta}>Bus #{tr.busNo} · 8 yrs experience</Text>
+              <Text style={styles.driverMeta}>Bus #{tr.busNo}</Text>
             </View>
             <IconButton icon="chatbubble-outline" onPress={() => toast('Coming soon')} />
             <IconButton icon="call-outline" onPress={() => toast('Coming soon')} />

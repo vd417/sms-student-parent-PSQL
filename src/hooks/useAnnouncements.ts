@@ -7,4 +7,5 @@ export const useAnnouncements = (audience: Role) =>
   useQuery({
     queryKey: qk.announcements(audience),
     queryFn: () => services.announcements.list(audience),
+    refetchOnMount: 'always',
   });

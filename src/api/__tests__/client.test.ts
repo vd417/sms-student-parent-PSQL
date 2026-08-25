@@ -18,8 +18,14 @@ afterEach(() => {
 });
 
 it('returns parsed json on success', async () => {
-  jest.spyOn(global, 'fetch').mockResolvedValue(okJson({ id: 1 }));
+  jest.spyOn(global, 'fetch').mockResolvedValue(okJson({ data: { id: 1 } }));
   await expect(apiFetch('/x')).resolves.toEqual({ id: 1 });
+});
+
+it('does not reuse a cached GET body', async () => {
+  const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(okJson({ data: { id: 1 } }));
+  await apiFetch('/timetable');
+  expect(fetchMock.mock.calls[0][1]).toMatchObject({ cache: 'no-store' });
 });
 
 it('throws a normalized ApiError on non-2xx', async () => {
@@ -31,7 +37,7 @@ it('refreshes once on 401 then retries', async () => {
   const fetchMock = jest
     .spyOn(global, 'fetch')
     .mockResolvedValueOnce(errJson(401, {}))
-    .mockResolvedValueOnce(okJson({ ok: true }));
+    .mockResolvedValueOnce(okJson({ data: { ok: true } }));
   setRefreshHandler(async () => 'new-token');
   await expect(apiFetch('/x')).resolves.toEqual({ ok: true });
   expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -42,7 +48,7 @@ it('shares one refresh across concurrent 401s', async () => {
     .spyOn(global, 'fetch')
     .mockResolvedValueOnce(errJson(401, {}))
     .mockResolvedValueOnce(errJson(401, {}))
-    .mockResolvedValue(okJson({ ok: true }));
+    .mockResolvedValue(okJson({ data: { ok: true } }));
   const refresh = jest.fn(async () => 'new-token');
   setRefreshHandler(refresh);
   await Promise.all([apiFetch('/a'), apiFetch('/b')]);

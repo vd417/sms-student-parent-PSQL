@@ -1,3 +1,5 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type AuthStackParamList = {
   Welcome: undefined;
   Login: undefined;
@@ -5,13 +7,17 @@ export type AuthStackParamList = {
 
 export type RootStackParamList = {
   Login: undefined;
-  Main: undefined;
+  Main: NavigatorScreenParams<TabParamList> | undefined;
   Schedule: undefined;
+  Attendance: undefined;
   HomeworkDetail: { id: string };
-  SubjectDetail: { id: string };
-  Grades: undefined;
-  ChatThread: { id: string };
+  SubjectDetail: { id: string; studentId?: string };
+  Grades: { studentId?: string } | undefined;
+  ChatThread: { id: string; name?: string; role?: string };
   Announcements: undefined;
+  PersonalInfo: undefined;
+  Privacy: undefined;
+  NotificationSettings: undefined;
 };
 
 export type TabParamList = {
@@ -24,18 +30,24 @@ export type TabParamList = {
 
 // Parent (used in Milestone 3)
 export type ParentStackParamList = {
-  Main: undefined;
+  Main: NavigatorScreenParams<ParentTabParamList> | undefined;
   Attendance: undefined;
   PTM: undefined;
   Transport: undefined;
   Leave: undefined;
   Announcements: undefined;
-  ChatThread: { id: string };
+  ChatThread: { id: string; name?: string; role?: string; kid?: string | null };
+  HomeworkDetail: { id: string };
+  Grades: { studentId?: string } | undefined;
+  SubjectDetail: { id: string; studentId?: string };
+  PersonalInfo: undefined;
+  Privacy: undefined;
+  NotificationSettings: undefined;
 };
 
 export type ParentTabParamList = {
   Home: undefined;
-  Progress: undefined;
+  Class: undefined;
   Fees: undefined;
   Inbox: undefined;
   Profile: undefined;

@@ -1,20 +1,20 @@
-import { useState } from 'react';
-import { ScrollView, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ScrollView, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Empty,
   ErrorState,
   IconButton,
   Loading,
+  ScreenHeader,
   SearchField,
-  SectionHeader,
 } from '@/components/ui';
 import { SubjectCard } from '@/components/cards/SubjectCard';
+import { useStudentProfile } from '@/hooks/useStudent';
 import { useSubjects } from '@/hooks/useSubjects';
-import { colors, fontFamily, hueColor, radius, spacing, typography } from '@/theme';
+import { colors, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -22,12 +22,33 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export function SubjectsScreen() {
   const nav = useNavigation<Nav>();
   const subjectsQ = useSubjects();
+  const profileQ = useStudentProfile();
+  const classLabel = profileQ.data?.classroom || profileQ.data?.grade || '';
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      void subjectsQ.refetch();
+    }, [subjectsQ.refetch]),
+  );
 
   if (subjectsQ.isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader
+          kicker={classLabel || undefined}
+          title="My subjects"
+          right={
+            <IconButton
+              icon={searchOpen ? 'close' : 'search'}
+              onPress={() => {
+                setSearchOpen((v) => !v);
+                setQuery('');
+              }}
+            />
+          }
+        />
         <Loading />
       </SafeAreaView>
     );
@@ -35,6 +56,7 @@ export function SubjectsScreen() {
   if (subjectsQ.isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader kicker={classLabel || undefined} title="My subjects" />
         <ErrorState onRetry={() => subjectsQ.refetch()} />
       </SafeAreaView>
     );
@@ -42,11 +64,27 @@ export function SubjectsScreen() {
 
   const q = query.trim().toLowerCase();
   const subjects = subjectsQ.data!.filter(
-    (s) => !q || s.name.toLowerCase().includes(q) || s.teacher.toLowerCase().includes(q),
+    (s) =>
+      !q ||
+      s.name.toLowerCase().includes(q) ||
+      (s.teacher ?? '').toLowerCase().includes(q),
   );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <ScreenHeader
+        kicker={classLabel || undefined}
+        title="My subjects"
+        right={
+          <IconButton
+            icon={searchOpen ? 'close' : 'search'}
+            onPress={() => {
+              setSearchOpen((v) => !v);
+              setQuery('');
+            }}
+          />
+        }
+      />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -57,16 +95,6 @@ export function SubjectsScreen() {
           />
         }
       >
-        <View style={styles.headerRow}>
-          <Text style={typography.h1}>My subjects</Text>
-          <IconButton
-            icon={searchOpen ? 'close' : 'search'}
-            onPress={() => {
-              setSearchOpen((v) => !v);
-              setQuery('');
-            }}
-          />
-        </View>
 
         {searchOpen ? (
           <View style={{ paddingBottom: 14 }}>
@@ -79,7 +107,13 @@ export function SubjectsScreen() {
         ) : null}
 
         {subjects.length === 0 ? (
-          <Empty message={`No subjects match “${query}”`} />
+          <Empty
+            message={
+              !q
+                ? 'No subjects assigned to your class yet'
+                : `No subjects match “${query}”`
+            }
+          />
         ) : (
           <View style={styles.grid}>
             {subjects.map((s, i) => (
@@ -95,59 +129,8 @@ export function SubjectsScreen() {
             ))}
           </View>
         )}
-
-        <View style={{ marginTop: 24 }}>
-          <SectionHeader title="Clubs & cohorts" />
-          <View style={{ gap: 10, marginTop: 12 }}>
-            <CohortMini
-              icon="trophy"
-              title="Math Olympiad squad"
-              sub="Wed 4 PM · 12 members"
-              hue="amber"
-            />
-            <CohortMini
-              icon="people"
-              title="Indus House"
-              sub="35 members · Senior wing"
-              hue="primary"
-            />
-            <CohortMini
-              icon="book"
-              title="Reading Circle"
-              sub="Monday lunch · 8 members"
-              hue="teal"
-            />
-          </View>
-        </View>
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function CohortMini({
-  icon,
-  title,
-  sub,
-  hue,
-}: {
-  icon: 'trophy' | 'people' | 'book';
-  title: string;
-  sub: string;
-  hue: 'amber' | 'primary' | 'teal';
-}) {
-  const bg = hue === 'primary' ? colors.primarySoft : hueColor(hue, 'soft');
-  const fg = hue === 'primary' ? colors.primary : hueColor(hue);
-  return (
-    <View style={styles.cohort}>
-      <View style={[styles.cohortIcon, { backgroundColor: bg }]}>
-        <Ionicons name={icon} size={18} color={fg} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.cohortTitle}>{title}</Text>
-        <Text style={styles.cohortSub}>{sub}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={16} color={colors.inkSoft} />
-    </View>
   );
 }
 
@@ -168,28 +151,4 @@ const styles = StyleSheet.create({
     marginHorizontal: -6,
   },
   gridCell: { width: '50%', paddingVertical: 6 },
-  cohort: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 12,
-    borderRadius: radius.md,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.rule,
-  },
-  cohortIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cohortTitle: { fontFamily: fontFamily.bold, fontSize: 14, color: colors.ink },
-  cohortSub: {
-    fontFamily: fontFamily.medium,
-    fontSize: 11.5,
-    color: colors.inkMuted,
-    marginTop: 2,
-  },
 });

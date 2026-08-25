@@ -1,18 +1,28 @@
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Card, ErrorState, IconButton, Loading, ScreenHeader } from '@/components/ui';
-import { useAttendance } from '@/hooks/useAttendance';
+import { useAttendance, usePeriodAttendance, useAttendanceSummary } from '@/hooks/useAttendance';
 import { useLeave } from '@/hooks/useLeave';
 import { useChildren } from '@/hooks/useParent';
 import { useSelectedChild } from '@/providers/ChildProvider';
 import { useToast } from '@/providers/ToastProvider';
+import { attendanceBySubject } from '@/lib/attendanceBySubject';
+import { rangeForPreset, type AttendancePreset } from '@/lib/attendanceRange';
 import type { AttendanceKind } from '@/models';
 import { colors, fontFamily, radius } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<ParentStackParamList>;
+
+const PRESETS: { key: AttendancePreset; label: string }[] = [
+  { key: 'day', label: 'Day' },
+  { key: 'week', label: 'Week' },
+  { key: 'month', label: 'Month' },
+  { key: 'overall', label: 'Overall' },
+];
 
 const TONES: Record<AttendanceKind, { bg: string; fg: string; border?: string }> = {
   present: { bg: colors.present, fg: colors.white },
@@ -27,13 +37,19 @@ export function ParentAttendanceScreen() {
   const toast = useToast();
   const { childId } = useSelectedChild();
   const attnQ = useAttendance(childId);
+  const [preset, setPreset] = useState<AttendancePreset>('month');
+  const { from, to } = rangeForPreset(preset, new Date());
+  const periodQ = usePeriodAttendance(childId, from, to);
+  const summaryQ = useAttendanceSummary(childId, from, to);
   const leaveQ = useLeave(childId);
   const childrenQ = useChildren();
 
-  const isLoading = attnQ.isLoading || childrenQ.isLoading;
-  const isError = attnQ.isError || childrenQ.isError;
+  const isLoading = attnQ.isLoading || periodQ.isLoading || summaryQ.isLoading || childrenQ.isLoading;
+  const isError = attnQ.isError || periodQ.isError || summaryQ.isError || childrenQ.isError;
   const onRefresh = () => {
     attnQ.refetch();
+    periodQ.refetch();
+    summaryQ.refetch();
     leaveQ.refetch();
     childrenQ.refetch();
   };
@@ -61,11 +77,18 @@ export function ParentAttendanceScreen() {
   }
 
   const { days, flags } = attnQ.data!;
+  const summary = summaryQ.data;
+  const pct =
+    summary?.attendancePercentage == null
+      ? 'Not marked'
+      : `${Number.isInteger(summary.attendancePercentage)
+        ? summary.attendancePercentage
+        : summary.attendancePercentage.toFixed(2)}%`;
   const counts = {
-    present: days.filter((d) => d.kind === 'present').length,
-    absent: days.filter((d) => d.kind === 'absent').length,
-    late: days.filter((d) => d.kind === 'late').length,
-    leave: leaveQ.data?.length ?? 0,
+    present: summary?.presentPeriods ?? days.filter((d) => d.kind === 'present').length,
+    absent: summary?.absentPeriods ?? days.filter((d) => d.kind === 'absent').length,
+    late: summary?.latePeriods ?? days.filter((d) => d.kind === 'late').length,
+    leave: summary?.leavePeriods ?? leaveQ.data?.length ?? 0,
   };
 
   return (
@@ -89,6 +112,20 @@ export function ParentAttendanceScreen() {
         </View>
 
         <View style={{ paddingHorizontal: 18, paddingBottom: 14 }}>
+          <Card style={{ padding: 16, marginBottom: 12 }}>
+            <Text style={styles.monthTitle}>Official attendance</Text>
+            <Text style={{ fontFamily: fontFamily.extraBold, fontSize: 28, color: colors.ink, marginTop: 4 }}>
+              {pct}
+            </Text>
+            {summary?.presentTodayBadge ? (
+              <Text style={{ fontFamily: fontFamily.semiBold, fontSize: 12, color: colors.present, marginTop: 6 }}>
+                Present today
+              </Text>
+            ) : null}
+            <Text style={{ fontFamily: fontFamily.medium, fontSize: 12, color: colors.inkMuted, marginTop: 6 }}>
+              Marked periods: {summary?.totalMarkedPeriods ?? 0}
+            </Text>
+          </Card>
           <Card style={{ padding: 16 }}>
             <Text style={styles.monthTitle}>{monthTitle}</Text>
             <View style={styles.weekRow}>
@@ -147,6 +184,70 @@ export function ParentAttendanceScreen() {
               ))}
             </View>
           </Card>
+        </View>
+
+        <Text style={[styles.eyebrow, { paddingHorizontal: 18, marginBottom: 8 }]}>
+          By subject
+        </Text>
+        <View style={[styles.presetRow, { paddingHorizontal: 18 }]}>
+          {PRESETS.map((p) => (
+            <Pressable
+              key={p.key}
+              onPress={() => setPreset(p.key)}
+              style={[styles.presetChip, preset === p.key && styles.presetChipActive]}
+            >
+              <Text style={[styles.presetLabel, preset === p.key && styles.presetLabelActive]}>
+                {p.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={{ paddingHorizontal: 18, gap: 8, marginBottom: 16 }}>
+          {attendanceBySubject(periodQ.data ?? []).length === 0 ? (
+            <Text style={styles.flagReason}>No subject attendance yet this month.</Text>
+          ) : (
+            attendanceBySubject(periodQ.data ?? []).map((row) => (
+              <View key={`${row.subjectId ?? row.subject}`} style={styles.flagRow}>
+                <View style={[styles.flagIcon, { backgroundColor: colors.primarySoft }]}>
+                  <Text style={[styles.flagIconTxt, { color: colors.primary }]}>
+                    {row.pct == null ? '—' : `${Math.round(row.pct)}%`}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.flagDate}>{row.subject}</Text>
+                  <Text style={styles.flagReason}>
+                    Present {row.present} · Late {row.late} · Absent {row.absent}
+                    {row.leave ? ` · Leave ${row.leave}` : ''}
+                  </Text>
+                </View>
+                <Text style={styles.flagAction}>{row.marked} periods</Text>
+              </View>
+            ))
+          )}
+        </View>
+
+        <Text style={[styles.eyebrow, { paddingHorizontal: 18, marginBottom: 8 }]}>
+          Period attendance
+        </Text>
+        <View style={{ paddingHorizontal: 18, gap: 8, marginBottom: 16 }}>
+          {(periodQ.data ?? []).length === 0 ? (
+            <Text style={styles.flagReason}>No period marks yet this month.</Text>
+          ) : (
+            (periodQ.data ?? []).map((row) => (
+              <View key={row.id} style={styles.flagRow}>
+                <View style={[styles.flagIcon, { backgroundColor: colors.primarySoft }]}>
+                  <Text style={[styles.flagIconTxt, { color: colors.primary }]}>P{row.period}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.flagDate}>{row.date}</Text>
+                  <Text style={styles.flagReason}>
+                    P{row.period} · {row.subject}
+                  </Text>
+                </View>
+                <Text style={styles.flagAction}>{row.status}</Text>
+              </View>
+            ))
+          )}
         </View>
 
         <Text style={[styles.eyebrow, { paddingHorizontal: 18, marginBottom: 8 }]}>
@@ -243,6 +344,16 @@ const styles = StyleSheet.create({
   cell: { width: `${100 / 7}%`, aspectRatio: 1, padding: 2 },
   dayCell: { borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   dayTxt: { fontFamily: fontFamily.bold, fontSize: 11 },
+  presetRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  presetChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: radius.md,
+    backgroundColor: colors.ruleSoft,
+  },
+  presetChipActive: { backgroundColor: colors.ink },
+  presetLabel: { fontFamily: fontFamily.semiBold, fontSize: 13, color: colors.inkMuted },
+  presetLabelActive: { color: colors.paper },
   legend: { flexDirection: 'row', gap: 12, marginTop: 14, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 10, height: 10, borderRadius: 3 },

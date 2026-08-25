@@ -1,21 +1,32 @@
+import { useCallback } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, Empty, ErrorState, Loading, Pill, ScreenHeader } from '@/components/ui';
 import { useAnnouncements } from '@/hooks/useAnnouncements';
+import { qk } from '@/hooks/keys';
+import { services } from '@/services';
 import { colors, fontFamily } from '@/theme';
-import type { ParentStackParamList } from '@/navigation/types';
-
-type Nav = NativeStackNavigationProp<ParentStackParamList>;
 
 export function ParentAnnouncementsScreen() {
-  const nav = useNavigation<Nav>();
   const annQ = useAnnouncements('parent');
+  const qc = useQueryClient();
+
+  useFocusEffect(
+    useCallback(() => {
+      void services.notifications.markRead().then(() => {
+        void qc.invalidateQueries({ queryKey: qk.notifications });
+      });
+    }, [qc]),
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScreenHeader kicker="From the school" title="Notices" onBack={() => nav.goBack()} />
+      <ScreenHeader
+        kicker="From the school"
+        title="Notices"
+      />
       {annQ.isLoading ? (
         <Loading />
       ) : annQ.isError ? (

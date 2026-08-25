@@ -1,6 +1,7 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useReducer } from 'react';
 import type { Role, Session } from '@/models';
 import { services } from '@/services';
+import type { PasswordResetSent } from '@/services/types';
 import { setAuthToken, setRefreshHandler, setSessionExpiredHandler } from '@/api/client';
 import { tokenStore } from '@/services/auth/tokenStore';
 import { authReducer, initialAuthState } from './authReducer';
@@ -10,9 +11,8 @@ interface AuthContextValue {
   role: Role | null;
   status: 'restoring' | 'unauthenticated' | 'authenticated';
   signIn: (email: string, password: string, role: Role) => Promise<void>;
-  requestOtp: (identifier: string) => Promise<{ channel: 'sms' | 'email'; sent: boolean }>;
-  verifyResetCode: (identifier: string, code: string) => Promise<{ resetToken: string; expiresIn: number }>;
-  setPassword: (args: { token: string; password: string }) => Promise<void>;
+  requestPasswordReset: (identifier: string, role?: Role) => Promise<PasswordResetSent>;
+  resetPassword: (identifier: string, code: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -84,9 +84,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthToken(session.token);
         dispatch({ type: 'SIGNED_IN', session });
       },
-      requestOtp: (identifier) => services.auth.requestOtp(identifier),
-      verifyResetCode: (identifier, code) => services.auth.verifyOtp(identifier, code),
-      setPassword: (args) => services.auth.setPassword(args),
+      requestPasswordReset: (identifier, role) => services.auth.requestPasswordReset(identifier, role),
+      resetPassword: (identifier, code, password) =>
+        services.auth.resetPassword(identifier, code, password),
       signOut: async () => {
         await services.auth.signOut();
         setAuthToken(null);

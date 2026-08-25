@@ -51,11 +51,11 @@ export const children: Child[] = [
 export const childToday: Record<string, ChildToday> = {
   k1: {
     classes: [
-      { t: '09:00', label: 'Mathematics', done: true },
-      { t: '10:00', label: 'Physics', done: true },
-      { t: '11:30', label: 'English Lit', done: false },
-      { t: '13:30', label: 'World History', done: false },
-      { t: '14:30', label: 'Computer Sci', done: false },
+      { t: '09:00', label: 'Mathematics', done: true, attn: 'present' },
+      { t: '10:00', label: 'Physics', done: true, attn: 'present' },
+      { t: '11:30', label: 'English Lit', done: false, attn: null },
+      { t: '13:30', label: 'World History', done: false, attn: null },
+      { t: '14:30', label: 'Computer Sci', done: false, attn: null },
     ],
     meals: { breakfast: 'eaten · 8:15', lunch: 'served · 12:45' },
     pickup: '15:50',
@@ -63,10 +63,10 @@ export const childToday: Record<string, ChildToday> = {
   },
   k2: {
     classes: [
-      { t: '09:00', label: 'English', done: true },
-      { t: '10:00', label: 'Mathematics', done: true },
-      { t: '11:30', label: 'Geography', done: false },
-      { t: '13:30', label: 'Art & Craft', done: false },
+      { t: '09:00', label: 'English', done: true, attn: 'late' },
+      { t: '10:00', label: 'Mathematics', done: true, attn: 'present' },
+      { t: '11:30', label: 'Geography', done: false, attn: null },
+      { t: '13:30', label: 'Art & Craft', done: false, attn: null },
     ],
     meals: { breakfast: 'eaten · 8:20', lunch: 'served · 12:40' },
     pickup: '15:30',
@@ -229,6 +229,7 @@ export const parentMessages: ChatMessage[] = [
     from: 'me',
     text: 'Thank you! Anything to focus on at home?',
     time: '11:14',
+    status: 'read',
   },
   {
     id: 'pm3',

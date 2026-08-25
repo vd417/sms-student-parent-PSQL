@@ -7,6 +7,9 @@ describe('monogramFromName', () => {
   it('uppercases a single-word name to its first letter', () => {
     expect(monogramFromName('westbrook')).toBe('W');
   });
+  it('shows short school codes in full', () => {
+    expect(monogramFromName('scc')).toBe('SCC');
+  });
   it('returns "?" for an empty/whitespace name', () => {
     expect(monogramFromName('   ')).toBe('?');
   });

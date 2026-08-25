@@ -1,9 +1,9 @@
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Button, Empty, ErrorState, IconButton, Loading, ScreenHeader } from '@/components/ui';
-import { useFees, usePayFee } from '@/hooks/useFees';
+import { useFees } from '@/hooks/useFees';
 import { useSelectedChild } from '@/providers/ChildProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, primaryGradient, radius, spacing, typography } from '@/theme';
@@ -12,12 +12,14 @@ export function ParentFeesScreen() {
   const { childId } = useSelectedChild();
   const toast = useToast();
   const feesQ = useFees(childId);
-  const payMut = usePayFee(childId);
 
   if (feesQ.isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader kicker="Fees" title="Fees & payments" />
+        <ScreenHeader
+          kicker="Fees"
+          title="Fees & payments"
+        />
         <Loading />
       </SafeAreaView>
     );
@@ -25,15 +27,22 @@ export function ParentFeesScreen() {
   if (feesQ.isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader kicker="Fees" title="Fees & payments" />
+        <ScreenHeader
+          kicker="Fees"
+          title="Fees & payments"
+        />
         <ErrorState onRetry={() => feesQ.refetch()} />
       </SafeAreaView>
     );
   }
 
   const fees = feesQ.data!;
-  const due = fees.find((f) => f.status === 'due');
-  const paid = fees.filter((f) => f.status === 'paid');
+  // 'partial' invoices are still outstanding — a fee only leaves the due card once fully paid.
+  const due = fees.find((f) => f.status === 'due' || f.status === 'partial');
+  const remaining = due ? due.amount - (due.paidAmount ?? 0) : 0;
+  // A partial invoice already has real money against it — that payment belongs in
+  // history too, even though the invoice itself is still outstanding above.
+  const paid = fees.filter((f) => f.status === 'paid' || (f.status === 'partial' && (f.paidAmount ?? 0) > 0));
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -57,31 +66,28 @@ export function ParentFeesScreen() {
               end={{ x: 1, y: 1 }}
               style={styles.hero}
             >
-              <Text style={styles.heroEyebrow}>Amount due</Text>
+              <Text style={styles.heroEyebrow}>{due.status === 'partial' ? 'Balance due' : 'Amount due'}</Text>
               <Text style={styles.heroNum}>
-                ${due.amount.toLocaleString()}
+                ₹{remaining.toLocaleString()}
                 <Text style={styles.heroCents}>.00</Text>
               </Text>
               <Text style={styles.heroMeta}>
-                {due.period} · due {due.dueDate}
+                {due.period}
+                {due.dueDate ? ` · due ${due.dueDate}` : ''}
+                {due.status === 'partial' ? ` · ₹${(due.paidAmount ?? 0).toLocaleString()} already paid` : ''}
               </Text>
 
               <View style={styles.items}>
                 {(due.items ?? []).map((it, i) => (
                   <View key={i} style={styles.itemRow}>
                     <Text style={styles.itemLabel}>{it.l}</Text>
-                    <Text style={styles.itemAmt}>${it.amt}</Text>
+                    <Text style={styles.itemAmt}>₹{it.amt}</Text>
                   </View>
                 ))}
               </View>
 
               <View style={{ marginTop: 14 }}>
-                <Button
-                  variant="white"
-                  full
-                  loading={payMut.isPending}
-                  onPress={() => payMut.mutate(due.id)}
-                >
+                <Button variant="white" full onPress={() => toast('Coming soon')}>
                   Pay now
                 </Button>
               </View>
@@ -96,23 +102,35 @@ export function ParentFeesScreen() {
           <Empty message="No payments yet." />
         ) : (
           <View style={{ paddingHorizontal: 18, gap: 8 }}>
-            {paid.map((f) => (
-              <View key={f.id} style={styles.row}>
-                <View style={styles.rowIcon}>
-                  <Ionicons name="checkmark" size={18} color={colors.present} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowTitle}>{f.period}</Text>
-                  <Text style={styles.rowMeta}>
-                    {f.method} · {f.paidOn}
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.rowAmt}>${f.amount.toLocaleString()}</Text>
-                  <Text style={styles.rowPaid}>PAID</Text>
-                </View>
-              </View>
-            ))}
+            {paid.map((f) => {
+              const isFullyPaid = f.status === 'paid';
+              const amountPaid = isFullyPaid ? f.amount : (f.paidAmount ?? 0);
+              const meta = [f.method, f.paidOn].filter(Boolean).join(' · ');
+              return (
+                <Pressable
+                  key={f.id}
+                  onPress={() => toast('Coming soon')}
+                  style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
+                >
+                  <View style={styles.rowIcon}>
+                    <Ionicons name="checkmark" size={18} color={colors.present} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowTitle}>{f.period}</Text>
+                    {meta ? <Text style={styles.rowMeta}>{meta}</Text> : null}
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.rowAmt}>₹{amountPaid.toLocaleString()}</Text>
+                    <Text style={styles.rowPaid}>{isFullyPaid ? 'PAID' : 'PARTIAL'}</Text>
+                  </View>
+                  <IconButton
+                    icon="download-outline"
+                    size={32}
+                    onPress={() => toast('Coming soon')}
+                  />
+                </Pressable>
+              );
+            })}
           </View>
         )}
       </ScrollView>

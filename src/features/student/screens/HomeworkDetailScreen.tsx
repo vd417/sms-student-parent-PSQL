@@ -1,33 +1,36 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRoute, type RouteProp } from '@react-navigation/native';
 import { Button, Card, ErrorState, Loading, ScreenHeader, Toast } from '@/components/ui';
-import { useHomeworkItem, useSubmitHomework } from '@/hooks/useHomework';
+import { useHomeworkItem, useSetHomeworkStatus, useSubmitHomework } from '@/hooks/useHomework';
 import { useSubjects } from '@/hooks/useSubjects';
 import { colors, fontFamily, hueColor, radius, spacing, typography } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
-type Nav = NativeStackNavigationProp<RootStackParamList, 'HomeworkDetail'>;
 type Route = RouteProp<RootStackParamList, 'HomeworkDetail'>;
 
 export function HomeworkDetailScreen() {
-  const nav = useNavigation<Nav>();
   const route = useRoute<Route>();
   const hwQ = useHomeworkItem(route.params.id);
   const subjectsQ = useSubjects();
   const submitMut = useSubmitHomework();
+  const statusMut = useSetHomeworkStatus();
   const [toast, setToast] = useState(false);
 
-  const isLoading = hwQ.isLoading || subjectsQ.isLoading;
-  const isError = hwQ.isError || subjectsQ.isError || !hwQ.data;
+  const isLoading = hwQ.isLoading;
+  const isError = hwQ.isError || !hwQ.data;
+
+  const onRefresh = () => {
+    hwQ.refetch();
+    subjectsQ.refetch();
+  };
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader title="Homework" onBack={() => nav.goBack()} />
+        <ScreenHeader title="Homework" />
         <Loading />
       </SafeAreaView>
     );
@@ -35,22 +38,33 @@ export function HomeworkDetailScreen() {
   if (isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader title="Homework" onBack={() => nav.goBack()} />
+        <ScreenHeader title="Homework" />
         <ErrorState
           message="Couldn't load this homework."
-          onRetry={() => {
-            hwQ.refetch();
-            subjectsQ.refetch();
-          }}
+          onRetry={onRefresh}
         />
       </SafeAreaView>
     );
   }
 
   const h = hwQ.data!;
-  const subjects = subjectsQ.data!;
-  const sub = subjects.find((s) => s.id === h.subjId) ?? subjects[0];
+  const subjects = subjectsQ.data ?? [];
+  const sub = subjects.find((s) => s.id === h.subjId) ??
+    subjects[0] ?? {
+      id: '',
+      name: 'Subject',
+      short: '—',
+      teacher: '',
+      avg: 0,
+      trend: 0,
+      color: 'blue' as const,
+    };
   const submitted = h.status === 'submitted' || h.status === 'graded';
+  const inProgress = h.status === 'progress';
+
+  const onStart = () => {
+    statusMut.mutate({ id: h.id, status: 'progress' });
+  };
 
   const onSubmit = () => {
     submitMut.mutate(h.id, {
@@ -63,31 +77,24 @@ export function HomeworkDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScreenHeader kicker={sub.name} title={h.title} onBack={() => nav.goBack()} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScreenHeader
+        kicker={sub.name}
+        title={h.title}
+      />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={hwQ.isRefetching} onRefresh={onRefresh} />}
+      >
         <View style={[styles.hero, { backgroundColor: hueColor(sub.color) }]}>
           <Stat label="Due" value={h.due} />
-          <Stat label="Time" value={h.dueT.split(' ')[0]} divider />
+          <Stat label="Time" value={h.dueT ? h.dueT.split(' ')[0] : '—'} divider />
           <Stat label="Status" value={submitted ? 'Done' : 'Open'} />
         </View>
 
         <Text style={[typography.eyebrow, { marginTop: 18, marginBottom: 8 }]}>Description</Text>
         <Card style={{ padding: 14 }}>
-          <Text style={styles.body}>
-            Complete questions 1–14 from the textbook on quadratic equations. Show your full working
-            out and submit a scanned PDF or photos of the pages. Aim for clarity over speed —
-            partial credit is given for correct method.
-          </Text>
-        </Card>
-
-        <Text style={[typography.eyebrow, { marginTop: 18, marginBottom: 8 }]}>Resources</Text>
-        <Card style={{ padding: 0, overflow: 'hidden' }}>
-          <ResourceRow
-            icon="document-text"
-            label="Textbook Ch. 7 Practice.pdf"
-            sub="1.4 MB · PDF"
-          />
-          <ResourceRow icon="book" label="Worked example — Q5" sub="320 KB · PDF" last />
+          <Text style={styles.body}>{h.title}</Text>
         </Card>
 
         <Text style={[typography.eyebrow, { marginTop: 18, marginBottom: 8 }]}>
@@ -119,6 +126,18 @@ export function HomeworkDetailScreen() {
         >
           Ask
         </Button>
+        {!submitted && !inProgress ? (
+          <View style={{ flex: 1 }}>
+            <Button
+              variant="ghost"
+              full
+              loading={statusMut.isPending}
+              onPress={onStart}
+            >
+              Mark in progress
+            </Button>
+          </View>
+        ) : null}
         <View style={{ flex: 1 }}>
           <Button
             variant="primary"
@@ -152,37 +171,6 @@ function Stat({ label, value, divider }: { label: string; value: string; divider
       <Text style={styles.statLabel}>{label}</Text>
       <Text style={styles.statValue}>{value}</Text>
     </View>
-  );
-}
-
-function ResourceRow({
-  icon,
-  label,
-  sub,
-  last,
-}: {
-  icon: 'document-text' | 'book';
-  label: string;
-  sub: string;
-  last?: boolean;
-}) {
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.resource,
-        !last && { borderBottomWidth: 1, borderBottomColor: colors.ruleSoft },
-        pressed && { opacity: 0.7 },
-      ]}
-    >
-      <View style={styles.resIcon}>
-        <Ionicons name={icon} size={16} color={colors.primary} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.resLabel}>{label}</Text>
-        <Text style={styles.resSub}>{sub}</Text>
-      </View>
-      <Ionicons name="download-outline" size={16} color={colors.inkSoft} />
-    </Pressable>
   );
 }
 

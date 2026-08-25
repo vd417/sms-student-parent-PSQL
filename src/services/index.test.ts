@@ -27,16 +27,13 @@ describe('buildServices', () => {
     expect(school.id).toBe('sch-001');
   });
 
-  test('http source routes backed domains to live and gap domains to mock', () => {
+  test('http source wires live implementations for every domain', () => {
     const s = buildServices('http');
-    // backed → identical reference to the http impl
     expect(s.auth).toBe(httpServices.auth);
     expect(s.homework).toBe(httpServices.homework);
-    // student.getProfile is live, but the gap methods are NOT the http ones
     expect(s.student.getProfile).toBe(httpServices.student.getProfile);
-    expect(s.student.getToday).not.toBe(httpServices.student.getToday);
-    // fully-gap domains are not the http impls
-    expect(s.ptm).not.toBe(httpServices.ptm);
-    expect(s.school).not.toBe(httpServices.school);
+    expect(s.student.getToday).toBe(httpServices.student.getToday);
+    expect(s.school).toBe(httpServices.school);
+    expect(s.ptm).toBe(httpServices.ptm);
   });
 });

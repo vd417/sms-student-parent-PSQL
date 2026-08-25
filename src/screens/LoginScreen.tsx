@@ -1,199 +1,216 @@
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button } from '@/components/ui';
 import { colors, fontFamily, primaryGradient, radius, shadow, spacing } from '@/theme';
 import type { Role } from '@/models';
 import { useAuth } from '@/providers/AuthProvider';
-import { ApiError } from '@/services/errors';
 import type { AuthStackParamList } from '@/navigation/types';
 import { isStrongPassword, PASSWORD_RULE_TEXT } from '@/services/auth/password';
+import { isEmailOrPhone, normalizeLoginIdentifier } from '@/services/auth/identifier';
+import { loginPrefs } from '@/services/auth/loginPrefs';
+import { mapAuthError } from '@/services/auth/authError';
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
-const loginSchema = z.object({
-  studentId: z.string().min(3, 'Enter your student ID'),
-  password: z.string().min(4, 'Password is too short'),
-});
-type LoginForm = z.infer<typeof loginSchema>;
+const ROLE_COPY: Record<
+  Role,
+  { label: string; placeholder: string; autoCapitalize: 'none' | 'characters' }
+> = {
+  student: {
+    label: 'Student ID or email',
+    placeholder: 'WBA-2024-1042 or you@school.edu',
+    // none — emails must not be uppercased (was causing "No account found")
+    autoCapitalize: 'none',
+  },
+  parent: {
+    label: 'Email or mobile',
+    placeholder: 'you@email.com or 98765 43210',
+    autoCapitalize: 'none',
+  },
+};
 
-// Accepts an email or a 7–15 digit phone number (formatting characters allowed).
-function isValidIdentifier(value: string): boolean {
+function isValidLoginIdentifier(value: string, role: Role): boolean {
   const v = value.trim();
-  if (v.includes('@')) return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-  const digits = v.replace(/\D/g, '');
-  return digits.length >= 7 && digits.length <= 15;
+  if (v.length === 0) return false;
+  if (isEmailOrPhone(v)) return true;
+  return role === 'student' && v.length >= 3;
 }
 
 export function LoginScreen() {
   const nav = useNavigation<Nav>();
-  const { signIn, requestOtp, verifyResetCode, setPassword } = useAuth();
+  const { signIn, requestPasswordReset, resetPassword } = useAuth();
   const [role, setRole] = useState<Role>('student');
-  const isParent = role === 'parent';
 
-  // --- Student: ID + password ---
-  const { control, handleSubmit, formState } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { studentId: 'WBA-2024-1042', password: '' },
-  });
-
-  const [loginError, setLoginError] = useState<string | null>(null);
-
-  const mapAuthError = (err: unknown): string => {
-    if (err instanceof ApiError) {
-      if (err.status === 404)
-        return 'No account is registered for this email/mobile. Contact your school to get set up.';
-      if (err.status === 401) return 'Incorrect code or password. Try again.';
-      if (err.status === 409)
-        return 'No password yet — use "First time or forgot password?" below.';
-      if (err.status === 410) return 'That code expired. Request a new one.';
-    }
-    return 'Something went wrong. Please try again.';
-  };
-
-  const submit = handleSubmit(async (data) => {
-    setLoginError(null);
-    try {
-      await signIn(data.studentId, data.password, role);
-    } catch (err) {
-      setLoginError(mapAuthError(err));
-    }
-  });
-
-  // --- Parent: password login + OTP-to-set-password reset flow ---
-  type ParentStep = 'password' | 'otp-request' | 'otp-verify' | 'set-password';
-  const [parentStep, setParentStep] = useState<ParentStep>('password');
+  type Step = 'sign-in' | 'send-code' | 'set-password';
+  const [step, setStep] = useState<Step>('sign-in');
   const [identifier, setIdentifier] = useState('');
-  const [parentPassword, setParentPassword] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
   const [code, setCode] = useState('');
-  const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
-  const [parentLoading, setParentLoading] = useState(false);
-  const [parentError, setParentError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [sentChannel, setSentChannel] = useState<'sms' | 'email' | null>(null);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [otpRecipient, setOtpRecipient] = useState<'self' | 'parent' | null>(null);
 
-  const resetParentFlow = () => {
-    setParentStep('password');
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const saved = await loginPrefs.load();
+      if (cancelled) return;
+      if (saved?.rememberMe && saved.identifier) {
+        setRole(saved.role);
+        setIdentifier(saved.identifier);
+        setRememberMe(true);
+      }
+      setPrefsLoaded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const copy = ROLE_COPY[role];
+
+  const backToSignIn = () => {
+    setStep('sign-in');
     setCode('');
-    setResetToken('');
     setNewPassword('');
     setConfirmPassword('');
-    setParentError(null);
+    setError(null);
     setSentChannel(null);
+    setSentTo(null);
+    setOtpRecipient(null);
   };
 
   const switchRole = (next: Role) => {
     if (next === role) return;
     setRole(next);
-    resetParentFlow();
+    setIdentifier('');
+    setPasswordInput('');
+    backToSignIn();
     setNotice(null);
   };
 
-  const parentLogin = async () => {
-    if (!isValidIdentifier(identifier)) {
-      setParentError('Enter a valid mobile number or email.');
+  const persistLoginPrefs = async () => {
+    await loginPrefs.save({
+      rememberMe,
+      role,
+      identifier: normalizeLoginIdentifier(identifier),
+    });
+  };
+
+  const login = async () => {
+    if (!isValidLoginIdentifier(identifier, role)) {
+      setError(role === 'student' ? 'Enter student ID or email.' : 'Enter email or mobile number.');
       return;
     }
-    if (parentPassword.length === 0) {
-      setParentError('Enter your password.');
+    if (passwordInput.length === 0) {
+      setError('Enter your password.');
       return;
     }
-    setParentLoading(true);
-    setParentError(null);
+    setLoading(true);
+    setError(null);
+    const id = normalizeLoginIdentifier(identifier);
     try {
-      await signIn(identifier.trim(), parentPassword, 'parent');
+      await signIn(id, passwordInput, role);
+      await persistLoginPrefs();
     } catch (err) {
-      setParentError(mapAuthError(err));
+      setError(mapAuthError(err));
     } finally {
-      setParentLoading(false);
+      setLoading(false);
     }
+  };
+
+  const startPasswordSetup = () => {
+    setNotice(null);
+    setError(null);
+    setStep('send-code');
   };
 
   const sendCode = async () => {
-    if (!isValidIdentifier(identifier)) {
-      setParentError('Enter a valid mobile number or email.');
+    if (!isValidLoginIdentifier(identifier, role)) {
+      setError(role === 'student' ? 'Enter student ID or email.' : 'Enter email or mobile number.');
       return;
     }
-    setParentLoading(true);
-    setParentError(null);
+    setLoading(true);
+    setError(null);
+    const id = normalizeLoginIdentifier(identifier);
     try {
-      const res = await requestOtp(identifier.trim());
+      const res = await requestPasswordReset(id, role);
+      setIdentifier(id);
       setSentChannel(res.channel);
+      setSentTo(res.sentTo);
+      setOtpRecipient(res.recipient);
       setCode('');
-      setParentStep('otp-verify');
-    } catch (err) {
-      setParentError(mapAuthError(err));
-    } finally {
-      setParentLoading(false);
-    }
-  };
-
-  const verifyCode = async () => {
-    if (code.trim().length < 6) {
-      setParentError('Enter the 6-digit code we sent you.');
-      return;
-    }
-    setParentLoading(true);
-    setParentError(null);
-    try {
-      const { resetToken: token } = await verifyResetCode(identifier.trim(), code.trim());
-      setResetToken(token);
       setNewPassword('');
       setConfirmPassword('');
-      setParentStep('set-password');
+      setStep('set-password');
     } catch (err) {
-      setParentError(mapAuthError(err));
+      setError(mapAuthError(err));
     } finally {
-      setParentLoading(false);
+      setLoading(false);
     }
   };
 
   const submitNewPassword = async () => {
+    if (code.trim().length < 6) {
+      setError('Enter the 6-digit code.');
+      return;
+    }
     if (!isStrongPassword(newPassword)) {
-      setParentError(PASSWORD_RULE_TEXT);
+      setError(PASSWORD_RULE_TEXT);
       return;
     }
     if (newPassword !== confirmPassword) {
-      setParentError('Passwords do not match.');
+      setError('Passwords do not match.');
       return;
     }
-    setParentLoading(true);
-    setParentError(null);
+    setLoading(true);
+    setError(null);
+    const id = normalizeLoginIdentifier(identifier);
     try {
-      await setPassword({ token: resetToken, password: newPassword });
-      // Do NOT auto sign-in: send them back to login with identifier prefilled.
-      setParentPassword('');
-      resetParentFlow();
-      setNotice('Password set — please log in with your new password.');
+      await resetPassword(id, code.trim(), newPassword);
+      setPasswordInput('');
+      backToSignIn();
+      setNotice('Password saved — sign in with your new password.');
     } catch (err) {
-      setParentError(mapAuthError(err));
+      setError(mapAuthError(err));
     } finally {
-      setParentLoading(false);
+      setLoading(false);
     }
   };
 
+  if (!prefsLoaded) return null;
+
+  const tagline =
+    step === 'sign-in'
+      ? "Welcome! Let's get you signed in"
+      : step === 'send-code'
+        ? 'Set up or reset password'
+        : 'Create your new password';
+
   return (
     <LinearGradient
-      colors={
-        [primaryGradient[0], primaryGradient[1], primaryGradient[2]] as [string, string, string]
-      }
+      colors={[primaryGradient[0], primaryGradient[1], primaryGradient[2]] as [string, string, string]}
       start={{ x: 0, y: 0 }}
       end={{ x: 0, y: 1 }}
       style={styles.root}
@@ -204,254 +221,231 @@ export function LoginScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <Pressable
-            onPress={() => nav.goBack()}
+            onPress={step === 'sign-in' ? () => nav.goBack() : backToSignIn}
             hitSlop={12}
             style={({ pressed }) => [styles.back, pressed && { opacity: 0.6 }]}
           >
             <Ionicons name="chevron-back" size={26} color={colors.white} />
           </Pressable>
+
           <View style={styles.hero}>
             <View style={styles.appLogo}>
               <Ionicons name="school" size={28} color={colors.primary} />
             </View>
             <Text style={styles.appName}>Student Help Desk</Text>
-            <Text style={styles.tagline}>Welcome! Let&apos;s get you signed in</Text>
+            <Text style={styles.tagline}>{tagline}</Text>
           </View>
 
           <View style={styles.form}>
-            <View style={styles.roleToggle}>
-              {(['student', 'parent'] as Role[]).map((r) => (
-                <Pressable
-                  key={r}
-                  onPress={() => switchRole(r)}
-                  style={[styles.roleChip, role === r && styles.roleChipActive]}
-                >
-                  <Text style={[styles.roleChipText, role === r && styles.roleChipTextActive]}>
-                    {r === 'student' ? 'Student' : 'Parent'}
+            <ScrollView
+              contentContainerStyle={styles.formScroll}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {step === 'sign-in' ? (
+                <>
+                  <View style={styles.roleToggle}>
+                    {(['student', 'parent'] as Role[]).map((r) => (
+                      <Pressable
+                        key={r}
+                        onPress={() => switchRole(r)}
+                        style={[styles.roleChip, role === r && styles.roleChipActive]}
+                      >
+                        <Text style={[styles.roleChipText, role === r && styles.roleChipTextActive]}>
+                          {r === 'student' ? 'Student' : 'Parent'}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+
+                  {notice ? (
+                    <View style={styles.noticeBox}>
+                      <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+                      <Text style={styles.notice}>{notice}</Text>
+                    </View>
+                  ) : null}
+
+                  <Field label={copy.label}>
+                    <TextInput
+                      value={identifier}
+                      onChangeText={(t) => {
+                        setIdentifier(t);
+                        if (error) setError(null);
+                      }}
+                      placeholder={copy.placeholder}
+                      placeholderTextColor={colors.inkMuted}
+                      autoCapitalize={copy.autoCapitalize}
+                      style={styles.input}
+                    />
+                  </Field>
+
+                  <Field label="Password">
+                    <TextInput
+                      value={passwordInput}
+                      onChangeText={(t) => {
+                        setPasswordInput(t);
+                        if (error) setError(null);
+                      }}
+                      placeholder="Enter password"
+                      placeholderTextColor={colors.inkMuted}
+                      secureTextEntry
+                      style={styles.input}
+                    />
+                  </Field>
+
+                  <View style={styles.optionsRow}>
+                    <Pressable
+                      onPress={() => {
+                        setRememberMe((v) => {
+                          const next = !v;
+                          if (!next) void loginPrefs.clear();
+                          return next;
+                        });
+                      }}
+                      style={styles.rememberRow}
+                      hitSlop={6}
+                    >
+                      <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                        {rememberMe ? (
+                          <Ionicons name="checkmark" size={12} color={colors.white} />
+                        ) : null}
+                      </View>
+                      <Text style={styles.rememberText}>Remember me</Text>
+                    </Pressable>
+                    <Pressable onPress={startPasswordSetup} hitSlop={8}>
+                      <Text style={styles.linkText}>Set up or reset password</Text>
+                    </Pressable>
+                  </View>
+
+                  {error ? <Text style={styles.error}>{error}</Text> : null}
+
+                  <Button variant="primary" size="lg" full loading={loading} onPress={login}>
+                    Sign in
+                  </Button>
+                </>
+              ) : step === 'send-code' ? (
+                <>
+                  <RoleBadge role={role} />
+                  <Text style={styles.stepHint}>
+                    Enter your registered{' '}
+                    {role === 'student' ? 'student ID or email' : 'email or mobile'}. We&apos;ll send
+                    a verification code.
                   </Text>
-                </Pressable>
-              ))}
-            </View>
+                  <Field label={copy.label}>
+                    <TextInput
+                      value={identifier}
+                      onChangeText={(t) => {
+                        setIdentifier(t);
+                        if (error) setError(null);
+                      }}
+                      placeholder={copy.placeholder}
+                      placeholderTextColor={colors.inkMuted}
+                      autoCapitalize={copy.autoCapitalize}
+                      style={styles.input}
+                    />
+                  </Field>
+                  {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            {!isParent ? (
-              <>
-                <Controller
-                  control={control}
-                  name="studentId"
-                  render={({ field, fieldState }) => (
-                    <View>
-                      <Text style={styles.label}>Student ID</Text>
-                      <TextInput
-                        value={field.value}
-                        onChangeText={field.onChange}
-                        onBlur={field.onBlur}
-                        placeholder="WBA-2024-1042"
-                        placeholderTextColor={colors.inkMuted}
-                        autoCapitalize="characters"
-                        style={styles.input}
-                      />
-                      {fieldState.error ? (
-                        <Text style={styles.error}>{fieldState.error.message}</Text>
-                      ) : null}
-                    </View>
-                  )}
-                />
-
-                <Controller
-                  control={control}
-                  name="password"
-                  render={({ field, fieldState }) => (
-                    <View>
-                      <Text style={styles.label}>Password</Text>
-                      <TextInput
-                        value={field.value}
-                        onChangeText={field.onChange}
-                        onBlur={field.onBlur}
-                        placeholder="••••••••"
-                        placeholderTextColor={colors.inkMuted}
-                        secureTextEntry
-                        style={styles.input}
-                      />
-                      {fieldState.error ? (
-                        <Text style={styles.error}>{fieldState.error.message}</Text>
-                      ) : null}
-                    </View>
-                  )}
-                />
-
-                {loginError ? <Text style={styles.error}>{loginError}</Text> : null}
-                <Button
-                  variant="primary"
-                  size="lg"
-                  full
-                  loading={formState.isSubmitting}
-                  onPress={submit}
-                >
-                  Sign in
-                </Button>
-              </>
-            ) : parentStep === 'password' ? (
-              <View style={styles.otpBlock}>
-                {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-                <Text style={styles.label}>Parent email or number</Text>
-                <TextInput
-                  value={identifier}
-                  onChangeText={(t) => {
-                    setIdentifier(t);
-                    if (parentError) setParentError(null);
-                  }}
-                  placeholder="priya.patel@home.com or 415 555 0142"
-                  placeholderTextColor={colors.inkMuted}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  style={styles.input}
-                />
-                <Text style={styles.label}>Password</Text>
-                <TextInput
-                  value={parentPassword}
-                  onChangeText={(t) => {
-                    setParentPassword(t);
-                    if (parentError) setParentError(null);
-                  }}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.inkMuted}
-                  secureTextEntry
-                  style={styles.input}
-                />
-                {parentError ? <Text style={styles.error}>{parentError}</Text> : null}
-                <Button
-                  variant="primary"
-                  size="lg"
-                  full
-                  loading={parentLoading}
-                  onPress={parentLogin}
-                >
-                  Log in
-                </Button>
-                <Pressable
-                  onPress={() => {
-                    setNotice(null);
-                    setParentError(null);
-                    setParentStep('otp-request');
-                  }}
-                  hitSlop={8}
-                >
-                  <Text style={styles.otpLink}>First time or forgot password?</Text>
-                </Pressable>
-              </View>
-            ) : parentStep === 'otp-request' ? (
-              <View style={styles.otpBlock}>
-                <Text style={styles.label}>Parent email or number</Text>
-                <TextInput
-                  value={identifier}
-                  onChangeText={(t) => {
-                    setIdentifier(t);
-                    if (parentError) setParentError(null);
-                  }}
-                  placeholder="priya.patel@home.com or 415 555 0142"
-                  placeholderTextColor={colors.inkMuted}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  style={styles.input}
-                />
-                {parentError ? <Text style={styles.error}>{parentError}</Text> : null}
-                <Button variant="primary" size="lg" full loading={parentLoading} onPress={sendCode}>
-                  Send code
-                </Button>
-                <Pressable onPress={resetParentFlow} hitSlop={8}>
-                  <Text style={styles.otpLink}>Back to login</Text>
-                </Pressable>
-              </View>
-            ) : parentStep === 'otp-verify' ? (
-              <View style={styles.otpBlock}>
-                <Text style={styles.otpSentTo}>
-                  Code sent via {sentChannel === 'sms' ? 'SMS' : 'email'} to{' '}
-                  <Text style={styles.helpStrong}>{identifier.trim()}</Text>
-                </Text>
-                <Text style={styles.devHint}>Demo code: 123456</Text>
-                <Text style={styles.label}>Verification code</Text>
-                <TextInput
-                  value={code}
-                  onChangeText={(t) => {
-                    setCode(t.replace(/\D/g, ''));
-                    if (parentError) setParentError(null);
-                  }}
-                  placeholder="6-digit code"
-                  placeholderTextColor={colors.inkMuted}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  style={styles.input}
-                />
-                {parentError ? <Text style={styles.error}>{parentError}</Text> : null}
-                <Button
-                  variant="primary"
-                  size="lg"
-                  full
-                  loading={parentLoading}
-                  onPress={verifyCode}
-                >
-                  Verify code
-                </Button>
-                <View style={styles.otpActions}>
-                  <Pressable onPress={sendCode} disabled={parentLoading} hitSlop={8}>
-                    <Text style={styles.otpLink}>Resend code</Text>
+                  <Button variant="primary" size="lg" full loading={loading} onPress={sendCode}>
+                    Send verification code
+                  </Button>
+                  <Pressable onPress={backToSignIn} hitSlop={8} style={styles.backLink}>
+                    <Text style={styles.linkText}>Back to login</Text>
                   </Pressable>
-                  <Pressable onPress={resetParentFlow} disabled={parentLoading} hitSlop={8}>
-                    <Text style={styles.otpLink}>Back to login</Text>
-                  </Pressable>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.otpBlock}>
-                <Text style={styles.otpSentTo}>Create your password</Text>
-                <Text style={styles.devHint}>{PASSWORD_RULE_TEXT}</Text>
-                <Text style={styles.label}>New password</Text>
-                <TextInput
-                  value={newPassword}
-                  onChangeText={(t) => {
-                    setNewPassword(t);
-                    if (parentError) setParentError(null);
-                  }}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.inkMuted}
-                  secureTextEntry
-                  style={styles.input}
-                />
-                <Text style={styles.label}>Confirm password</Text>
-                <TextInput
-                  value={confirmPassword}
-                  onChangeText={(t) => {
-                    setConfirmPassword(t);
-                    if (parentError) setParentError(null);
-                  }}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.inkMuted}
-                  secureTextEntry
-                  style={styles.input}
-                />
-                {parentError ? <Text style={styles.error}>{parentError}</Text> : null}
-                <Button
-                  variant="primary"
-                  size="lg"
-                  full
-                  loading={parentLoading}
-                  onPress={submitNewPassword}
-                >
-                  Set password
-                </Button>
-                <Pressable onPress={resetParentFlow} disabled={parentLoading} hitSlop={8}>
-                  <Text style={styles.otpLink}>Back to login</Text>
-                </Pressable>
-              </View>
-            )}
+                </>
+              ) : (
+                <>
+                  <RoleBadge role={role} />
+                  <Text style={styles.stepHint}>
+                    {otpRecipient === 'parent'
+                      ? 'No student email on file (or delivery failed) — code sent to parent/caregiver via '
+                      : 'Code sent via '}
+                    {sentChannel === 'sms' ? 'SMS' : 'email'}
+                    {sentTo ? (
+                      <>
+                        {' '}
+                        to <Text style={styles.stepHintStrong}>{sentTo}</Text>
+                      </>
+                    ) : null}
+                  </Text>
+                  <Field label="Verification code">
+                    <TextInput
+                      value={code}
+                      onChangeText={(t) => {
+                        setCode(t.replace(/\D/g, ''));
+                        if (error) setError(null);
+                      }}
+                      placeholder="6-digit code"
+                      placeholderTextColor={colors.inkMuted}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      style={styles.input}
+                    />
+                  </Field>
+                  <Field label="New password">
+                    <TextInput
+                      value={newPassword}
+                      onChangeText={(t) => {
+                        setNewPassword(t);
+                        if (error) setError(null);
+                      }}
+                      placeholder="At least 8 characters"
+                      placeholderTextColor={colors.inkMuted}
+                      secureTextEntry
+                      style={styles.input}
+                    />
+                  </Field>
+                  <Field label="Confirm password">
+                    <TextInput
+                      value={confirmPassword}
+                      onChangeText={(t) => {
+                        setConfirmPassword(t);
+                        if (error) setError(null);
+                      }}
+                      placeholder="Re-enter password"
+                      placeholderTextColor={colors.inkMuted}
+                      secureTextEntry
+                      style={styles.input}
+                    />
+                  </Field>
+                  <Text style={styles.ruleHint}>{PASSWORD_RULE_TEXT}</Text>
+                  {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            <Text style={styles.help}>
-              Need help? <Text style={styles.helpStrong}>Ask your class teacher</Text>
-            </Text>
+                  <Button variant="primary" size="lg" full loading={loading} onPress={submitNewPassword}>
+                    Save password
+                  </Button>
+                  <View style={styles.otpActions}>
+                    <Pressable onPress={sendCode} disabled={loading} hitSlop={8}>
+                      <Text style={styles.linkText}>Resend code</Text>
+                    </Pressable>
+                    <Pressable onPress={backToSignIn} disabled={loading} hitSlop={8}>
+                      <Text style={styles.linkText}>Back to login</Text>
+                    </Pressable>
+                  </View>
+                </>
+              )}
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </LinearGradient>
+  );
+}
+
+function RoleBadge({ role }: { role: Role }) {
+  return (
+    <View style={styles.roleBadge}>
+      <Text style={styles.roleBadgeText}>{role === 'student' ? 'Student' : 'Parent'}</Text>
+    </View>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.label}>{label}</Text>
+      {children}
+    </View>
   );
 }
 
@@ -490,12 +484,13 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
   },
   form: {
-    gap: 14,
     backgroundColor: colors.white,
     borderRadius: radius.xl,
     padding: spacing.xl,
+    maxHeight: '62%',
     ...shadow.pop,
   },
+  formScroll: { gap: 14 },
   roleToggle: {
     flexDirection: 'row',
     gap: 8,
@@ -518,13 +513,25 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
   },
   roleChipTextActive: { color: colors.white },
+  roleBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+  },
+  roleBadgeText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 12,
+    color: colors.primary,
+  },
+  field: { gap: 6 },
   label: {
     fontFamily: fontFamily.bold,
     fontSize: 11,
     color: colors.inkMuted,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
-    marginBottom: 6,
   },
   input: {
     height: 52,
@@ -537,47 +544,80 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.semiBold,
     fontSize: 15,
   },
+  optionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: colors.inkSoft,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  rememberText: {
+    fontFamily: fontFamily.semiBold,
+    fontSize: 13,
+    color: colors.ink,
+  },
+  linkText: {
+    fontFamily: fontFamily.bold,
+    fontSize: 12,
+    color: colors.primary,
+  },
+  backLink: { alignItems: 'center' },
+  noticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+  },
+  notice: {
+    flex: 1,
+    fontFamily: fontFamily.medium,
+    fontSize: 13,
+    color: colors.primary,
+  },
+  stepHint: {
+    fontFamily: fontFamily.medium,
+    fontSize: 14,
+    color: colors.inkMuted,
+    lineHeight: 21,
+  },
+  stepHintStrong: {
+    fontFamily: fontFamily.bold,
+    color: colors.ink,
+  },
+  ruleHint: {
+    fontFamily: fontFamily.medium,
+    fontSize: 12,
+    color: colors.inkMuted,
+    marginTop: -8,
+  },
   error: {
     fontFamily: fontFamily.semiBold,
     fontSize: 11,
     color: colors.absent,
-    marginTop: 4,
-  },
-  notice: {
-    fontFamily: fontFamily.semiBold,
-    fontSize: 12,
-    color: colors.primary,
-    marginBottom: 2,
-  },
-  help: {
-    textAlign: 'center',
-    fontFamily: fontFamily.medium,
-    fontSize: 12,
-    color: colors.inkMuted,
-    marginTop: 4,
-  },
-  helpStrong: {
-    fontFamily: fontFamily.bold,
-    color: colors.primary,
-  },
-  otpBlock: { gap: 12 },
-  otpSentTo: {
-    fontFamily: fontFamily.medium,
-    fontSize: 13,
-    color: colors.ink,
-  },
-  devHint: {
-    fontFamily: fontFamily.bold,
-    fontSize: 11,
-    color: colors.inkMuted,
   },
   otpActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  otpLink: {
-    fontFamily: fontFamily.bold,
-    fontSize: 12,
-    color: colors.primary,
   },
 });

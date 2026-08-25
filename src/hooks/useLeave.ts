@@ -4,7 +4,11 @@ import { services } from '@/services';
 import { qk } from './keys';
 
 export const useLeave = (childId: string) =>
-  useQuery({ queryKey: qk.leave(childId), queryFn: () => services.leave.list(childId) });
+  useQuery({
+    queryKey: qk.leave(childId),
+    queryFn: () => services.leave.list(childId),
+    enabled: Boolean(childId),
+  });
 
 export function useSubmitLeave(childId: string) {
   const qc = useQueryClient();

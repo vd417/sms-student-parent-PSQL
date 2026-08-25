@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fontFamily, radius } from '@/theme';
+import { colors, fontFamily, radius, useBrandColors } from '@/theme';
 
 type Props<T extends string> = {
   tabs: { key: T; label: string }[];
@@ -8,6 +8,7 @@ type Props<T extends string> = {
 };
 
 export function TabBar<T extends string>({ tabs, value, onChange }: Props<T>) {
+  useBrandColors();
   return (
     <View style={styles.row}>
       {tabs.map((t) => {
@@ -18,11 +19,16 @@ export function TabBar<T extends string>({ tabs, value, onChange }: Props<T>) {
             onPress={() => onChange(t.key)}
             style={({ pressed }) => [
               styles.tab,
-              on ? styles.tabOn : styles.tabOff,
+              on
+                ? { backgroundColor: colors.primary }
+                : styles.tabOff,
               pressed && !on && { opacity: 0.7 },
             ]}
           >
-            <Text style={[styles.label, { color: on ? colors.white : colors.ink2 }]}>
+            <Text
+              style={[styles.label, { color: on ? colors.white : colors.ink2 }]}
+              numberOfLines={1}
+            >
               {t.label}
             </Text>
           </Pressable>
@@ -33,13 +39,14 @@ export function TabBar<T extends string>({ tabs, value, onChange }: Props<T>) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 8 },
+  row: { flexDirection: 'row', gap: 6 },
   tab: {
+    flex: 1,
+    alignItems: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 6,
     borderRadius: radius.pill,
   },
-  tabOn: { backgroundColor: colors.primary },
   tabOff: {
     backgroundColor: colors.white,
     borderWidth: 1,
@@ -48,6 +55,6 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: fontFamily.bold,
     fontSize: 12,
-    textTransform: 'capitalize',
+    textAlign: 'center',
   },
 });

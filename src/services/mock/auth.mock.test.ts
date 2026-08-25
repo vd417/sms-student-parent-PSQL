@@ -1,35 +1,76 @@
 import { authMock } from './auth.mock';
 import { ApiError } from '@/services/errors';
+import { db } from './db';
 
 let auth = authMock({ ms: 0 });
-beforeEach(() => { auth = authMock({ ms: 0 }); });
+beforeEach(() => {
+  auth = authMock({ ms: 0 });
+});
 
-describe('authMock.requestOtp', () => {
-  it('finds a registered student by email (case/space normalized)', async () => {
-    const res = await auth.requestOtp('  Maya.Patel@Westbrook.edu ');
-    expect(res).toEqual({ channel: 'email', sent: true });
+describe('authMock.requestPasswordReset', () => {
+  it('sends a code for a registered student email and returns masked sentTo', async () => {
+    const res = await auth.requestPasswordReset('  Maya.Patel@Westbrook.edu ');
+    expect(res.channel).toBe('email');
+    expect(res.sent).toBe(true);
+    expect(res.sentTo).toBe('m***@westbrook.edu');
+    expect(res.recipient).toBe('self');
   });
 
-  it('finds a registered parent by email', async () => {
-    const res = await auth.requestOtp('priya.patel@home.com');
-    expect(res).toEqual({ channel: 'email', sent: true });
+  it('sends to student email first for admission ID (never echoes the ID)', async () => {
+    const res = await auth.requestPasswordReset('WBA-2024-1042');
+    expect(res).toMatchObject({
+      channel: 'email',
+      sent: true,
+      recipient: 'self',
+      sentTo: 'm***@westbrook.edu',
+    });
+    expect(res.sentTo).not.toContain('WBA');
   });
 
-  it('finds a registered parent by phone (formatting ignored)', async () => {
-    const res = await auth.requestOtp('4155550142');
-    expect(res).toEqual({ channel: 'sms', sent: true });
+  it('falls back to parent email when student email delivery fails twice', async () => {
+    const failing = authMock({ ms: 0, studentEmailDeliveryFails: 2 });
+    const res = await failing.requestPasswordReset('WBA-2024-1042');
+    expect(res.recipient).toBe('parent');
+    expect(res.sentTo).toBe('p***@home.com');
+    expect(res.sentTo).not.toContain(db.student.studentId);
+  });
+
+  it('sends a code for a registered parent by email', async () => {
+    const res = await auth.requestPasswordReset('priya.patel@home.com');
+    expect(res).toMatchObject({
+      channel: 'email',
+      sent: true,
+      recipient: 'self',
+      sentTo: 'p***@home.com',
+    });
+  });
+
+  it('parent role sends to parent mail even when identifier is the student email', async () => {
+    const res = await auth.requestPasswordReset(db.student.email, 'parent');
+    expect(res).toMatchObject({
+      channel: 'email',
+      recipient: 'self',
+      sentTo: 'p***@home.com',
+    });
+  });
+
+  it('sends a code for a registered parent by phone (formatting ignored)', async () => {
+    const res = await auth.requestPasswordReset('4155550142');
+    expect(res.channel).toBe('sms');
+    expect(res.sent).toBe(true);
+    expect(res.sentTo).toMatch(/0142$/);
   });
 
   it('throws 404 for an unknown identifier', async () => {
-    await expect(auth.requestOtp('nobody@nowhere.com')).rejects.toMatchObject({
+    await expect(auth.requestPasswordReset('nobody@nowhere.com')).rejects.toMatchObject({
       name: 'ApiError',
       status: 404,
     });
-    await expect(auth.requestOtp('0000000000')).rejects.toBeInstanceOf(ApiError);
+    await expect(auth.requestPasswordReset('0000000000')).rejects.toBeInstanceOf(ApiError);
   });
 });
 
-describe('authMock — refresh/setPassword/getMe', () => {
+describe('authMock — refresh/getMe', () => {
   it('refresh returns a fresh access token', async () => {
     const r = await auth.refresh('any');
     expect(typeof r.access).toBe('string');
@@ -43,55 +84,63 @@ describe('authMock — refresh/setPassword/getMe', () => {
   });
 });
 
-describe('authMock.verifyOtp', () => {
-  it('returns a reset token for the correct code', async () => {
-    const res = await auth.verifyOtp('priya.patel@home.com', '123456');
-    expect(typeof res.resetToken).toBe('string');
-    expect(res.resetToken.length).toBeGreaterThan(0);
-    expect(res.expiresIn).toBeGreaterThan(0);
+describe('authMock.resetPassword', () => {
+  it('sets a new password given the correct code, then signs the parent in', async () => {
+    await auth.requestPasswordReset('priya.patel@home.com');
+    await auth.resetPassword('priya.patel@home.com', '123456', 'NewPass123');
+    const session = await auth.signIn('priya.patel@home.com', 'NewPass123', 'parent');
+    expect(session.role).toBe('parent');
   });
+
+  it('sets a student password via admission ID', async () => {
+    await auth.requestPasswordReset('WBA-2024-1042');
+    await auth.resetPassword('WBA-2024-1042', '123456', 'NewPass123');
+    const session = await auth.signIn('WBA-2024-1042', 'NewPass123', 'student');
+    expect(session.role).toBe('student');
+  });
+
   it('throws 401 for an incorrect code', async () => {
-    await expect(auth.verifyOtp('priya.patel@home.com', '000000')).rejects.toMatchObject({
+    await auth.requestPasswordReset('priya.patel@home.com');
+    await expect(auth.resetPassword('priya.patel@home.com', '000000', 'NewPass123')).rejects.toMatchObject({
       status: 401,
     });
   });
+
   it('throws 404 for an unknown identifier', async () => {
-    await expect(auth.verifyOtp('nobody@nowhere.com', '123456')).rejects.toMatchObject({
+    await expect(auth.resetPassword('nobody@nowhere.com', '123456', 'NewPass123')).rejects.toMatchObject({
       status: 404,
+    });
+  });
+
+  it('throws 400 for a weak password', async () => {
+    await auth.requestPasswordReset('priya.patel@home.com');
+    await expect(auth.resetPassword('priya.patel@home.com', '123456', 'weak')).rejects.toMatchObject({
+      status: 400,
     });
   });
 });
 
-describe('authMock.setPassword (token-validated) + parent signIn', () => {
-  it('sets a password with a valid reset token, then signs the parent in', async () => {
-    const { resetToken } = await auth.verifyOtp('priya.patel@home.com', '123456');
-    await expect(auth.setPassword({ token: resetToken, password: 'secret12' })).resolves.toBeUndefined();
-    const session = await auth.signIn('priya.patel@home.com', 'secret12', 'parent');
-    expect(session).toMatchObject({ role: 'parent', email: 'priya.patel@home.com' });
-  });
-  it('rejects set-password with an unknown/expired token (410)', async () => {
-    await expect(auth.setPassword({ token: 'bogus', password: 'secret12' })).rejects.toMatchObject({
-      status: 410,
-    });
-  });
-  it('rejects a weak password (400)', async () => {
-    const { resetToken } = await auth.verifyOtp('priya.patel@home.com', '123456');
-    await expect(auth.setPassword({ token: resetToken, password: 'abc' })).rejects.toMatchObject({
-      status: 400,
-    });
-  });
+describe('authMock.signIn', () => {
   it('rejects parent signIn before any password is set (409)', async () => {
     const fresh = authMock({ ms: 0 });
     await expect(fresh.signIn('priya.patel@home.com', 'secret12', 'parent')).rejects.toMatchObject({
       status: 409,
     });
   });
+
   it('rejects parent signIn with a wrong password (401)', async () => {
     const inst = authMock({ ms: 0 });
-    const { resetToken } = await inst.verifyOtp('priya.patel@home.com', '123456');
-    await inst.setPassword({ token: resetToken, password: 'secret12' });
+    await inst.requestPasswordReset('priya.patel@home.com');
+    await inst.resetPassword('priya.patel@home.com', '123456', 'secret12');
     await expect(inst.signIn('priya.patel@home.com', 'nope9999', 'parent')).rejects.toMatchObject({
       status: 401,
+    });
+  });
+
+  it('rejects student signIn before password is set (409)', async () => {
+    const fresh = authMock({ ms: 0 });
+    await expect(fresh.signIn('WBA-2024-1042', 'secret12', 'student')).rejects.toMatchObject({
+      status: 409,
     });
   });
 });

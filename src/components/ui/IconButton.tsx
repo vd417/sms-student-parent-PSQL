@@ -10,16 +10,18 @@ type Props = {
   badge?: boolean;
   dark?: boolean;
   tint?: string;
+  disabled?: boolean;
 };
 
-export function IconButton({ icon, onPress, size = 40, iconSize, badge, dark, tint }: Props) {
+export function IconButton({ icon, onPress, size = 40, iconSize, badge, dark, tint, disabled }: Props) {
   const fg = tint ?? (dark ? colors.white : colors.ink);
   const bg = dark ? 'rgba(255,255,255,0.18)' : colors.white;
   const border = dark ? 'rgba(255,255,255,0.25)' : colors.rule;
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.base,
         {
@@ -28,7 +30,7 @@ export function IconButton({ icon, onPress, size = 40, iconSize, badge, dark, ti
           borderRadius: size / 2,
           backgroundColor: bg,
           borderColor: border,
-          opacity: pressed ? 0.7 : 1,
+          opacity: disabled ? 0.45 : pressed ? 0.7 : 1,
         },
       ]}
     >

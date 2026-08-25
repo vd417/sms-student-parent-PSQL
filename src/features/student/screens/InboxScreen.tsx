@@ -1,35 +1,67 @@
 import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Avatar, Empty, ErrorState, IconButton, Loading, SearchField } from '@/components/ui';
+import { Avatar, Empty, ErrorState, Loading, ScreenHeader, SearchField } from '@/components/ui';
 import { useDirectory } from '@/hooks/useDirectory';
-import { usePeers } from '@/hooks/useStudent';
-import { useToast } from '@/providers/ToastProvider';
-import { colors, fontFamily, hueForName, radius, spacing, typography } from '@/theme';
+import { useOpenThread, useThreads } from '@/hooks/useMessaging';
+import { colors, fontFamily, hueForName, radius, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
+import type { Teacher } from '@/models';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+const ROLE_ORDER: Record<Teacher['role'], number> = {
+  principal: 0,
+  class_teacher: 1,
+  subject_teacher: 2,
+};
+
+const PRINCIPAL_FALLBACK: Teacher = {
+  id: 'principal',
+  name: "Principal's Office",
+  initials: 'PR',
+  subj: 'Principal',
+  online: false,
+  role: 'principal',
+};
+
+function initialsFor(name: string): string {
+  return name
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 export function InboxScreen() {
   const nav = useNavigation<Nav>();
-  const toast = useToast();
+  const inboxFocused = useIsFocused();
   const [query, setQuery] = useState('');
+  const threadsQ = useThreads('student', inboxFocused);
   const teachersQ = useDirectory();
-  const peersQ = usePeers();
+  const openThread = useOpenThread('student');
 
-  const isLoading = teachersQ.isLoading || peersQ.isLoading;
-  const isError = teachersQ.isError || peersQ.isError;
+  const isLoading = threadsQ.isLoading;
+  const isError = threadsQ.isError;
   const onRefresh = () => {
+    threadsQ.refetch();
     teachersQ.refetch();
-    peersQ.refetch();
+  };
+
+  const openTeacher = (t: Teacher) => {
+    openThread.mutate(
+      { name: t.name, role: t.subj || 'Teacher' },
+      { onSuccess: (th) => nav.navigate('ChatThread', { id: th.id, name: th.name, role: th.role }) },
+    );
   };
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader title="Inbox" />
         <Loading />
       </SafeAreaView>
     );
@@ -37,33 +69,40 @@ export function InboxScreen() {
   if (isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader title="Inbox" />
         <ErrorState onRetry={onRefresh} />
       </SafeAreaView>
     );
   }
 
   const q = query.trim().toLowerCase();
-  const teachers = teachersQ.data!.filter((t) => !q || t.name.toLowerCase().includes(q));
-  const peers = peersQ.data!.filter((p) => !q || p.name.toLowerCase().includes(q));
-  const noResults = q !== '' && teachers.length === 0 && peers.length === 0;
+  const threads = (threadsQ.data ?? []).filter(
+    (t) => !q || t.name.toLowerCase().includes(q) || t.role.toLowerCase().includes(q),
+  );
+  const rawTeachers = teachersQ.data ?? [];
+  const hasPrincipalContact =
+    rawTeachers.some((t) => t.role === 'principal') ||
+    (threadsQ.data ?? []).some((t) => /principal/i.test(t.role) || /principal/i.test(t.name));
+  const withPrincipal = hasPrincipalContact ? rawTeachers : [PRINCIPAL_FALLBACK, ...rawTeachers];
+  const teachers = withPrincipal
+    .filter((t) => !q || t.name.toLowerCase().includes(q))
+    .slice()
+    .sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]);
+  const noResults = q !== '' && threads.length === 0 && teachers.length === 0;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <ScreenHeader title="Inbox" />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={teachersQ.isRefetching} onRefresh={onRefresh} />
+          <RefreshControl refreshing={threadsQ.isRefetching} onRefresh={onRefresh} />
         }
       >
-        <View style={styles.headerRow}>
-          <Text style={typography.h1}>Inbox</Text>
-          <IconButton icon="create-outline" onPress={() => toast('Coming soon')} />
-        </View>
-
         <View style={{ paddingVertical: 14 }}>
           <SearchField
-            placeholder="Search teachers, classmates"
+            placeholder="Search conversations, teachers"
             value={query}
             onChangeText={setQuery}
           />
@@ -71,47 +110,63 @@ export function InboxScreen() {
 
         {noResults ? <Empty message={`No matches for “${query}”`} /> : null}
 
+        {threads.length === 0 && teachers.length === 0 && !q ? (
+          <Empty message="No conversations yet." />
+        ) : null}
+
+        {threads.length > 0 ? (
+          <Text style={styles.eyebrow}>Messages</Text>
+        ) : null}
+        <View style={{ gap: 8 }}>
+          {threads.map((t) => (
+            <Pressable
+              key={t.id}
+              onPress={() => nav.navigate('ChatThread', { id: t.id, name: t.name, role: t.role })}
+              style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
+            >
+              <View>
+                <Avatar initials={initialsFor(t.name)} size={44} hue={hueForName(t.name)} />
+                {t.unread > 0 ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeTxt}>{t.unread}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={styles.rowTop}>
+                  <Text style={styles.name}>{t.name}</Text>
+                  <Text style={styles.when}>{t.when}</Text>
+                </View>
+                {t.role ? <Text style={styles.meta}>{t.role}</Text> : null}
+                <Text
+                  style={[styles.last, t.unread > 0 && styles.lastUnread]}
+                  numberOfLines={1}
+                >
+                  {t.last || 'No messages yet'}
+                </Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+
         {teachers.length > 0 ? (
-          <Text style={[typography.eyebrow, { marginBottom: 8 }]}>Teachers</Text>
+          <Text style={[styles.eyebrow, { marginTop: threads.length ? 18 : 0 }]}>Teachers</Text>
         ) : null}
         <View style={{ gap: 8 }}>
           {teachers.map((t) => (
             <Pressable
               key={t.id}
-              onPress={() => nav.navigate('ChatThread', { id: `st-${t.id}` })}
+              onPress={() => openTeacher(t)}
               style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
             >
-              <View>
-                <Avatar initials={t.initials} size={44} hue={hueForName(t.name)} />
-                {t.online ? <View style={styles.dot} /> : null}
-              </View>
+              <Avatar initials={t.initials} size={44} hue={hueForName(t.name)} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{t.name}</Text>
-                <Text style={styles.meta}>
-                  {t.subj}
-                  {t.online ? ' · Online' : ' · Offline'}
-                </Text>
+                <Text style={styles.meta}>{t.subj || 'Teacher'}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.inkSoft} />
             </Pressable>
           ))}
         </View>
-
-        {peers.length > 0 ? (
-          <Text style={[typography.eyebrow, { marginTop: 18, marginBottom: 8 }]}>Classmates</Text>
-        ) : null}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 12 }}
-        >
-          {peers.map((p) => (
-            <View key={p.id} style={styles.peer}>
-              <Avatar initials={p.initials} size={56} hue={hueForName(p.name)} />
-              <Text style={styles.peerName}>{p.name.split(' ')[0]}</Text>
-            </View>
-          ))}
-        </ScrollView>
       </ScrollView>
     </SafeAreaView>
   );
@@ -120,12 +175,13 @@ export function InboxScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.paper },
   content: { paddingHorizontal: spacing.l, paddingBottom: 24 },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    gap: spacing.s,
+  eyebrow: {
+    fontFamily: fontFamily.bold,
+    fontSize: 11,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: colors.inkMuted,
+    marginBottom: 8,
   },
   row: {
     flexDirection: 'row',
@@ -137,29 +193,30 @@ const styles = StyleSheet.create({
     borderColor: colors.rule,
     borderRadius: radius.md,
   },
-  dot: {
+  badge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.present,
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    borderRadius: 9,
+    backgroundColor: colors.coral,
     borderWidth: 2,
     borderColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  name: { fontFamily: fontFamily.bold, fontSize: 14, color: colors.ink },
+  badgeTxt: { fontFamily: fontFamily.extraBold, fontSize: 10, color: colors.white },
+  rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  name: { fontFamily: fontFamily.bold, fontSize: 14, color: colors.ink, flex: 1 },
+  when: { fontFamily: fontFamily.semiBold, fontSize: 10.5, color: colors.inkMuted },
   meta: {
     fontFamily: fontFamily.medium,
     fontSize: 11.5,
     color: colors.inkMuted,
     marginTop: 2,
   },
-  peer: { width: 64, alignItems: 'center' },
-  peerName: {
-    fontFamily: fontFamily.semiBold,
-    fontSize: 11,
-    color: colors.ink,
-    marginTop: 6,
-  },
+  last: { fontFamily: fontFamily.medium, fontSize: 12, color: colors.inkMuted, marginTop: 4 },
+  lastUnread: { color: colors.ink, fontFamily: fontFamily.semiBold },
 });

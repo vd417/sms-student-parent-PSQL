@@ -6,4 +6,5 @@ export const useTransport = (childId: string) =>
   useQuery({
     queryKey: qk.transport(childId),
     queryFn: () => services.transport.forChild(childId),
+    enabled: Boolean(childId),
   });

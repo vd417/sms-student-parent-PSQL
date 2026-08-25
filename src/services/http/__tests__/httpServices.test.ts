@@ -2,6 +2,8 @@ import { httpServices } from '@/services/http';
 import * as client from '@/api/client';
 import { setAuthToken } from '@/api/client';
 import { tokenStore } from '@/services/auth/tokenStore';
+import { clearSisStudentCache } from '@/services/http/sisStudent';
+import { weekdayShort } from '@/services/http/mappers';
 
 jest.mock('@/services/auth/tokenStore', () => ({
   tokenStore: { save: jest.fn(async () => undefined), load: jest.fn(), clear: jest.fn(async () => undefined) },
@@ -16,7 +18,10 @@ function mockFetchOnce(body: unknown) {
 }
 
 describe('httpServices', () => {
-  beforeEach(() => setAuthToken('test-token'));
+  beforeEach(() => {
+    setAuthToken('test-token');
+    clearSisStudentCache();
+  });
 
   it('no service method throws NotImplementedError', () => {
     for (const domain of Object.values(httpServices)) {
@@ -26,71 +31,225 @@ describe('httpServices', () => {
     }
   });
 
-  it('student.getProfile resolves via /auth/me then /students/{id} and maps the DTO', async () => {
-    const spy = jest.spyOn(client, 'apiFetch')
-      .mockResolvedValueOnce({ id: 's1', name: 'Maya', email: 'maya@wba.edu', role: 'student' } as any)
-      .mockResolvedValueOnce({
-        id: 's1', admission_no: 'WBA-2024-1042', name: 'Maya Patel', initials: 'MP',
-        grade: '9', class_label: '9-A', house: 'Blue', email: 'maya@wba.edu',
-        school: 'Westbrook Academy', attendance_pct: 94, overall_avg: 88, rank: 3, rank_of: 40,
-      } as any);
+  it('student.getProfile resolves via /students/me and maps the DTO', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce({
+      id: 'sis-1', admission_no: 'WBA-2024-1042', name: 'Maya Patel', initials: 'MP',
+      grade: '9', class_label: '9-A', house: 'Blue', email: 'maya@wba.edu',
+      school: 'Westbrook Academy', attendance_pct: 94, overall_avg: 88, rank: 3, rank_of: 40,
+    } as any);
     const profile = await httpServices.student.getProfile();
-    expect(spy.mock.calls[0][0]).toBe('/auth/me');
-    expect(spy.mock.calls[1][0]).toBe('/students/s1');
+    expect(spy.mock.calls[0][0]).toBe('/students/me');
     expect(profile.studentId).toBe('WBA-2024-1042');
     expect(profile.attnPct).toBe(94);
     spy.mockRestore();
   });
 
+  it('student.getAchievements GETs /achievements?student_id', async () => {
+    const spy = jest
+      .spyOn(client, 'apiFetch')
+      .mockResolvedValueOnce([
+        { id: 'computed:attendance-perfect:sis-1', title: 'Perfect attendance', date: '2026-08-13', icon: 'check', hue: 'teal' },
+      ] as any);
+    const rows = await httpServices.student.getAchievements('sis-1');
+    expect(spy.mock.calls[0][0]).toBe('/achievements?student_id=sis-1');
+    expect(rows[0]).toMatchObject({ title: 'Perfect attendance', icon: 'check' });
+    spy.mockRestore();
+  });
+
+  it('settings.get GETs /me/settings', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce({
+      chat_alerts: false,
+      school_notices: true,
+      in_app_toasts: true,
+    } as any);
+    const prefs = await httpServices.settings.get();
+    expect(spy.mock.calls[0][0]).toBe('/me/settings');
+    expect(prefs).toEqual({ chatAlerts: false, schoolNotices: true, inAppToasts: true });
+    spy.mockRestore();
+  });
+
   it('fees.list GETs /fees/invoices?student_id and maps invoices', async () => {
-    mockFetchOnce([{ id: 'f1', period: 'Jul', due_date: '2026-07-10', amount: 12000, status: 'due' }]);
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce([
+      { id: 'f1', period: 'Jul', due_date: '2026-07-10', amount: 12000, status: 'due' },
+    ] as any);
     const fees = await httpServices.fees.list('c1');
+    expect(spy.mock.calls[0][0]).toBe('/fees/invoices?student_id=c1');
     expect(fees[0].dueDate).toBe('2026-07-10');
-    expect((global as any).fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/fees/invoices?student_id=c1'),
-      expect.anything(),
-    );
+    spy.mockRestore();
   });
 });
 
 describe('httpServices derived paths', () => {
   afterEach(() => jest.restoreAllMocks());
 
-  it('listGrades aggregates grades across exam papers', async () => {
-    jest.spyOn(client, 'apiFetch')
-      .mockResolvedValueOnce([{ id: 'p1' }, { id: 'p2' }] as any)
-      .mockResolvedValueOnce([{ id: 'g1', subject_id: 'm', title: 'T', score: 90, max_marks: 100, grade: 'A', date: 'd' }] as any)
-      .mockResolvedValueOnce([{ id: 'g2', subject_id: 's', title: 'T', score: 80, max_marks: 100, grade: 'B', date: 'd' }] as any);
-    const grades = await httpServices.grades.listGrades();
-    expect(grades).toHaveLength(2);
-  });
-
-  it('parent.children GETs /students (assumed guardian-scoped)', async () => {
-    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValue([] as any);
-    await httpServices.parent.children();
-    expect(spy.mock.calls[0][0]).toBe('/students');
-  });
-
-  it('childToday returns one daily status and strips period attendance', async () => {
-    const spy = jest.spyOn(client, 'apiFetch')
+  it('listGrades loads GET /grades?student_id from roster id', async () => {
+    const spy = jest
+      .spyOn(client, 'apiFetch')
       .mockResolvedValueOnce({
-        classes: [{ t: '09:00', label: 'Math', done: false, attn: 'present' }],
-        meals: { breakfast: '', lunch: '' },
-        pickup: '',
+        id: 'sis-1',
+        name: 'Maya',
+        admission_no: 'WBA-1',
       } as any)
       .mockResolvedValueOnce([
-        { id: 'a1', date: '2026-08-13', status: 'leave' },
+        {
+          id: 'g1',
+          subject_id: 'm',
+          subject: 'Mathematics',
+          paper_name: 'Unit Test 1',
+          marks: 90,
+          max_marks: 100,
+          grade: 'A',
+          date: '2026-07-10',
+        },
+        {
+          id: 'g2',
+          subject_id: 's',
+          subject: 'Science',
+          paper_name: 'Lab',
+          marks: 80,
+          max_marks: 100,
+          grade: 'B',
+          date: '2026-07-11',
+        },
       ] as any);
+    clearSisStudentCache();
+    const grades = await httpServices.grades.listGrades();
+    expect(spy.mock.calls[0][0]).toBe('/students/me');
+    expect(spy.mock.calls[1][0]).toBe('/grades?student_id=sis-1');
+    expect(grades).toEqual([
+      {
+        id: 'g1',
+        subjId: 'm',
+        subjectName: 'Mathematics',
+        title: 'Unit Test 1',
+        score: 90,
+        max: 100,
+        grade: 'A',
+        date: '2026-07-10',
+      },
+      {
+        id: 'g2',
+        subjId: 's',
+        subjectName: 'Science',
+        title: 'Lab',
+        score: 80,
+        max: 100,
+        grade: 'B',
+        date: '2026-07-11',
+      },
+    ]);
+    spy.mockRestore();
+  });
 
-    await expect(httpServices.parent.childToday('c1')).resolves.toEqual({
-      classes: [{ t: '09:00', label: 'Math', done: false }],
-      meals: { breakfast: '', lunch: '' },
-      pickup: '',
-      todayAttn: 'leave',
+  it('listGrades uses the given student_id without /students/me', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce([] as any);
+    await httpServices.grades.listGrades('child-sis');
+    expect(spy.mock.calls[0][0]).toBe('/grades?student_id=child-sis');
+    spy.mockRestore();
+  });
+
+  it('listExams loads GET /exam-papers?student_id from roster id', async () => {
+    const spy = jest
+      .spyOn(client, 'apiFetch')
+      .mockResolvedValueOnce({ id: 'sis-1', name: 'Maya' } as any)
+      .mockResolvedValueOnce([] as any);
+    clearSisStudentCache();
+    await httpServices.grades.listExams();
+    expect(spy.mock.calls[0][0]).toBe('/students/me');
+    expect(spy.mock.calls[1][0]).toBe('/exam-papers?student_id=sis-1');
+    spy.mockRestore();
+  });
+
+  it('subjects.list loads GET /subjects?student_id for a parent child', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce([] as any);
+    await httpServices.subjects.list('child-sis');
+    expect(spy.mock.calls[0][0]).toBe('/subjects?student_id=child-sis');
+    spy.mockRestore();
+  });
+
+  it('homework.list loads GET /homework?student_id from roster id', async () => {
+    const spy = jest
+      .spyOn(client, 'apiFetch')
+      .mockResolvedValueOnce({
+        id: 'sis-1',
+        name: 'Maya',
+        admission_no: 'WBA-1',
+      } as any)
+      .mockResolvedValueOnce([
+        {
+          id: 'h1',
+          title: 'Practice',
+          subject_id: 'guid-music',
+          due_date: '2026-08-14',
+          due_time: '17:00',
+          status: 'todo',
+          priority: 'med',
+        },
+      ] as any);
+    clearSisStudentCache();
+    const rows = await httpServices.homework.list();
+    expect(spy.mock.calls[0][0]).toBe('/students/me');
+    expect(spy.mock.calls[1][0]).toBe('/homework?student_id=sis-1');
+    expect(rows[0]).toMatchObject({ id: 'h1', subjId: 'guid-music', title: 'Practice' });
+    spy.mockRestore();
+  });
+
+  it('parent.children lists every linked child via /parents/me/children', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce([
+      { id: 'sis-1', name: 'Kid One' },
+      { id: 'sis-2', name: 'Kid Two' },
+    ] as any);
+    const kids = await httpServices.parent.children();
+    expect(spy.mock.calls[0][0]).toBe('/parents/me/children');
+    expect(kids).toHaveLength(2);
+    expect(kids.map((k) => k.name)).toEqual(['Kid One', 'Kid Two']);
+  });
+
+  it('parent.children returns [] when the endpoint call fails', async () => {
+    jest.spyOn(client, 'apiFetch').mockRejectedValue(new Error('network'));
+    const kids = await httpServices.parent.children();
+    expect(kids).toEqual([]);
+  });
+
+  it('parent.getProfile resolves via /auth/me (no dedicated /parents/me)', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce({
+      name: 'Priya Rao',
+      email: 'priya@example.com',
+      phone: '9876543210',
+    } as any);
+    const profile = await httpServices.parent.getProfile();
+    expect(spy.mock.calls[0][0]).toBe('/auth/me');
+    expect(profile).toMatchObject({ name: 'Priya Rao', email: 'priya@example.com', phone: '9876543210' });
+  });
+
+  it("childToday derives classes from live GET /timetable and merges today's period attendance", async () => {
+    const today = weekdayShort();
+    jest.spyOn(client, 'apiFetch').mockImplementation(async (path: unknown) => {
+      const p = String(path);
+      if (p === '/timetable') {
+        return [
+          { day: today, period: 1, subject: 'Math', start_time: '00:00', end_time: '00:01' },
+          { day: today, period: 2, subject: 'Science', start_time: '00:02', end_time: '00:03' },
+        ] as any;
+      }
+      if (p.startsWith('/subjects')) return [] as any;
+      if (p.includes('/attendance/periods')) {
+        return [{ id: 'p1', date: '2026-08-15', period: 1, status: 'present' }] as any;
+      }
+      if (p.includes('/attendance')) {
+        return [{ id: 'a1', date: '2026-08-13', status: 'leave' }] as any;
+      }
+      return [] as any;
     });
-    expect(spy.mock.calls[1][0]).toMatch(
-      /^\/students\/c1\/attendance\?from=\d{4}-\d{2}-\d{2}&to=\d{4}-\d{2}-\d{2}$/,
-    );
+
+    const result = await httpServices.parent.childToday('c1');
+    expect(result?.classes).toEqual([
+      { t: '12:00 AM', label: 'Math', done: true, attn: 'present' },
+      { t: '12:02 AM', label: 'Science', done: true, attn: null },
+    ]);
+    expect(result?.meals).toEqual({ breakfast: '', lunch: '' });
+    expect(result?.pickup).toBe('—');
+    expect(result?.todayAttn).toBe('leave');
   });
 
   it('attendance.month uses local calendar date bounds', async () => {
@@ -113,23 +272,35 @@ describe('httpServices derived paths', () => {
 });
 
 describe('httpServices.auth', () => {
-  const sessionDto = {
-    access_token: 'ACC',
-    refresh_token: 'REF',
-    user: { id: 'u1', name: 'Asha', email: 'asha@school.edu', role: 'student' as const },
-    tenant: { id: 'sch1', name: 'WBA' },
-  };
-
   afterEach(() => jest.restoreAllMocks());
 
-  it('signIn persists tokens and returns a mapped Session', async () => {
-    jest.spyOn(client, 'apiFetch').mockResolvedValue(sessionDto as any);
+  it('signIn posts email (not identifier) and hydrates from /auth/me', async () => {
+    const spy = jest.spyOn(client, 'apiFetch')
+      .mockResolvedValueOnce({ access_token: 'ACC', refresh_token: 'REF' } as any)
+      .mockResolvedValueOnce({
+        id: 'u1', email: 'asha@school.edu', roles: ['student'], tenant_id: 'sch1',
+      } as any);
     const setToken = jest.spyOn(client, 'setAuthToken');
-    const session = await httpServices.auth.signIn('asha@school.edu', 'pw', 'student');
+    const session = await httpServices.auth.signIn('Asha@School.edu', 'pw', 'student');
+    expect(spy.mock.calls[0][0]).toBe('/auth/login');
+    expect(JSON.parse(spy.mock.calls[0][1].body as string)).toEqual({
+      email: 'asha@school.edu', password: 'pw', role: 'student',
+    });
+    expect(spy.mock.calls[1][0]).toBe('/auth/me');
     expect(session).toEqual({ token: 'ACC', role: 'student', email: 'asha@school.edu' });
     expect(setToken).toHaveBeenCalledWith('ACC');
     expect(tokenStore.save).toHaveBeenCalledWith({
       access: 'ACC', refresh: 'REF', role: 'student', email: 'asha@school.edu', tenantId: 'sch1',
+    });
+  });
+
+  it('signIn posts student_id for admission identifiers', async () => {
+    const spy = jest.spyOn(client, 'apiFetch')
+      .mockResolvedValueOnce({ access_token: 'ACC', refresh_token: 'REF' } as any)
+      .mockResolvedValueOnce({ id: 'u1', email: '', roles: ['student'] } as any);
+    await httpServices.auth.signIn('sccrdtb/STU/26/0002', 'pw', 'student');
+    expect(JSON.parse(spy.mock.calls[0][1].body as string)).toEqual({
+      student_id: 'sccrdtb/STU/26/0002', password: 'pw', role: 'student',
     });
   });
 
@@ -138,8 +309,112 @@ describe('httpServices.auth', () => {
     await expect(httpServices.auth.refresh('REF')).resolves.toEqual({ access: 'A2', refresh: 'R2' });
   });
 
-  it('getMe returns role + email', async () => {
-    jest.spyOn(client, 'apiFetch').mockResolvedValue({ id: 'u1', name: 'Asha', email: 'asha@school.edu', role: 'student' } as any);
+  it('getMe returns role + email from roles[]', async () => {
+    jest.spyOn(client, 'apiFetch').mockResolvedValue({
+      id: 'u1', name: 'Asha', email: 'asha@school.edu', roles: ['student'],
+    } as any);
     await expect(httpServices.auth.getMe()).resolves.toEqual({ role: 'student', email: 'asha@school.edu' });
+  });
+
+  it('requestPasswordReset posts identifier and selected role', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValue({
+      sent: true, channel: 'email', sent_to: 'd***@home.test', recipient: 'self',
+    } as any);
+    await expect(httpServices.auth.requestPasswordReset('Dad@Home.test', 'parent')).resolves.toEqual({
+      sent: true, channel: 'email', sentTo: 'd***@home.test', recipient: 'self',
+    });
+    expect(spy.mock.calls[0][0]).toBe('/auth/password/forgot');
+    expect(JSON.parse(spy.mock.calls[0][1].body as string)).toEqual({
+      identifier: 'dad@home.test', role: 'parent',
+    });
+  });
+
+  it('school.getCurrent loads tenant mark from /auth/me (not GET /school)', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce({
+      id: 'u1',
+      tenant_id: 't1',
+      tenant_name: 'SCC Academy',
+      tenant_logo_url: 'https://cdn/logo.png',
+      tenant_image_url: 'https://cdn/cover.png',
+    } as any);
+    const school = await httpServices.school.getCurrent();
+    expect(spy.mock.calls[0][0]).toBe('/auth/me');
+    expect(school).toMatchObject({
+      id: 't1',
+      name: 'SCC Academy',
+      logoUrl: 'https://cdn/logo.png',
+      imageUrl: 'https://cdn/cover.png',
+    });
+    spy.mockRestore();
+  });
+
+  it('announcements.list prepends GET /notifications onto the feed', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockImplementation(async (path: string) => {
+      if (String(path).startsWith('/announcements')) {
+        return [{ id: 'a1', from: 'Office', role: 'admin', date: '2026-08-13', title: 'Holiday', body: 'Closed', type: 'info' }];
+      }
+      if (path === '/notifications') {
+        return [{ id: 'n1', title: 'Timetable updated', body: '1 class · 30 periods', time: 'Just now' }];
+      }
+      throw new Error(`unexpected ${path}`);
+    });
+    const rows = await httpServices.announcements.list('student');
+    expect(rows.map((r) => r.id)).toEqual(['n1', 'a1']);
+    expect(rows[0]).toMatchObject({ from: 'School', role: 'notice', title: 'Timetable updated' });
+    spy.mockRestore();
+  });
+
+  it('student.getTimetable does not swallow GET /timetable errors', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockImplementation(async (path: string) => {
+      if (path === '/timetable') throw new Error('forbidden');
+      if (String(path).startsWith('/subjects')) return [];
+      throw new Error(`unexpected ${path}`);
+    });
+    await expect(httpServices.student.getTimetable()).rejects.toThrow('forbidden');
+    spy.mockRestore();
+  });
+
+  it('messaging.threads loads GET /threads', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce([
+      {
+        id: '3c8a1c9e-1111-2222-3333-444444444444',
+        name: 'Amit Yadav',
+        role: 'Class teacher',
+        last_message: 'See you at PTM',
+        last_at: '09:15',
+        unread: 1,
+      },
+    ] as any);
+    const rows = await httpServices.messaging.threads('student');
+    expect(spy.mock.calls[0][0]).toBe('/threads');
+    expect(rows[0]).toMatchObject({ id: '3c8a1c9e-1111-2222-3333-444444444444', name: 'Amit Yadav', last: 'See you at PTM' });
+    spy.mockRestore();
+  });
+
+  it('messaging.messages and send use /threads/{id}/messages', async () => {
+    const id = '3c8a1c9e-1111-2222-3333-444444444444';
+    const spy = jest.spyOn(client, 'apiFetch')
+      .mockResolvedValueOnce([
+        { id: 'm1', thread_id: id, text: 'Hello', sent_at: '09:00', is_mine: false },
+      ] as any)
+      .mockResolvedValueOnce({ id: 'm2', thread_id: id, text: 'Hi', sent_at: 'now', is_mine: true } as any);
+    const msgs = await httpServices.messaging.messages(id);
+    expect(spy.mock.calls[0][0]).toBe(`/threads/${id}/messages`);
+    expect(msgs[0]).toMatchObject({ from: 'them', text: 'Hello' });
+    const sent = await httpServices.messaging.send(id, 'Hi');
+    expect(spy.mock.calls[1][0]).toBe(`/threads/${id}/messages`);
+    expect(JSON.parse(spy.mock.calls[1][1].body as string)).toEqual({ text: 'Hi' });
+    expect(sent.from).toBe('me');
+    spy.mockRestore();
+  });
+
+  it('messaging.send blocks abusive language before POST', async () => {
+    const spy = jest.spyOn(client, 'apiFetch');
+    await expect(httpServices.messaging.send('3c8a1c9e-1111-2222-3333-444444444444', 'kiss me tonight')).rejects.toMatchObject({
+      name: 'ChatModerationError',
+      reason: 'abusive_language',
+    });
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 });

@@ -350,11 +350,12 @@ export const peers: Peer[] = [
 ];
 
 export const teachers: Teacher[] = [
-  { id: 't1', name: 'Ms. A. Krishnan', initials: 'AK', subj: 'Mathematics', online: true },
-  { id: 't2', name: 'Mr. R. Bell', initials: 'RB', subj: 'English Lit', online: false },
-  { id: 't3', name: 'Dr. K. Suzuki', initials: 'KS', subj: 'Physics', online: true },
-  { id: 't4', name: 'Ms. L. Reyes', initials: 'LR', subj: 'World History', online: false },
-  { id: 't5', name: 'Mr. T. Park', initials: 'TP', subj: 'Computer Sci', online: true },
+  { id: 't0', name: 'Dr. N. Alvarez', initials: 'NA', subj: 'Principal', online: true, role: 'principal' },
+  { id: 't1', name: 'Ms. A. Krishnan', initials: 'AK', subj: 'Mathematics', online: true, role: 'class_teacher' },
+  { id: 't2', name: 'Mr. R. Bell', initials: 'RB', subj: 'English Lit', online: false, role: 'subject_teacher' },
+  { id: 't3', name: 'Dr. K. Suzuki', initials: 'KS', subj: 'Physics', online: true, role: 'subject_teacher' },
+  { id: 't4', name: 'Ms. L. Reyes', initials: 'LR', subj: 'World History', online: false, role: 'subject_teacher' },
+  { id: 't5', name: 'Mr. T. Park', initials: 'TP', subj: 'Computer Sci', online: true, role: 'subject_teacher' },
 ];
 
 export const achievements: Achievement[] = [
@@ -388,6 +389,7 @@ export const studentMessages: ChatMessage[] = [
     from: 'me',
     text: 'Thank you! When is the next test?',
     time: '09:04',
+    status: 'read',
   },
   {
     id: 'sm3',

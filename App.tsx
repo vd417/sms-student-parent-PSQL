@@ -10,10 +10,11 @@ import {
   PlusJakartaSans_800ExtraBold,
   useFonts,
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { ActivityIndicator, Platform, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { QueryProvider } from '@/providers/QueryProvider';
 import { AuthProvider } from '@/providers/AuthProvider';
+import { BrandProvider } from '@/providers/BrandProvider';
 import { ChildProvider } from '@/providers/ChildProvider';
 import { ToastProvider } from '@/providers/ToastProvider';
 import { colors } from '@/theme';
@@ -43,11 +44,13 @@ export default function App() {
         <StatusBar style="auto" />
         <QueryProvider>
           <AuthProvider>
-            <ChildProvider>
-              <ToastProvider>
-                <RootNavigator />
-              </ToastProvider>
-            </ChildProvider>
+            <BrandProvider>
+              <ChildProvider>
+                <ToastProvider>
+                  <RootNavigator />
+                </ToastProvider>
+              </ChildProvider>
+            </BrandProvider>
           </AuthProvider>
         </QueryProvider>
       </SafeAreaProvider>
@@ -56,30 +59,15 @@ export default function App() {
 
   if (isWeb) {
     return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: colors.primaryDeep,
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh' as unknown as number,
-        }}
-      >
-        <View
-          style={{
-            width: 390,
-            height: 844,
-            maxHeight: '95vh' as unknown as number,
-            backgroundColor: colors.paper,
-            borderRadius: 44,
-            overflow: 'hidden',
-            borderWidth: 8,
-            borderColor: '#0B0E1F',
-            // @ts-expect-error web-only style
-            boxShadow: '0 30px 80px rgba(0,0,0,0.5)',
-          }}
-        >
-          {inner}
+      <View style={webStyles.shell}>
+        <View style={webStyles.phone}>
+          <View style={webStyles.statusBar} pointerEvents="none">
+            <View style={webStyles.camera} />
+          </View>
+          <View style={webStyles.body}>{inner}</View>
+          <View style={webStyles.homeBar} pointerEvents="none">
+            <View style={webStyles.homePill} />
+          </View>
         </View>
       </View>
     );
@@ -87,3 +75,52 @@ export default function App() {
 
   return inner;
 }
+
+const webStyles = StyleSheet.create({
+  shell: {
+    flex: 1,
+    backgroundColor: colors.primaryDeep,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // @ts-expect-error web-only style
+    minHeight: '100vh',
+  },
+  phone: {
+    width: 390,
+    height: 844,
+    // @ts-expect-error web-only style
+    maxHeight: '95vh',
+    backgroundColor: colors.paper,
+    borderRadius: 32,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: '#0B0E1F',
+    // @ts-expect-error web-only style
+    boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
+  },
+  statusBar: {
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.paper,
+  },
+  camera: {
+    width: 72,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#0B0E1F',
+  },
+  body: { flex: 1 },
+  homeBar: {
+    height: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.paper,
+  },
+  homePill: {
+    width: 96,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(11,14,31,0.22)',
+  },
+});

@@ -2,7 +2,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily } from '@/theme';
 import { ParentHomeScreen } from '@/features/parent/screens/ParentHomeScreen';
-import { ParentProgressScreen } from '@/features/parent/screens/ParentProgressScreen';
+import { ParentClassScreen } from '@/features/parent/screens/ParentClassScreen';
 import { ParentFeesScreen } from '@/features/parent/screens/ParentFeesScreen';
 import { ParentChatScreen } from '@/features/parent/screens/ParentChatScreen';
 import { ParentProfileScreen } from '@/features/parent/screens/ParentProfileScreen';
@@ -12,7 +12,7 @@ const Tab = createBottomTabNavigator<ParentTabParamList>();
 
 const ICONS: Record<keyof ParentTabParamList, keyof typeof Ionicons.glyphMap> = {
   Home: 'home',
-  Progress: 'stats-chart',
+  Class: 'school',
   Fees: 'card',
   Inbox: 'chatbubbles',
   Profile: 'person',
@@ -44,9 +44,9 @@ export function ParentTabNavigator() {
     >
       <Tab.Screen name="Home" component={ParentHomeScreen} options={{ title: 'Today' }} />
       <Tab.Screen
-        name="Progress"
-        component={ParentProgressScreen}
-        options={{ title: 'Progress' }}
+        name="Class"
+        component={ParentClassScreen}
+        options={{ title: 'Class' }}
       />
       <Tab.Screen name="Fees" component={ParentFeesScreen} options={{ title: 'Fees' }} />
       <Tab.Screen name="Inbox" component={ParentChatScreen} options={{ title: 'Inbox' }} />

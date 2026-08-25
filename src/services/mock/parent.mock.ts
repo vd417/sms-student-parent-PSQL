@@ -6,6 +6,7 @@ import type {
   PTMService,
   TransportService,
 } from '@/services/types';
+import type { PeriodAttendanceEntry } from '@/models';
 import { db } from './db';
 import { withLatency } from './latency';
 import { attendanceFor } from './fixtures/parent';
@@ -56,10 +57,77 @@ export function transportMock(opts: Opts = {}): TransportService {
   return { forChild: (_childId) => withLatency(() => db.transport!, opts) };
 }
 
+const MOCK_PERIOD_SUBJECTS = ['Music', 'Maths'];
+const MOCK_STATUS_CYCLE: PeriodAttendanceEntry['status'][] = ['present', 'present', 'late', 'absent', 'present'];
+
+function mockDateLabel(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Deterministic ~6 weeks of weekday period marks, ending today, so Day/Week/Month/Overall each show distinct data. */
+function generateMockPeriods(now: Date): PeriodAttendanceEntry[] {
+  const rows: PeriodAttendanceEntry[] = [];
+  for (let offset = 0; offset < 42; offset++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - offset);
+    const weekday = d.getDay();
+    if (weekday === 0 || weekday === 6) continue;
+    const date = mockDateLabel(d);
+    MOCK_PERIOD_SUBJECTS.forEach((subject, si) => {
+      rows.push({
+        id: `p-${date}-${si}`,
+        date,
+        period: si + 1,
+        subject,
+        status: MOCK_STATUS_CYCLE[(offset + si) % MOCK_STATUS_CYCLE.length],
+        markedByRole: 'teacher',
+      });
+    });
+  }
+  return rows;
+}
+
 export function attendanceMock(opts: Opts = {}): AttendanceService {
   return {
     month: (childId) => withLatency(() => attendanceFor(childId), opts),
     today: () => withLatency(() => 'present', opts),
+    periods: (_childId, from, to) =>
+      withLatency(() => {
+        const rows = generateMockPeriods(new Date()).filter(
+          (r) => (!from || r.date >= from) && (!to || r.date <= to),
+        );
+        return rows.sort((a, b) => b.date.localeCompare(a.date) || a.period - b.period);
+      }, opts),
+    summary: (_childId, from, to) =>
+      withLatency(() => {
+        const rows = generateMockPeriods(new Date()).filter(
+          (r) => (!from || r.date >= from) && (!to || r.date <= to),
+        );
+        const presentPeriods = rows.filter((r) => r.status === 'present').length;
+        const latePeriods = rows.filter((r) => r.status === 'late').length;
+        const absentPeriods = rows.filter((r) => r.status === 'absent').length;
+        const leavePeriods = rows.filter((r) => r.status === 'leave').length;
+        const totalMarkedPeriods = rows.length;
+        const attendancePercentage =
+          totalMarkedPeriods > 0
+            ? +(((presentPeriods + latePeriods) / totalMarkedPeriods) * 100).toFixed(1)
+            : null;
+        const todayLabel = mockDateLabel(new Date());
+        const presentTodayBadge = rows.some(
+          (r) => r.date === todayLabel && (r.status === 'present' || r.status === 'late'),
+        );
+        return {
+          totalMarkedPeriods,
+          presentPeriods,
+          latePeriods,
+          absentPeriods,
+          leavePeriods,
+          attendancePercentage,
+          presentTodayBadge,
+        };
+      }, opts),
   };
 }
 

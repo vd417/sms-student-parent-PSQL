@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { colors, fontFamily, radius } from '@/theme';
+import { colors, fontFamily, radius, useBrandColors } from '@/theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'white';
 type Size = 'md' | 'lg';
@@ -30,7 +30,8 @@ export function Button({
   trailing,
   style,
 }: Props) {
-  const v = VARIANTS[variant];
+  useBrandColors();
+  const v = variantStyle(variant);
   const s = SIZES[size];
   return (
     <Pressable
@@ -64,29 +65,30 @@ export function Button({
   );
 }
 
-const VARIANTS: Record<Variant, { bg: string; fg: string; border: string; borderWidth: number }> = {
-  primary: { bg: colors.primary, fg: colors.white, border: 'transparent', borderWidth: 0 },
-  secondary: {
-    bg: colors.primarySoft,
-    fg: colors.primary,
-    border: 'transparent',
-    borderWidth: 0,
-  },
-  ghost: { bg: 'transparent', fg: colors.ink, border: colors.rule, borderWidth: 1 },
-  white: { bg: colors.white, fg: colors.primary, border: 'transparent', borderWidth: 0 },
-};
+function variantStyle(variant: Variant) {
+  switch (variant) {
+    case 'secondary':
+      return { bg: colors.primarySoft, fg: colors.primary, border: 'transparent', borderWidth: 0 };
+    case 'ghost':
+      return { bg: 'transparent', fg: colors.ink, border: colors.rule, borderWidth: 1 };
+    case 'white':
+      return { bg: colors.white, fg: colors.primary, border: 'transparent', borderWidth: 0 };
+    default:
+      return { bg: colors.primary, fg: colors.white, border: 'transparent', borderWidth: 0 };
+  }
+}
 
 const SIZES: Record<Size, { h: number; px: number; fs: number }> = {
   md: { h: 44, px: 16, fs: 14 },
-  lg: { h: 52, px: 20, fs: 15 },
+  lg: { h: 52, px: 20, fs: 16 },
 };
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: radius.pill,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  label: { fontFamily: fontFamily.bold, letterSpacing: -0.1 },
+  label: { fontFamily: fontFamily.bold },
 });

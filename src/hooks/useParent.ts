@@ -10,4 +10,5 @@ export const useChildToday = (childId: string) =>
   useQuery({
     queryKey: qk.childToday(childId),
     queryFn: () => services.parent.childToday(childId),
+    enabled: Boolean(childId),
   });

@@ -1,4 +1,5 @@
 import { API_BASE_URL, REQUEST_TIMEOUT_MS } from './config';
+import { unwrapData } from './envelope';
 import { ApiError, normalizeError } from '@/services/errors';
 
 let authToken: string | null = null;
@@ -38,6 +39,7 @@ async function rawFetch(path: string, init: RequestInit): Promise<Response> {
   try {
     return await fetch(`${API_BASE_URL}${path}`, {
       ...init,
+      cache: 'no-store',
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
@@ -56,14 +58,17 @@ async function rawFetch(path: string, init: RequestInit): Promise<Response> {
 }
 
 async function toResult<T>(res: Response): Promise<T> {
-  if (res.ok) return (await res.json()) as T;
-  let body: unknown = null;
-  try {
-    body = await res.json();
-  } catch {
-    /* non-JSON error body */
+  if (!res.ok) {
+    let body: unknown = null;
+    try {
+      body = await res.json();
+    } catch {
+      /* non-JSON error body */
+    }
+    throw normalizeError(res.status, body);
   }
-  throw normalizeError(res.status, body);
+  if (res.status === 204) return undefined as T;
+  return unwrapData<T>(await res.json());
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {

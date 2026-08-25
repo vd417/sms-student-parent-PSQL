@@ -1,5 +1,5 @@
 import type { DataSource } from '@/api/config';
-import { DATA_SOURCE, MOCK_BACKED } from '@/api/config';
+import { DATA_SOURCE } from '@/api/config';
 import type { Services } from './types';
 import { httpServices } from './http';
 import {
@@ -7,6 +7,8 @@ import {
   directoryMock,
   gradesMock,
   messagingMock,
+  notificationsMock,
+  settingsMock,
   studentMock,
   subjectsMock,
 } from './mock/student.mock';
@@ -31,6 +33,8 @@ function mockServices(): Services {
     homework: homeworkMock(),
     grades: gradesMock(),
     announcements: announcementsMock(),
+    notifications: notificationsMock(),
+    settings: settingsMock(),
     messaging: messagingMock(),
     directory: directoryMock(),
     parent: parentMock(),
@@ -44,48 +48,7 @@ function mockServices(): Services {
 
 export function buildServices(source: DataSource = DATA_SOURCE): Services {
   if (source === 'mock') return mockServices();
-
-  const http = httpServices;
-  const mock = mockServices();
-
-  // Compose at method level: student/parent are partially backed, so their
-  // endpoint-less methods fall back to mock while the rest run live.
-  const composed: Services = {
-    // fully backed → live /v1
-    auth: http.auth,
-    subjects: http.subjects,
-    homework: http.homework,
-    grades: http.grades,
-    announcements: http.announcements,
-    messaging: http.messaging,
-    directory: http.directory,
-    fees: http.fees,
-    leave: http.leave,
-    // mixed: live profile/children, mock for endpoint-less methods
-    student: {
-      getProfile: http.student.getProfile,
-      getToday: mock.student.getToday,
-      getPeers: mock.student.getPeers,
-      getAchievements: mock.student.getAchievements,
-    },
-    parent: {
-      getProfile: http.parent.getProfile,
-      children: http.parent.children,
-      childToday: mock.parent.childToday,
-    },
-    // fully endpoint-less → mock
-    school: mock.school,
-    ptm: mock.ptm,
-    transport: mock.transport,
-    attendance: mock.attendance,
-  };
-
-  if (MOCK_BACKED.length) {
-    console.info(
-      `[data] live /v1 backend; mock-backed (no endpoint yet): ${MOCK_BACKED.join(', ')}`,
-    );
-  }
-  return composed;
+  return httpServices;
 }
 
 export const services: Services = buildServices();

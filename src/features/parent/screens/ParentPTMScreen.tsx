@@ -1,8 +1,6 @@
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Button,
   Card,
@@ -17,12 +15,8 @@ import { usePTM, useSetPTMStatus } from '@/hooks/usePTM';
 import { useChildren } from '@/hooks/useParent';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, radius } from '@/theme';
-import type { ParentStackParamList } from '@/navigation/types';
-
-type Nav = NativeStackNavigationProp<ParentStackParamList>;
 
 export function ParentPTMScreen() {
-  const nav = useNavigation<Nav>();
   const toast = useToast();
   const ptmQ = usePTM();
   const childrenQ = useChildren();
@@ -38,7 +32,10 @@ export function ParentPTMScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader kicker="Parent–Teacher Meet" title="Meetings" onBack={() => nav.goBack()} />
+        <ScreenHeader
+          kicker="Parent–Teacher Meet"
+          title="Meetings"
+        />
         <Loading />
       </SafeAreaView>
     );
@@ -46,7 +43,10 @@ export function ParentPTMScreen() {
   if (isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader kicker="Parent–Teacher Meet" title="Meetings" onBack={() => nav.goBack()} />
+        <ScreenHeader
+          kicker="Parent–Teacher Meet"
+          title="Meetings"
+        />
         <ErrorState onRetry={onRefresh} />
       </SafeAreaView>
     );
@@ -61,7 +61,6 @@ export function ParentPTMScreen() {
       <ScreenHeader
         kicker="Parent–Teacher Meet"
         title="Meetings"
-        onBack={() => nav.goBack()}
         right={<IconButton icon="add" onPress={() => toast('Coming soon')} />}
       />
       <ScrollView
@@ -75,10 +74,10 @@ export function ParentPTMScreen() {
               <Ionicons name="calendar" size={20} color={colors.white} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.bannerTitle}>Term-end PTM open</Text>
-              <Text style={styles.bannerMeta}>Book 15-min slots · May 3–7</Text>
+              <Text style={styles.bannerTitle}>Book a meeting</Text>
+              <Text style={styles.bannerMeta}>15-min slots with your child&apos;s teachers</Text>
             </View>
-            <Button size="md" variant="primary">
+            <Button size="md" variant="primary" onPress={() => toast('Coming soon')}>
               Book slot
             </Button>
           </Card>
