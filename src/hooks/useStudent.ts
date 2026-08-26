@@ -18,7 +18,6 @@ export const useTimetable = (studentId?: string) =>
   useQuery({
     queryKey: qk.timetable(studentId),
     queryFn: () => services.student.getTimetable(studentId),
-    refetchOnMount: 'always',
     enabled: enabledWhenOwnOrChild(studentId),
   });
 export const usePeers = () =>

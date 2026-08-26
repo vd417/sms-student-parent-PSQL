@@ -19,6 +19,8 @@ import {
   toAchievement,
   formatAchievementWhen,
   toTeacher,
+  appRoleFromMe,
+  rolesFromAccessToken,
 } from '@/services/http/mappers';
 import type { StudentDTO, FeeInvoiceDTO, AnnouncementDTO, NotificationDTO, SessionDTO, ExamPaperDTO, LeaveRequestDTO, ChatMessageDTO, SessionUserDTO, TeacherDTO } from '@/services/http/dtos';
 
@@ -166,6 +168,18 @@ describe('http mappers → domain', () => {
     expect(toSession({ access_token: 'aaa', refresh_token: 'rrr' }, 'student')).toEqual({
       token: 'aaa', role: 'student', email: '',
     });
+  });
+
+  it('appRoleFromMe treats student.parent as parent, not student', () => {
+    expect(appRoleFromMe({ id: 'u1', roles: ['student.parent'] })).toBe('parent');
+    expect(appRoleFromMe({ id: 'u1', role: 'student', roles: ['student.parent'] })).toBe('parent');
+    expect(appRoleFromMe({ id: 'u1', roles: ['student'] })).toBe('student');
+  });
+
+  it('rolesFromAccessToken reads the JWT role claim', () => {
+    const payload = Buffer.from(JSON.stringify({ role: 'student.parent' })).toString('base64url');
+    const token = `eyJhbGciOiJub25lIn0.${payload}.sig`;
+    expect(rolesFromAccessToken(token)).toEqual(['student.parent']);
   });
 
   it('toTimetableBlock maps slot times and break kind', () => {

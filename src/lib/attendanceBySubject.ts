@@ -74,3 +74,52 @@ export function attendanceForSubject(
     return wantName.length > 0 && normalizeSubjectName(g.subject) === wantName;
   });
 }
+
+export type TimetableSlotRef = {
+  period?: number;
+  label: string;
+  subjId?: string;
+  kind?: string;
+};
+
+function slotMatchesRow(row: PeriodAttendanceEntry, slot: TimetableSlotRef): boolean {
+  if (slot.subjId && row.subjectId && slot.subjId === row.subjectId) return true;
+  const wantName = normalizeSubjectName(slot.label);
+  return wantName.length > 0 && normalizeSubjectName(row.subject) === wantName;
+}
+
+/** Today's period mark for a timetable block, or null if unmarked / not a class. */
+export function statusForTimetableSlot(
+  rows: PeriodAttendanceEntry[],
+  slot: TimetableSlotRef,
+  today: string,
+): string | null {
+  if (slot.kind && slot.kind !== 'class') return null;
+  const dayRows = rows.filter((r) => r.date === today);
+  if (!dayRows.length) return null;
+
+  if (slot.period != null) {
+    const byPeriod = dayRows.filter((r) => r.period === slot.period);
+    if (byPeriod.length === 1) return byPeriod[0].status.trim().toLowerCase();
+    if (byPeriod.length > 1) {
+      const named = byPeriod.find((r) => slotMatchesRow(r, slot));
+      return (named ?? byPeriod[0]).status.trim().toLowerCase();
+    }
+  }
+
+  const match = dayRows.find((r) => slotMatchesRow(r, slot));
+  return match ? match.status.trim().toLowerCase() : null;
+}
+
+export function isAbsentStatus(status: string | null | undefined): boolean {
+  const s = (status ?? '').trim().toLowerCase();
+  return s === 'absent' || s === 'a';
+}
+
+export function attendancePillTone(status: string): 'present' | 'absent' | 'late' | 'neutral' {
+  const s = status.trim().toLowerCase();
+  if (s === 'present' || s === 'p') return 'present';
+  if (s === 'absent' || s === 'a') return 'absent';
+  if (s === 'late' || s === 'l') return 'late';
+  return 'neutral';
+}

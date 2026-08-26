@@ -14,12 +14,39 @@ import type {
   SubjectDTO, TeacherDTO, TimetableSlotDTO, TodayBlockDTO, TransportDTO,
 } from './dtos';
 
+function isParentRoleName(value: string): boolean {
+  return /parent|guardian/i.test(value);
+}
+
+function isStudentRoleName(value: string): boolean {
+  return /^student$/i.test(value) || /\.student$/i.test(value);
+}
+
+/** Roles claim from a JWT payload (unsigned decode — display/guard only). */
+export function rolesFromAccessToken(token: string): string[] {
+  try {
+    const part = token.split('.')[1];
+    if (!part) return [];
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    const json = typeof globalThis.atob === 'function'
+      ? globalThis.atob(padded)
+      : Buffer.from(padded, 'base64').toString('utf8');
+    const payload = JSON.parse(json) as { role?: unknown };
+    const role = payload.role;
+    if (Array.isArray(role)) return role.filter((r): r is string => typeof r === 'string');
+    if (typeof role === 'string') return [role];
+    return [];
+  } catch {
+    return [];
+  }
+}
+
 /** Map /auth/me (role or roles[]) to the app's student|parent role. */
 export function appRoleFromMe(me: SessionUserDTO, fallback: Role = 'student'): Role {
-  if (me.role === 'parent' || me.role === 'student') return me.role;
   const roles = me.roles ?? [];
-  if (roles.some((r) => /parent|guardian/i.test(r))) return 'parent';
-  if (roles.some((r) => /student/i.test(r))) return 'student';
+  if (roles.some(isParentRoleName) || me.role === 'parent') return 'parent';
+  if (roles.some(isStudentRoleName) || me.role === 'student') return 'student';
   return fallback;
 }
 

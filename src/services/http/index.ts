@@ -9,6 +9,7 @@ import {
   assertChatMessageAllowed,
 } from '@/lib/chatModeration';
 import { minutesFromMidnight } from '@/lib/nextPeriod';
+import { deriveTodayAttendance } from '@/lib/todayAttendance';
 import type {
   SessionDTO, SessionUserDTO, StudentDTO, SubjectDTO,
   HomeworkDTO, ExamPaperDTO, GradeDTO, AnnouncementDTO, NotificationDTO, ChatThreadDTO, ChatMessageDTO,
@@ -16,7 +17,7 @@ import type {
   TransportDTO, AttendanceRecordDTO, LeaveRequestDTO, TimetableSlotDTO, AchievementDTO, AppSettingsDTO,
 } from './dtos';
 import {
-  appRoleFromMe, schoolFromMe, toStudent, toSubject,
+  appRoleFromMe, rolesFromAccessToken, schoolFromMe, toStudent, toSubject,
   toHomework, toExam, toGrade, toAnnouncement, toNotice, toInboxNotice, toChatThread, toChatMessage, toTeacher,
   toParent, toChild, toFee, toPTM, toTransport, toAttendanceFromRecords, toLeaveRequest,
   toTimetableBlock, weekdayShort, compareTimetableBlocks, subjectShortCode, toAchievement, initialsFrom,
@@ -118,6 +119,17 @@ function loginBody(identifier: string, password: string, role: Role) {
   return { student_id: normalized, password, role };
 }
 
+function wrongTabError(requested: Role): ApiError {
+  return new ApiError(
+    requested === 'student'
+      ? 'This is a parent login. Switch to the Parent tab.'
+      : 'This is a student login. Switch to the Student tab.',
+    403,
+    undefined,
+    'wrong_role',
+  );
+}
+
 /** Persist tokens; hydrate role/email from /auth/me when login returns tokens only. */
 async function persistAfterLogin(dto: SessionDTO, fallbackRole: Role) {
   if (!dto?.access_token) {
@@ -133,7 +145,15 @@ async function persistAfterLogin(dto: SessionDTO, fallbackRole: Role) {
     email = me.email ?? email;
     tenantId = me.tenant_id ?? tenantId;
   } catch {
-    /* keep token-only fallbacks */
+    const jwtRoles = rolesFromAccessToken(dto.access_token);
+    if (jwtRoles.length > 0) {
+      role = appRoleFromMe({ id: '', roles: jwtRoles }, fallbackRole);
+    }
+  }
+  if (role !== fallbackRole) {
+    setAuthToken(null);
+    await tokenStore.clear();
+    throw wrongTabError(fallbackRole);
   }
   await tokenStore.save({
     access: dto.access_token,
@@ -381,7 +401,7 @@ export const httpServices: Services = {
       const day = weekdayShort();
       const todayDate = localDateLabel(new Date());
       const nowMin = minutesFromMidnight(new Date());
-      const [blocks, todayAttn, periodRows] = await Promise.all([
+      const [blocks, dailyAttn, periodRows] = await Promise.all([
         emptyOnError(() => loadTimetableBlocks(id), []),
         loadDailyAttendance(id).catch(() => null),
         emptyOnError(
@@ -405,7 +425,12 @@ export const httpServices: Services = {
           done: b.startMin != null && nowMin >= b.startMin + b.d,
           attn: b.period != null ? (attnByPeriod.get(b.period) ?? null) : null,
         }));
-      return { classes, meals: { breakfast: '', lunch: '' }, pickup: '—', todayAttn };
+      return {
+        classes,
+        meals: { breakfast: '', lunch: '' },
+        pickup: '—',
+        todayAttn: dailyAttn ?? deriveTodayAttendance(classes.map((c) => c.attn)),
+      };
     },
   },
   fees: {

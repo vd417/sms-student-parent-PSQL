@@ -4,6 +4,7 @@ import { services } from '@/services';
 import type { PasswordResetSent } from '@/services/types';
 import { setAuthToken, setRefreshHandler, setSessionExpiredHandler } from '@/api/client';
 import { tokenStore } from '@/services/auth/tokenStore';
+import { ApiError } from '@/services/errors';
 import { authReducer, initialAuthState } from './authReducer';
 
 interface AuthContextValue {
@@ -81,6 +82,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       status: state.status,
       signIn: async (email, password, role) => {
         const session = await services.auth.signIn(email, password, role);
+        if (session.role !== role) {
+          await tokenStore.clear();
+          setAuthToken(null);
+          throw new ApiError(
+            role === 'student'
+              ? 'This is a parent login. Switch to the Parent tab.'
+              : 'This is a student login. Switch to the Student tab.',
+            403,
+            undefined,
+            'wrong_role',
+          );
+        }
         setAuthToken(session.token);
         dispatch({ type: 'SIGNED_IN', session });
       },

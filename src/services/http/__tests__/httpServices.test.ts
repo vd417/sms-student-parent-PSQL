@@ -289,6 +289,32 @@ describe('httpServices derived paths', () => {
     expect(result?.todayAttn).toBe('leave');
   });
 
+  it('childToday uses period marks when the daily roll is not marked', async () => {
+    const today = weekdayShort();
+    jest.spyOn(client, 'apiFetch').mockImplementation(async (path: unknown) => {
+      const p = String(path);
+      if (p === '/students/c1/timetable') {
+        return [
+          { day: today, period: 1, subject: 'Math', start_time: '00:00', end_time: '00:01' },
+          { day: today, period: 2, subject: 'Science', start_time: '00:02', end_time: '00:03' },
+        ] as any;
+      }
+      if (p.startsWith('/subjects')) return [] as any;
+      if (p.includes('/attendance/periods')) {
+        return [
+          { id: 'p1', date: '2026-08-26', period: 1, status: 'present' },
+          { id: 'p2', date: '2026-08-26', period: 2, status: 'present' },
+        ] as any;
+      }
+      if (p.includes('/attendance')) return [] as any;
+      return [] as any;
+    });
+
+    const result = await httpServices.parent.childToday('c1');
+    expect(result?.classes.map((c) => c.attn)).toEqual(['present', 'present']);
+    expect(result?.todayAttn).toBe('present');
+  });
+
   it('childToday does not fall back to /students/me when childId is missing', async () => {
     const spy = jest.spyOn(client, 'apiFetch');
     const result = await httpServices.parent.childToday('');
@@ -314,6 +340,29 @@ describe('httpServices derived paths', () => {
     );
   });
 
+  it('attendance.periods for a parent child skips /students/me', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValue([] as any);
+    await httpServices.attendance.periods('sis-b', '2026-08-01', '2026-08-31');
+    expect(spy.mock.calls.map((c) => c[0])).toEqual([
+      '/students/sis-b/attendance/periods?from=2026-08-01&to=2026-08-31',
+    ]);
+    spy.mockRestore();
+  });
+
+  it('attendance.periods for a student resolves SIS id via /students/me', async () => {
+    const spy = jest
+      .spyOn(client, 'apiFetch')
+      .mockResolvedValueOnce({ id: 'sis-1', name: 'Maya' } as any)
+      .mockResolvedValueOnce([] as any);
+    clearSisStudentCache();
+    await httpServices.attendance.periods(undefined, '2026-08-01', '2026-08-31');
+    expect(spy.mock.calls[0][0]).toBe('/students/me');
+    expect(spy.mock.calls[1][0]).toBe(
+      '/students/sis-1/attendance/periods?from=2026-08-01&to=2026-08-31',
+    );
+    spy.mockRestore();
+  });
+
   it('leave.list GETs /leave?student_id', async () => {
     const spy = jest.spyOn(client, 'apiFetch').mockResolvedValue([] as any);
     await httpServices.leave.list('c1');
@@ -322,6 +371,10 @@ describe('httpServices derived paths', () => {
 });
 
 describe('httpServices.auth', () => {
+  beforeEach(() => {
+    (tokenStore.save as jest.Mock).mockClear();
+    (tokenStore.clear as jest.Mock).mockClear();
+  });
   afterEach(() => jest.restoreAllMocks());
 
   it('signIn posts email (not identifier) and hydrates from /auth/me', async () => {
@@ -352,6 +405,41 @@ describe('httpServices.auth', () => {
     expect(JSON.parse(spy.mock.calls[0][1].body as string)).toEqual({
       student_id: 'sccrdtb/STU/26/0002', password: 'pw', role: 'student',
     });
+  });
+
+  it('signIn on the student tab rejects a parent account', async () => {
+    const spy = jest.spyOn(client, 'apiFetch')
+      .mockResolvedValueOnce({ access_token: 'ACC', refresh_token: 'REF' } as any)
+      .mockResolvedValueOnce({
+        id: 'u1', email: 'dad@home.test', roles: ['student.parent'],
+      } as any);
+    await expect(httpServices.auth.signIn('dad@home.test', 'pw', 'student'))
+      .rejects.toMatchObject({ status: 403, code: 'wrong_role' });
+    expect(tokenStore.clear).toHaveBeenCalled();
+    expect(tokenStore.save).not.toHaveBeenCalled();
+    expect(spy.mock.calls[0][0]).toBe('/auth/login');
+  });
+
+  it('signIn on the parent tab rejects a student account', async () => {
+    jest.spyOn(client, 'apiFetch')
+      .mockResolvedValueOnce({ access_token: 'ACC', refresh_token: 'REF' } as any)
+      .mockResolvedValueOnce({
+        id: 'u2', email: 'kid@school.test', roles: ['student'],
+      } as any);
+    await expect(httpServices.auth.signIn('kid@school.test', 'pw', 'parent'))
+      .rejects.toMatchObject({ status: 403, code: 'wrong_role' });
+    expect(tokenStore.clear).toHaveBeenCalled();
+  });
+
+  it('signIn on the student tab rejects a parent JWT when /auth/me fails', async () => {
+    const payload = Buffer.from(JSON.stringify({ role: 'student.parent' })).toString('base64url');
+    const access = `eyJhbGciOiJub25lIn0.${payload}.sig`;
+    jest.spyOn(client, 'apiFetch')
+      .mockResolvedValueOnce({ access_token: access, refresh_token: 'REF' } as any)
+      .mockRejectedValueOnce(new Error('offline'));
+    await expect(httpServices.auth.signIn('dad@home.test', 'pw', 'student'))
+      .rejects.toMatchObject({ status: 403, code: 'wrong_role' });
+    expect(tokenStore.clear).toHaveBeenCalled();
   });
 
   it('refresh maps token fields', async () => {

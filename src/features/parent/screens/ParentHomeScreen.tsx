@@ -22,10 +22,15 @@ import { useChildren, useChildToday, useParentProfile } from '@/hooks/useParent'
 import { useFees } from '@/hooks/useFees';
 import { useAnnouncements } from '@/hooks/useAnnouncements';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useGrades } from '@/hooks/useGrades';
+import { useSubjects } from '@/hooks/useSubjects';
 import { useSelectedChild } from '@/providers/ChildProvider';
 import { colors, fontFamily, hueColor, radius, spacing, typography } from '@/theme';
 import type { DailyAttendanceStatus } from '@/models';
 import type { ParentStackParamList, ParentTabParamList } from '@/navigation/types';
+import { buildReportFromGrades } from '@/lib/reportCardBuild';
+import { formatHomeAttn, formatReportOrHomeAvg } from '@/lib/homeStats';
+import { attendancePctFromStatuses } from '@/lib/todayAttendance';
 
 type Nav = BottomTabNavigationProp<ParentTabParamList, 'Home'> & {
   navigate: NativeStackNavigationProp<ParentStackParamList>['navigate'];
@@ -48,6 +53,8 @@ export function ParentHomeScreen() {
   const annQ = useAnnouncements('parent');
   const noticesQ = useNotifications();
   const feesQ = useFees(childId);
+  const gradesQ = useGrades(childId);
+  const subjectsQ = useSubjects(childId);
 
   useFocusEffect(
     useCallback(() => {
@@ -63,6 +70,8 @@ export function ParentHomeScreen() {
     childrenQ.refetch();
     todayQ.refetch();
     annQ.refetch();
+    gradesQ.refetch();
+    subjectsQ.refetch();
   };
 
   if (isLoading) {
@@ -121,6 +130,14 @@ export function ParentHomeScreen() {
   const firstAnn = annQ.data![0];
   const doneClasses = today.classes.filter((x) => x.done).length;
   const attendanceChip = dailyAttendanceChip(today.todayAttn);
+  const todayAttnPct = attendancePctFromStatuses(today.classes.map((c) => c.attn));
+  const avgLabel =
+    todayAttnPct != null
+      ? formatHomeAttn(todayAttnPct)
+      : formatReportOrHomeAvg(
+          buildReportFromGrades(gradesQ.data ?? [], subjectsQ.data ?? []),
+          child.avg,
+        );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -170,7 +187,7 @@ export function ParentHomeScreen() {
             <View style={styles.heroStats}>
               <HeroStat label="Classes done" value={`${doneClasses}/${today.classes.length}`} />
               <HeroStat label="Pickup" value={today.pickup} divider />
-              <HeroStat label="Avg" value={`${child.avg}%`} />
+              <HeroStat label="Avg" value={avgLabel} />
             </View>
           </View>
         </View>

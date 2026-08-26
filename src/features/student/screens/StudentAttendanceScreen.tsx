@@ -34,8 +34,8 @@ export function StudentAttendanceScreen() {
   const subjectsQ = useSubjects();
   const [preset, setPreset] = useState<AttendancePreset>('month');
   const { from, to } = rangeForPreset(preset, new Date());
-  const summaryQ = useAttendanceSummary('', from, to);
-  const periodQ = usePeriodAttendance('', from, to);
+  const summaryQ = useAttendanceSummary(undefined, from, to);
+  const periodQ = usePeriodAttendance(undefined, from, to);
 
   const isLoading = meQ.isLoading || summaryQ.isLoading || periodQ.isLoading;
   const isError = meQ.isError || summaryQ.isError || periodQ.isError;

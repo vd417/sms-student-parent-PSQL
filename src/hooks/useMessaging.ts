@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ChatThread, Role } from '@/models';
 import { services } from '@/services';
 import { qk } from './keys';
+import { useLive } from '@/providers/LiveProvider';
 import { useToast } from '@/providers/ToastProvider';
 import {
   CHAT_MODERATION_WARNING,
@@ -34,14 +35,16 @@ export function useCachedThread(audience: Role, threadId: string) {
   return data?.find((t) => t.id === threadId);
 }
 
-export const useMessages = (threadId: string) =>
-  useQuery({
+export const useMessages = (threadId: string) => {
+  const { connected } = useLive();
+  return useQuery({
     queryKey: qk.messages(threadId),
     queryFn: () => services.messaging.messages(threadId),
     enabled: threadId.length > 0,
     refetchOnMount: 'always',
-    refetchInterval: 4_000,
+    refetchInterval: connected ? false : 4_000,
   });
+};
 
 export function useSendMessage(threadId: string) {
   const qc = useQueryClient();

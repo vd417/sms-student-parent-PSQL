@@ -143,4 +143,14 @@ describe('authMock.signIn', () => {
       status: 409,
     });
   });
+
+  it('rejects a parent identifier on the student tab', async () => {
+    const inst = authMock({ ms: 0 });
+    await inst.requestPasswordReset('priya.patel@home.com');
+    await inst.resetPassword('priya.patel@home.com', '123456', 'secret12');
+    await expect(inst.signIn('priya.patel@home.com', 'secret12', 'student')).rejects.toMatchObject({
+      status: 403,
+      code: 'wrong_role',
+    });
+  });
 });

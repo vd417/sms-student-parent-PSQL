@@ -1,10 +1,14 @@
-import { API_BASE_URL, REQUEST_TIMEOUT_MS } from './config';
+import { API_BASE_URL, FETCH_MAX_INFLIGHT, REQUEST_TIMEOUT_MS } from './config';
 import { unwrapData } from './envelope';
 import { ApiError, normalizeError } from '@/services/errors';
 
 let authToken: string | null = null;
 export function setAuthToken(token: string | null) {
   authToken = token;
+}
+
+export function getAuthToken(): string | null {
+  return authToken;
 }
 
 // Returns a fresh access token, or null when refresh is impossible.
@@ -33,7 +37,44 @@ function refreshOnce(): Promise<string | null> {
   return refreshing;
 }
 
+let inflight = 0;
+const waiters: Array<() => void> = [];
+
+function acquireSlot(): Promise<void> {
+  if (inflight < FETCH_MAX_INFLIGHT) {
+    inflight += 1;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    waiters.push(() => {
+      inflight += 1;
+      resolve();
+    });
+  });
+}
+
+function releaseSlot() {
+  inflight = Math.max(0, inflight - 1);
+  const next = waiters.shift();
+  if (next) next();
+}
+
+/** Test hook: drain the gate so suites do not leak blocked fetches. */
+export function resetFetchGate() {
+  inflight = 0;
+  waiters.length = 0;
+}
+
+function requestHeaders(init: RequestInit): Record<string, string> {
+  const headers: Record<string, string> = {
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+  };
+  if (init.body != null) headers['Content-Type'] = 'application/json';
+  return { ...headers, ...(init.headers as Record<string, string> | undefined) };
+}
+
 async function rawFetch(path: string, init: RequestInit): Promise<Response> {
+  await acquireSlot();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -41,11 +82,7 @@ async function rawFetch(path: string, init: RequestInit): Promise<Response> {
       ...init,
       cache: 'no-store',
       signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-        ...(init.headers ?? {}),
-      },
+      headers: requestHeaders(init),
     });
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
@@ -54,6 +91,7 @@ async function rawFetch(path: string, init: RequestInit): Promise<Response> {
     throw new ApiError(`Network error: ${path}`, 0);
   } finally {
     clearTimeout(timer);
+    releaseSlot();
   }
 }
 

@@ -42,7 +42,7 @@ import {
   minutesFromMidnight,
   pickNowOrNext,
 } from '@/lib/nextPeriod';
-import { formatHomeAttn, formatHomeAvg, formatHomeRank } from '@/lib/homeStats';
+import { formatHomeAttn, formatHomeRank, formatReportOrHomeAvg } from '@/lib/homeStats';
 import { buildReportFromGrades } from '@/lib/reportCardBuild';
 import { gradesForSubject, normalizeSubjectName } from '@/lib/belongsToSubject';
 
@@ -121,7 +121,7 @@ export function HomeScreen() {
     .slice(0, 2);
   const firstAnn = announcements[0];
   const firstName = (student.name ?? 'there').trim().split(/\s+/)[0] || 'there';
-  const overallLabel = report.rows.length ? `${Math.round(report.pct)}%` : formatHomeAvg(student.overallAvg);
+  const overallLabel = formatReportOrHomeAvg(report, student.overallAvg);
   const attnChip = dailyAttendanceChip(todayAttnQ.data ?? null);
   const hasUnreadNotice = (noticesQ.data ?? []).some((n) => n.unread);
 

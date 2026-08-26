@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Button } from '@/components/ui';
+import { Button, Loading } from '@/components/ui';
 import { colors, fontFamily, primaryGradient, radius, shadow, spacing } from '@/theme';
 import type { Role } from '@/models';
 import { useAuth } from '@/providers/AuthProvider';
@@ -74,14 +74,19 @@ export function LoginScreen() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const saved = await loginPrefs.load();
-      if (cancelled) return;
-      if (saved?.rememberMe && saved.identifier) {
-        setRole(saved.role);
-        setIdentifier(saved.identifier);
-        setRememberMe(true);
+      try {
+        const saved = await loginPrefs.load();
+        if (cancelled) return;
+        if (saved?.rememberMe && saved.identifier) {
+          setRole(saved.role);
+          setIdentifier(saved.identifier);
+          setRememberMe(true);
+        }
+      } catch {
+        /* keep defaults */
+      } finally {
+        if (!cancelled) setPrefsLoaded(true);
       }
-      setPrefsLoaded(true);
     })();
     return () => {
       cancelled = true;
@@ -199,7 +204,18 @@ export function LoginScreen() {
     }
   };
 
-  if (!prefsLoaded) return null;
+  if (!prefsLoaded) {
+    return (
+      <LinearGradient
+        colors={[primaryGradient[0], primaryGradient[1], primaryGradient[2]] as [string, string, string]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={styles.root}
+      >
+        <Loading />
+      </LinearGradient>
+    );
+  }
 
   const tagline =
     step === 'sign-in'

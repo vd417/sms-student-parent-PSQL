@@ -1,4 +1,4 @@
-import { formatHomeAvg, formatHomeAttn, formatHomeRank } from '../homeStats';
+import { formatHomeAvg, formatHomeAttn, formatHomeRank, formatReportOrHomeAvg } from '../homeStats';
 
 describe('home stats labels', () => {
   it('hides unknown average and rank instead of 0% / 0/0', () => {
@@ -12,5 +12,11 @@ describe('home stats labels', () => {
     expect(formatHomeAttn(null)).toBe('—');
     expect(formatHomeAttn(0)).toBe('0%');
     expect(formatHomeAttn(100)).toBe('100%');
+  });
+
+  it('prefers report-card marks and hides a roster 0% average', () => {
+    expect(formatReportOrHomeAvg({ rows: [{ subject: 'Math' }], pct: 87.4 }, 0)).toBe('87%');
+    expect(formatReportOrHomeAvg({ rows: [], pct: 0 }, 0)).toBe('—');
+    expect(formatReportOrHomeAvg({ rows: [], pct: 0 }, 88)).toBe('88%');
   });
 });

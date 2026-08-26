@@ -14,6 +14,7 @@ import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { QueryProvider } from '@/providers/QueryProvider';
 import { AuthProvider } from '@/providers/AuthProvider';
+import { LiveProvider } from '@/providers/LiveProvider';
 import { BrandProvider } from '@/providers/BrandProvider';
 import { ChildProvider } from '@/providers/ChildProvider';
 import { ToastProvider } from '@/providers/ToastProvider';
@@ -44,13 +45,15 @@ export default function App() {
         <StatusBar style="auto" />
         <QueryProvider>
           <AuthProvider>
-            <BrandProvider>
-              <ChildProvider>
-                <ToastProvider>
-                  <RootNavigator />
-                </ToastProvider>
-              </ChildProvider>
-            </BrandProvider>
+            <LiveProvider>
+              <BrandProvider>
+                <ChildProvider>
+                  <ToastProvider>
+                    <RootNavigator />
+                  </ToastProvider>
+                </ChildProvider>
+              </BrandProvider>
+            </LiveProvider>
           </AuthProvider>
         </QueryProvider>
       </SafeAreaProvider>

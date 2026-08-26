@@ -128,7 +128,17 @@ export function authMock(opts: Opts = {}): AuthService {
     signIn: (identifier, password, role: Role) =>
       delayed(() => {
         const match = findAccount(identifier);
-        if (!match || match.role !== role) throw new ApiError('Not registered', 404);
+        if (!match) throw new ApiError('Not registered', 404);
+        if (match.role !== role) {
+          throw new ApiError(
+            role === 'student'
+              ? 'This is a parent login. Switch to the Parent tab.'
+              : 'This is a student login. Switch to the Student tab.',
+            403,
+            undefined,
+            'wrong_role',
+          );
+        }
         const stored = passwords.get(match.accountKey);
         if (!stored) throw new ApiError('Set up your password first', 409);
         if (stored !== password) throw new ApiError('Incorrect password', 401);

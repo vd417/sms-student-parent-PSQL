@@ -71,7 +71,7 @@ export function SubjectDetailScreen() {
   const homeworkQ = useHomework(studentId);
   const [attendancePreset, setAttendancePreset] = useState<AttendancePreset>('month');
   const { from: attnFrom, to: attnTo } = rangeForPreset(attendancePreset, new Date());
-  const periodQ = usePeriodAttendance(studentId ?? '', attnFrom, attnTo);
+  const periodQ = usePeriodAttendance(studentId, attnFrom, attnTo);
   const openThread = useOpenThread('student');
 
   const catalog = subjectsQ.data ?? [];
@@ -251,9 +251,9 @@ export function SubjectDetailScreen() {
 
         {tab === 'grades' ? (
           <View style={{ gap: 8 }}>
-            {gradesQ.isLoading ? (
+            {gradesQ.isPending && !gradesQ.data ? (
               <Loading />
-            ) : gradesQ.isError ? (
+            ) : gradesQ.isError && !gradesQ.data ? (
               <ErrorState onRetry={() => gradesQ.refetch()} />
             ) : subjGrades.length === 0 ? (
               <Empty message="No marks for this subject yet" />
@@ -288,9 +288,9 @@ export function SubjectDetailScreen() {
 
         {tab === 'tests' ? (
           <View style={{ gap: 10 }}>
-            {examsQ.isLoading ? (
+            {examsQ.isPending && !examsQ.data ? (
               <Loading />
-            ) : examsQ.isError ? (
+            ) : examsQ.isError && !examsQ.data ? (
               <ErrorState onRetry={() => examsQ.refetch()} />
             ) : subjExams.length === 0 ? (
               <Empty message="No exams scheduled for this subject yet" />
@@ -321,9 +321,9 @@ export function SubjectDetailScreen() {
 
         {tab === 'homework' ? (
           <View style={{ gap: 10 }}>
-            {homeworkQ.isLoading ? (
+            {homeworkQ.isPending && !homeworkQ.data ? (
               <Loading />
-            ) : homeworkQ.isError ? (
+            ) : homeworkQ.isError && !homeworkQ.data ? (
               <ErrorState onRetry={() => homeworkQ.refetch()} />
             ) : subjHw.length === 0 ? (
               <Empty message="No homework for this subject yet" />
@@ -356,9 +356,9 @@ export function SubjectDetailScreen() {
                 </Pressable>
               ))}
             </View>
-            {periodQ.isLoading ? (
+            {periodQ.isPending && !periodQ.data ? (
               <Loading />
-            ) : periodQ.isError ? (
+            ) : periodQ.isError && !periodQ.data ? (
               <ErrorState onRetry={() => periodQ.refetch()} />
             ) : subjPeriods.length === 0 ? (
               <Empty message="No period attendance for this subject in this range" />

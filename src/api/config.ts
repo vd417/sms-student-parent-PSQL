@@ -16,8 +16,10 @@ export const DATA_SOURCE: DataSource = extra.dataSource ?? 'http';
 // the placeholder host with the real backend origin before running against live.
 export const API_BASE_URL: string = extra.apiBaseUrl ?? '';
 
-// Network tuning.
-export const REQUEST_TIMEOUT_MS = 15000;
+// Network tuning. Timeout is measured after a connection slot is acquired so
+// Chrome's 6-connection-per-host queue does not abort waiting fetches as (canceled).
+export const REQUEST_TIMEOUT_MS = 20000;
+export const FETCH_MAX_INFLIGHT = 4;
 
 // Mock tuning.
 export const MOCK_LATENCY_MS = 350;

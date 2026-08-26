@@ -57,7 +57,7 @@ export function GradesScreen() {
   const subjectsQ = useSubjects(studentId);
   const gradesQ = useGrades(studentId);
   const schoolQ = useSchool();
-  const summaryQ = useAttendanceSummary(studentId ?? '');
+  const summaryQ = useAttendanceSummary(studentId);
 
   const isLoading = profileQ.isLoading || gradesQ.isLoading;
   const isError = profileQ.isError || gradesQ.isError;

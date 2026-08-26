@@ -25,7 +25,13 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { buildReportFromGrades } from '@/lib/reportCardBuild';
 import { examsForClassCatalog, gradesForSubject, normalizeSubjectName } from '@/lib/belongsToSubject';
-import { attendanceBySubject, attendanceForSubject } from '@/lib/attendanceBySubject';
+import {
+  attendanceBySubject,
+  attendanceForSubject,
+  attendancePillTone,
+  isAbsentStatus,
+  statusForTimetableSlot,
+} from '@/lib/attendanceBySubject';
 import { gradeFor } from '@/lib/gradeScale';
 import { subjectShortCode, compareTimetableBlocks } from '@/services/http/mappers';
 import type { ParentStackParamList } from '@/navigation/types';
@@ -61,8 +67,8 @@ export function ParentClassScreen() {
   const timetableQ = useTimetable(childId);
   const homeworkQ = useHomework(childId);
 
-  const isLoading = childrenQ.isLoading || subjectsQ.isLoading || gradesQ.isLoading;
-  const isError = childrenQ.isError || gradesQ.isError;
+  const isLoading = childrenQ.isLoading || subjectsQ.isLoading;
+  const isError = childrenQ.isError;
   const onRefresh = () => {
     childrenQ.refetch();
     subjectsQ.refetch();
@@ -110,6 +116,7 @@ export function ParentClassScreen() {
   const classExams = examsForClassCatalog(examsQ.data ?? [], subjects).slice(0, 6);
   const bySubject = attendanceBySubject(periodQ.data ?? []);
   const todayShort = WEEKDAY_SHORT[new Date().getDay()];
+  const todayKey = rangeForPreset('day', new Date()).from!;
   const todayBlocks = (timetableQ.data ?? [])
     .filter((b) => b.day === todayShort)
     .sort(compareTimetableBlocks);
@@ -196,21 +203,32 @@ export function ParentClassScreen() {
           {todayBlocks.length === 0 ? (
             <Empty message="No periods on the timetable for today." />
           ) : (
-            todayBlocks.map((b, i) => (
-              <View key={`${b.t}-${i}`} style={styles.subjCard}>
-                <View style={styles.subjTop}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.subjName}>{b.label}</Text>
-                    <Text style={styles.subjTeacher}>
-                      {b.t}
-                      {b.endT ? `–${b.endT}` : ''}
-                      {b.room ? ` · Room ${b.room}` : ''}
-                      {b.teacher ? ` · ${b.teacher}` : ''}
-                    </Text>
+            todayBlocks.map((b, i) => {
+              const status = statusForTimetableSlot(periodQ.data ?? [], b, todayKey);
+              const missed = isAbsentStatus(status);
+              return (
+                <View
+                  key={`${b.t}-${i}`}
+                  style={[
+                    styles.subjCard,
+                    missed && { borderColor: colors.absent, backgroundColor: colors.absentSoft },
+                  ]}
+                >
+                  <View style={styles.subjTop}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.subjName}>{b.label}</Text>
+                      <Text style={styles.subjTeacher}>
+                        {b.t}
+                        {b.endT ? `–${b.endT}` : ''}
+                        {b.room ? ` · Room ${b.room}` : ''}
+                        {b.teacher ? ` · ${b.teacher}` : ''}
+                      </Text>
+                    </View>
+                    {status ? <Pill tone={attendancePillTone(status)}>{status}</Pill> : null}
                   </View>
                 </View>
-              </View>
-            ))
+              );
+            })
           )}
         </View>
 
@@ -297,7 +315,10 @@ export function ParentClassScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.subjName}>{row.subject}</Text>
                       <Text style={styles.subjTeacher}>
-                        Present {row.present} · Late {row.late} · Absent {row.absent}
+                        Present {row.present} · Late {row.late} ·{' '}
+                        <Text style={row.absent > 0 ? { color: colors.absent, fontFamily: fontFamily.bold } : undefined}>
+                          Absent {row.absent}
+                        </Text>
                       </Text>
                     </View>
                     <Text style={styles.subjAvg}>{formatPct(row.pct)}</Text>

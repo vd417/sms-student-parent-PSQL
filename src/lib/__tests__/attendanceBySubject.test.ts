@@ -1,4 +1,8 @@
-import { attendanceBySubject } from '../attendanceBySubject';
+import {
+  attendanceBySubject,
+  isAbsentStatus,
+  statusForTimetableSlot,
+} from '../attendanceBySubject';
 import type { PeriodAttendanceEntry } from '@/models';
 
 describe('attendanceBySubject', () => {
@@ -29,5 +33,39 @@ describe('attendanceBySubject', () => {
 
   it('returns empty when nothing is marked', () => {
     expect(attendanceBySubject([])).toEqual([]);
+  });
+});
+
+describe('statusForTimetableSlot', () => {
+  const today = '2026-08-26';
+  const rows: PeriodAttendanceEntry[] = [
+    { id: '1', date: today, period: 1, subject: 'Mathematics', subjectId: 'm', status: 'present' },
+    { id: '2', date: today, period: 2, subject: 'Computer', subjectId: 'c', status: 'absent' },
+    { id: '3', date: today, period: 3, subject: 'English', subjectId: 'e', status: 'late' },
+    { id: '4', date: '2026-08-25', period: 2, subject: 'Computer', subjectId: 'c', status: 'present' },
+  ];
+
+  it('matches today by period number', () => {
+    expect(statusForTimetableSlot(rows, { period: 2, label: 'Computer Sci', subjId: 'c', kind: 'class' }, today))
+      .toBe('absent');
+    expect(statusForTimetableSlot(rows, { period: 1, label: 'Maths', kind: 'class' }, today))
+      .toBe('present');
+  });
+
+  it('falls back to subject name when period is missing', () => {
+    expect(statusForTimetableSlot(rows, { label: 'English', kind: 'class' }, today)).toBe('late');
+  });
+
+  it('ignores other days, breaks, and unmarked slots', () => {
+    expect(statusForTimetableSlot(rows, { period: 2, label: 'Computer', kind: 'class' }, '2026-08-25'))
+      .toBe('present');
+    expect(statusForTimetableSlot(rows, { period: 2, label: 'Computer', kind: 'break' }, today)).toBeNull();
+    expect(statusForTimetableSlot(rows, { period: 9, label: 'Art', kind: 'class' }, today)).toBeNull();
+  });
+
+  it('treats absent as a missed class', () => {
+    expect(isAbsentStatus('absent')).toBe(true);
+    expect(isAbsentStatus('present')).toBe(false);
+    expect(isAbsentStatus(null)).toBe(false);
   });
 });

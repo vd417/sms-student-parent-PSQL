@@ -31,4 +31,13 @@ describe('mapAuthError', () => {
       'Invalid login details. Check ID/email and password.',
     );
   });
+
+  it('maps wrong_role to the switch-tab copy', () => {
+    expect(mapAuthError(new ApiError(
+      'This is a parent login. Switch to the Parent tab.',
+      403,
+      undefined,
+      'wrong_role',
+    ))).toBe('This is a parent login. Switch to the Parent tab.');
+  });
 });

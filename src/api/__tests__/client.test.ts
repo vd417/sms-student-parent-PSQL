@@ -1,5 +1,6 @@
 import {
   apiFetch,
+  resetFetchGate,
   setAuthToken,
   setRefreshHandler,
   setSessionExpiredHandler,
@@ -14,6 +15,7 @@ afterEach(() => {
   setAuthToken(null);
   setRefreshHandler(null);
   setSessionExpiredHandler(null);
+  resetFetchGate();
   jest.restoreAllMocks();
 });
 
@@ -26,6 +28,20 @@ it('does not reuse a cached GET body', async () => {
   const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(okJson({ data: { id: 1 } }));
   await apiFetch('/timetable');
   expect(fetchMock.mock.calls[0][1]).toMatchObject({ cache: 'no-store' });
+});
+
+it('omits Content-Type on GET so browsers do not extra-preflight list calls', async () => {
+  const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(okJson({ data: [] }));
+  await apiFetch('/students/sis-1/attendance/periods?from=2026-08-01&to=2026-08-31');
+  const headers = fetchMock.mock.calls[0][1]?.headers as Record<string, string>;
+  expect(headers['Content-Type']).toBeUndefined();
+});
+
+it('sends Content-Type on POST bodies', async () => {
+  const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(okJson({ data: { ok: true } }));
+  await apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ a: 1 }) });
+  const headers = fetchMock.mock.calls[0][1]?.headers as Record<string, string>;
+  expect(headers['Content-Type']).toBe('application/json');
 });
 
 it('throws a normalized ApiError on non-2xx', async () => {
