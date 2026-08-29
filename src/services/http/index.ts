@@ -6,6 +6,7 @@ import { classifyIdentifier, normalizeLoginIdentifier } from '@/services/auth/id
 import { tokenStore } from '@/services/auth/tokenStore';
 import { ApiError } from '@/services/errors';
 import {
+  assertChatImageAllowed,
   assertChatMessageAllowed,
 } from '@/lib/chatModeration';
 import { minutesFromMidnight } from '@/lib/nextPeriod';
@@ -355,10 +356,13 @@ export const httpServices: Services = {
       const rows = await getJson<ChatMessageDTO[]>(`/threads/${encodeURIComponent(threadId)}/messages`);
       return (Array.isArray(rows) ? rows : []).map(toChatMessage);
     },
-    send: async (threadId, text) => {
+    send: async (threadId, text, imageUrl) => {
       assertChatMessageAllowed(text);
+      if (imageUrl) assertChatImageAllowed(imageUrl);
+      const body: { text: string; image_url?: string } = { text };
+      if (imageUrl) body.image_url = imageUrl;
       return toChatMessage(
-        await post<ChatMessageDTO>(`/threads/${encodeURIComponent(threadId)}/messages`, { text }),
+        await post<ChatMessageDTO>(`/threads/${encodeURIComponent(threadId)}/messages`, body),
       );
     },
     create: (input) =>

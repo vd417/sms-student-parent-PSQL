@@ -318,6 +318,17 @@ describe('http mappers → domain', () => {
     expect(toChatMessage(d).status).toBe('read');
   });
 
+  it('toChatMessage maps image_url to imageUrl, trimmed and omitted when blank', () => {
+    const withImage: ChatMessageDTO = {
+      id: 'm1', thread_id: 't1', text: '', sent_at: '10:00', is_mine: true,
+      image_url: '  data:image/jpeg;base64,abc  ',
+    };
+    expect(toChatMessage(withImage).imageUrl).toBe('data:image/jpeg;base64,abc');
+
+    const textOnly: ChatMessageDTO = { id: 'm2', thread_id: 't1', text: 'hi', sent_at: '10:00', is_mine: true };
+    expect(toChatMessage(textOnly).imageUrl).toBeUndefined();
+  });
+
   it('toChatThread maps live GET /threads fields', () => {
     expect(
       toChatThread({

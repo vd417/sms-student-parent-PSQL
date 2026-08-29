@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Avatar, Empty, ErrorState, Loading, ScreenHeader, SearchField } from '@/components/ui';
 import { useDirectory } from '@/hooks/useDirectory';
 import { useOpenThread, useThreads } from '@/hooks/useMessaging';
+import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueForName, radius, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
 import type { Teacher } from '@/models';
@@ -18,15 +19,6 @@ const ROLE_ORDER: Record<Teacher['role'], number> = {
   subject_teacher: 2,
 };
 
-const PRINCIPAL_FALLBACK: Teacher = {
-  id: 'principal',
-  name: "Principal's Office",
-  initials: 'PR',
-  subj: 'Principal',
-  online: false,
-  role: 'principal',
-};
-
 function initialsFor(name: string): string {
   return name
     .split(' ')
@@ -36,6 +28,13 @@ function initialsFor(name: string): string {
     .toUpperCase();
 }
 
+function teacherSubtitle(t: Teacher): string {
+  if (t.designation) return t.subj ? `${t.designation} · ${t.subj}` : t.designation;
+  if (t.role === 'principal') return t.subj ? `Principal · ${t.subj}` : 'Principal';
+  if (t.role === 'class_teacher') return t.subj ? `Class Teacher · ${t.subj}` : 'Class Teacher';
+  return t.subj || 'Teacher';
+}
+
 export function InboxScreen() {
   const nav = useNavigation<Nav>();
   const inboxFocused = useIsFocused();
@@ -43,6 +42,7 @@ export function InboxScreen() {
   const threadsQ = useThreads('student', inboxFocused);
   const teachersQ = useDirectory();
   const openThread = useOpenThread('student');
+  const toast = useToast();
 
   const isLoading = threadsQ.isLoading;
   const isError = threadsQ.isError;
@@ -54,7 +54,10 @@ export function InboxScreen() {
   const openTeacher = (t: Teacher) => {
     openThread.mutate(
       { name: t.name, role: t.subj || 'Teacher' },
-      { onSuccess: (th) => nav.navigate('ChatThread', { id: th.id, name: th.name, role: th.role }) },
+      {
+        onSuccess: (th) => nav.navigate('ChatThread', { id: th.id, name: th.name, role: th.role }),
+        onError: () => toast('Could not open conversation. Try again.'),
+      },
     );
   };
 
@@ -80,11 +83,9 @@ export function InboxScreen() {
     (t) => !q || t.name.toLowerCase().includes(q) || t.role.toLowerCase().includes(q),
   );
   const rawTeachers = teachersQ.data ?? [];
-  const hasPrincipalContact =
-    rawTeachers.some((t) => t.role === 'principal') ||
-    (threadsQ.data ?? []).some((t) => /principal/i.test(t.role) || /principal/i.test(t.name));
-  const withPrincipal = hasPrincipalContact ? rawTeachers : [PRINCIPAL_FALLBACK, ...rawTeachers];
-  const teachers = withPrincipal
+  const activeThreadNames = new Set((threadsQ.data ?? []).map((t) => t.name.trim().toLowerCase()));
+  const teachers = rawTeachers
+    .filter((t) => !activeThreadNames.has(t.name.trim().toLowerCase()))
     .filter((t) => !q || t.name.toLowerCase().includes(q))
     .slice()
     .sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]);
@@ -96,9 +97,7 @@ export function InboxScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={threadsQ.isRefetching} onRefresh={onRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={threadsQ.isRefetching} onRefresh={onRefresh} />}
       >
         <View style={{ paddingVertical: 14 }}>
           <SearchField
@@ -114,9 +113,7 @@ export function InboxScreen() {
           <Empty message="No conversations yet." />
         ) : null}
 
-        {threads.length > 0 ? (
-          <Text style={styles.eyebrow}>Messages</Text>
-        ) : null}
+        {threads.length > 0 ? <Text style={styles.eyebrow}>Messages</Text> : null}
         <View style={{ gap: 8 }}>
           {threads.map((t) => (
             <Pressable
@@ -138,10 +135,7 @@ export function InboxScreen() {
                   <Text style={styles.when}>{t.when}</Text>
                 </View>
                 {t.role ? <Text style={styles.meta}>{t.role}</Text> : null}
-                <Text
-                  style={[styles.last, t.unread > 0 && styles.lastUnread]}
-                  numberOfLines={1}
-                >
+                <Text style={[styles.last, t.unread > 0 && styles.lastUnread]} numberOfLines={1}>
                   {t.last || 'No messages yet'}
                 </Text>
               </View>
@@ -162,7 +156,7 @@ export function InboxScreen() {
               <Avatar initials={t.initials} size={44} hue={hueForName(t.name)} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{t.name}</Text>
-                <Text style={styles.meta}>{t.subj || 'Teacher'}</Text>
+                <Text style={styles.meta}>{teacherSubtitle(t)}</Text>
               </View>
             </Pressable>
           ))}

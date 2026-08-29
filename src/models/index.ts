@@ -121,6 +121,8 @@ export interface Teacher {
   subj: string;
   online: boolean;
   role: TeacherRole;
+  /** Raw backend designation text (e.g. "Vice Principal"), when available. */
+  designation?: string;
 }
 
 export interface Peer {
@@ -158,6 +160,8 @@ export interface ChatMessage {
   time: string;
   /** Present on outgoing messages: grey ticks until the peer opens the chat. */
   status?: 'sent' | 'delivered' | 'read';
+  /** Data URL or http(s) URL — same no-blob-storage convention as photo fields elsewhere. */
+  imageUrl?: string;
 }
 
 // ---------- parent ----------

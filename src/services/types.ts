@@ -95,7 +95,7 @@ export interface SettingsService {
 export interface MessagingService {
   threads(audience: Role): Promise<ChatThread[]>;
   messages(threadId: string): Promise<ChatMessage[]>;
-  send(threadId: string, text: string): Promise<ChatMessage>;
+  send(threadId: string, text: string, imageUrl?: string): Promise<ChatMessage>;
   create(input: { name: string; role?: string; group?: boolean; kid?: string | null }): Promise<ChatThread>;
 }
 

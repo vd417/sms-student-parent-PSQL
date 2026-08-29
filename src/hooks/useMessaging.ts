@@ -9,6 +9,7 @@ import { useToast } from '@/providers/ToastProvider';
 import {
   CHAT_MODERATION_WARNING,
   ChatModerationError,
+  validateChatImage,
   validateChatMessage,
 } from '@/lib/chatModeration';
 import { ApiError } from '@/services/errors';
@@ -49,7 +50,8 @@ export const useMessages = (threadId: string) => {
 export function useSendMessage(threadId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (text: string) => services.messaging.send(threadId, text),
+    mutationFn: (input: { text: string; imageUrl?: string }) =>
+      services.messaging.send(threadId, input.text, input.imageUrl),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: qk.messages(threadId) });
       void qc.invalidateQueries({ queryKey: qk.threads('student') });
@@ -111,22 +113,57 @@ export function useChatComposer(threadId: string) {
         showBlocked();
         return;
       }
-      sendMut.mutate(trimmed, {
-        onSuccess: () => onSuccess?.(),
-        onError: (err) => {
-          if (isBlockedLanguage(err)) {
-            showBlocked();
-            return;
-          }
-          toast('Could not send. Try again.');
+      sendMut.mutate(
+        { text: trimmed },
+        {
+          onSuccess: () => onSuccess?.(),
+          onError: (err) => {
+            if (isBlockedLanguage(err)) {
+              showBlocked();
+              return;
+            }
+            toast('Could not send. Try again.');
+          },
         },
-      });
+      );
+    },
+    [sendMut, showBlocked, toast],
+  );
+
+  /** `caption` is optional text sent alongside the image (e.g. whatever was in the draft). */
+  const sendImage = useCallback(
+    (imageUrl: string, caption: string, onSuccess?: () => void) => {
+      if (sendMut.isPending) return;
+      setModerationError(false);
+      const trimmedCaption = caption.trim();
+      if (trimmedCaption && !validateChatMessage(trimmedCaption).ok) {
+        showBlocked();
+        return;
+      }
+      if (!validateChatImage(imageUrl).ok) {
+        showBlocked();
+        return;
+      }
+      sendMut.mutate(
+        { text: trimmedCaption, imageUrl },
+        {
+          onSuccess: () => onSuccess?.(),
+          onError: (err) => {
+            if (isBlockedLanguage(err)) {
+              showBlocked();
+              return;
+            }
+            toast('Could not send image. Try again.');
+          },
+        },
+      );
     },
     [sendMut, showBlocked, toast],
   );
 
   return {
     sendMessage,
+    sendImage,
     sendPending: sendMut.isPending,
     moderationError,
     moderationWarning: CHAT_MODERATION_WARNING,

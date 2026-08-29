@@ -555,4 +555,24 @@ describe('httpServices.auth', () => {
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
   });
+
+  it('messaging.send includes image_url in the POST body when an image is attached', async () => {
+    const id = '3c8a1c9e-1111-2222-3333-444444444444';
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce({
+      id: 'm3', thread_id: id, text: '', sent_at: 'now', is_mine: true, image_url: 'data:image/jpeg;base64,abc',
+    } as any);
+    const sent = await httpServices.messaging.send(id, '', 'data:image/jpeg;base64,abc');
+    expect(JSON.parse(spy.mock.calls[0][1].body as string)).toEqual({ text: '', image_url: 'data:image/jpeg;base64,abc' });
+    expect(sent.imageUrl).toBe('data:image/jpeg;base64,abc');
+    spy.mockRestore();
+  });
+
+  it('messaging.send blocks an unsupported image before POST', async () => {
+    const spy = jest.spyOn(client, 'apiFetch');
+    await expect(
+      httpServices.messaging.send('3c8a1c9e-1111-2222-3333-444444444444', '', 'data:text/plain;base64,abc'),
+    ).rejects.toMatchObject({ name: 'ChatModerationError', reason: 'inappropriate_image' });
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
 });

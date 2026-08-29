@@ -123,7 +123,20 @@ export function HomeScreen() {
   const firstName = (student.name ?? 'there').trim().split(/\s+/)[0] || 'there';
   const overallLabel = formatReportOrHomeAvg(report, student.overallAvg);
   const attnChip = dailyAttendanceChip(todayAttnQ.data ?? null);
-  const hasUnreadNotice = (noticesQ.data ?? []).some((n) => n.unread);
+  const notices = noticesQ.data ?? [];
+  const hasUnreadNotice = notices.some((n) => n.unread);
+  const latestUnread = notices.find((n) => n.unread);
+  const onBellPress = () => {
+    const tone = (latestUnread?.tone ?? '').trim().toLowerCase();
+    const text = `${latestUnread?.title ?? ''} ${latestUnread?.body ?? ''}`.toLowerCase();
+    if (tone === 'chat') {
+      nav.navigate('Main', { screen: 'Inbox' });
+    } else if (tone.includes('homework') || text.includes('homework')) {
+      nav.navigate('Main', { screen: 'Homework' });
+    } else {
+      nav.navigate('Announcements');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -148,11 +161,7 @@ export function HomeScreen() {
               </Text>
             </View>
           </View>
-          <IconButton
-            icon="notifications-outline"
-            badge={hasUnreadNotice}
-            onPress={() => nav.navigate('Announcements')}
-          />
+          <IconButton icon="notifications-outline" badge={hasUnreadNotice} onPress={onBellPress} />
         </View>
 
         <Pressable

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import {
+  ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,6 +19,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Avatar, Empty, ErrorState, IconButton, Loading, MessageTicks } from '@/components/ui';
 import { useCachedThread, useMessages, useChatComposer } from '@/hooks/useMessaging';
 import { useToast } from '@/providers/ToastProvider';
+import { pickAndCompressChatImage } from '@/lib/chatImage';
 import { colors, fontFamily, hueForName, radius, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -32,12 +35,14 @@ export function ChatThreadScreen() {
   const cached = useCachedThread('student', threadId);
   const {
     sendMessage,
+    sendImage,
     sendPending,
     moderationError,
     moderationWarning,
     clearModerationError,
   } = useChatComposer(threadId);
   const [draft, setDraft] = useState('');
+  const [attaching, setAttaching] = useState(false);
 
   const thread = cached;
   const headerName = route.params.name ?? thread?.name ?? 'Conversation';
@@ -45,6 +50,19 @@ export function ChatThreadScreen() {
 
   const send = () => {
     sendMessage(draft, () => setDraft(''));
+  };
+
+  const attach = async () => {
+    if (attaching || sendPending) return;
+    setAttaching(true);
+    try {
+      const dataUrl = await pickAndCompressChatImage();
+      if (dataUrl) sendImage(dataUrl, draft, () => setDraft(''));
+    } catch {
+      toast('Could not attach image. Try again.');
+    } finally {
+      setAttaching(false);
+    }
   };
 
   const onRefresh = () => {
@@ -131,7 +149,10 @@ export function ChatThreadScreen() {
                       { borderBottomRightRadius: me ? 4 : 18, borderBottomLeftRadius: me ? 18 : 4 },
                     ]}
                   >
-                    <Text style={styles.msg}>{m.text}</Text>
+                    {m.imageUrl ? (
+                      <Image source={{ uri: m.imageUrl }} style={styles.image} resizeMode="cover" />
+                    ) : null}
+                    {m.text ? <Text style={styles.msg}>{m.text}</Text> : null}
                     <View style={styles.metaRow}>
                       <Text style={styles.time}>{m.time}</Text>
                       {me && m.status ? <MessageTicks status={m.status} /> : null}
@@ -146,7 +167,13 @@ export function ChatThreadScreen() {
         {moderationError ? <Text style={styles.moderationErrorText}>{moderationWarning}</Text> : null}
 
         <View style={styles.composer}>
-          <IconButton icon="attach" size={40} onPress={() => toast('Coming soon')} />
+          {attaching ? (
+            <View style={[styles.composerIconSlot, { alignItems: 'center', justifyContent: 'center' }]}>
+              <ActivityIndicator size="small" color={colors.inkMuted} />
+            </View>
+          ) : (
+            <IconButton icon="attach" size={40} onPress={attach} disabled={sendPending} />
+          )}
           <TextInput
             value={draft}
             onChangeText={(v) => {
@@ -227,6 +254,8 @@ const styles = StyleSheet.create({
     borderColor: colors.rule,
   },
   msg: { fontFamily: fontFamily.medium, fontSize: 13, lineHeight: 18, color: colors.ink },
+  image: { width: 220, height: 220, borderRadius: 12, marginBottom: 4 },
+  composerIconSlot: { width: 40, height: 40 },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',

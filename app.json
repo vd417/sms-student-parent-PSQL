@@ -27,14 +27,20 @@
     },
     "plugins": [
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Let School Desk access your photos so you can share an image in chat."
+        }
+      ]
     ],
     "extra": {
       "eas": {
         "projectId": "789277f1-7308-4b88-8b93-12fed225b44e"
       },
       "dataSource": "http",
-      "apiBaseUrl": "https://api.schooldesk.example/v1"
+      "apiBaseUrl": "http://localhost:5162/v1"
     },
     "owner": "catre"
   }

@@ -3,7 +3,15 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Avatar, Empty, ErrorState, IconButton, Loading, ScreenHeader, SearchField } from '@/components/ui';
+import {
+  Avatar,
+  Empty,
+  ErrorState,
+  IconButton,
+  Loading,
+  ScreenHeader,
+  SearchField,
+} from '@/components/ui';
 import { useDirectory } from '@/hooks/useDirectory';
 import { useOpenThread, useThreads } from '@/hooks/useMessaging';
 import { useChildren } from '@/hooks/useParent';
@@ -20,15 +28,6 @@ const ROLE_ORDER: Record<Teacher['role'], number> = {
   subject_teacher: 2,
 };
 
-const PRINCIPAL_FALLBACK: Teacher = {
-  id: 'principal',
-  name: "Principal's Office",
-  initials: 'PR',
-  subj: 'Principal',
-  online: false,
-  role: 'principal',
-};
-
 function initialsFor(name: string): string {
   return name
     .split(' ')
@@ -36,6 +35,13 @@ function initialsFor(name: string): string {
     .join('')
     .slice(0, 2)
     .toUpperCase();
+}
+
+function teacherSubtitle(t: Teacher): string {
+  if (t.designation) return t.subj ? `${t.designation} · ${t.subj}` : t.designation;
+  if (t.role === 'principal') return t.subj ? `Principal · ${t.subj}` : 'Principal';
+  if (t.role === 'class_teacher') return t.subj ? `Class Teacher · ${t.subj}` : 'Class Teacher';
+  return t.subj || 'Teacher';
 }
 
 export function ParentChatScreen() {
@@ -59,7 +65,10 @@ export function ParentChatScreen() {
   const openTeacher = (t: Teacher) => {
     openThread.mutate(
       { name: t.name, role: t.subj || 'Teacher' },
-      { onSuccess: (th) => nav.navigate('ChatThread', { id: th.id, name: th.name, role: th.role }) },
+      {
+        onSuccess: (th) => nav.navigate('ChatThread', { id: th.id, name: th.name, role: th.role }),
+        onError: () => toast('Could not open conversation. Try again.'),
+      },
     );
   };
 
@@ -88,11 +97,9 @@ export function ParentChatScreen() {
   const kidFor = (id?: string | null) => (id ? children.find((c) => c.id === id) : undefined);
 
   const rawTeachers = teachersQ.data ?? [];
-  const hasPrincipalContact =
-    rawTeachers.some((t) => t.role === 'principal') ||
-    threadsQ.data!.some((t) => /principal/i.test(t.role) || /principal/i.test(t.name));
-  const withPrincipal = hasPrincipalContact ? rawTeachers : [PRINCIPAL_FALLBACK, ...rawTeachers];
-  const teachers = withPrincipal
+  const activeThreadNames = new Set(threadsQ.data!.map((t) => t.name.trim().toLowerCase()));
+  const teachers = rawTeachers
+    .filter((t) => !activeThreadNames.has(t.name.trim().toLowerCase()))
     .filter((t) => !q || t.name.toLowerCase().includes(q))
     .slice()
     .sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]);
@@ -187,7 +194,7 @@ export function ParentChatScreen() {
                 <Avatar initials={t.initials} size={44} hue={hueForName(t.name)} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.name}>{t.name}</Text>
-                  <Text style={styles.role}>{t.subj || 'Teacher'}</Text>
+                  <Text style={styles.role}>{teacherSubtitle(t)}</Text>
                 </View>
               </Pressable>
             ))}

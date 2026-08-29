@@ -50,13 +50,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const persisted = await tokenStore.load();
-      if (!persisted?.access) {
-        if (!cancelled) dispatch({ type: 'RESTORE_FAILED' });
-        return;
-      }
-      setAuthToken(persisted.access);
       try {
+        const persisted = await tokenStore.load();
+        if (!persisted?.access) {
+          if (!cancelled) dispatch({ type: 'RESTORE_FAILED' });
+          return;
+        }
+        setAuthToken(persisted.access);
         const me = await services.auth.getMe();
         if (!cancelled) {
           dispatch({

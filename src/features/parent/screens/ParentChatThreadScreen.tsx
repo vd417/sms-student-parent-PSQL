@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import {
+  ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,6 +20,7 @@ import { Avatar, Empty, IconButton, Loading, MessageTicks } from '@/components/u
 import { useCachedThread, useMessages, useChatComposer } from '@/hooks/useMessaging';
 import { useChildren } from '@/hooks/useParent';
 import { useToast } from '@/providers/ToastProvider';
+import { pickAndCompressChatImage } from '@/lib/chatImage';
 import { colors, fontFamily, hueForName, radius, spacing } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
 
@@ -44,18 +47,33 @@ export function ParentChatThreadScreen() {
   const childrenQ = useChildren();
   const {
     sendMessage,
+    sendImage,
     sendPending,
     moderationError,
     moderationWarning,
     clearModerationError,
   } = useChatComposer(threadId);
   const [draft, setDraft] = useState('');
+  const [attaching, setAttaching] = useState(false);
 
   const kidId = route.params.kid ?? thread?.kid;
   const kid = kidId ? childrenQ.data?.find((c) => c.id === kidId) : undefined;
 
   const send = () => {
     sendMessage(draft, () => setDraft(''));
+  };
+
+  const attach = async () => {
+    if (attaching || sendPending) return;
+    setAttaching(true);
+    try {
+      const dataUrl = await pickAndCompressChatImage();
+      if (dataUrl) sendImage(dataUrl, draft, () => setDraft(''));
+    } catch {
+      toast('Could not attach image. Try again.');
+    } finally {
+      setAttaching(false);
+    }
   };
 
   const onRefresh = () => {
@@ -132,7 +150,10 @@ export function ParentChatThreadScreen() {
                       { borderBottomRightRadius: me ? 4 : 18, borderBottomLeftRadius: me ? 18 : 4 },
                     ]}
                   >
-                    <Text style={styles.msg}>{m.text}</Text>
+                    {m.imageUrl ? (
+                      <Image source={{ uri: m.imageUrl }} style={styles.image} resizeMode="cover" />
+                    ) : null}
+                    {m.text ? <Text style={styles.msg}>{m.text}</Text> : null}
                     <View style={styles.metaRow}>
                       <Text style={styles.time}>{m.time}</Text>
                       {me && m.status ? <MessageTicks status={m.status} /> : null}
@@ -147,7 +168,13 @@ export function ParentChatThreadScreen() {
         {moderationError ? <Text style={styles.moderationErrorText}>{moderationWarning}</Text> : null}
 
         <View style={styles.composer}>
-          <IconButton icon="attach" size={40} onPress={() => toast('Coming soon')} />
+          {attaching ? (
+            <View style={[styles.composerIconSlot, { alignItems: 'center', justifyContent: 'center' }]}>
+              <ActivityIndicator size="small" color={colors.inkMuted} />
+            </View>
+          ) : (
+            <IconButton icon="attach" size={40} onPress={attach} disabled={sendPending} />
+          )}
           <TextInput
             value={draft}
             onChangeText={(v) => {
@@ -201,6 +228,8 @@ const styles = StyleSheet.create({
   bubbleMe: { backgroundColor: colors.primarySoft },
   bubbleThem: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.rule },
   msg: { fontFamily: fontFamily.medium, fontSize: 13, lineHeight: 18, color: colors.ink },
+  image: { width: 220, height: 220, borderRadius: 12, marginBottom: 4 },
+  composerIconSlot: { width: 40, height: 40 },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',

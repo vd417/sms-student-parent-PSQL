@@ -152,9 +152,28 @@ const TEACHER_ROLES: Teacher['role'][] = ['principal', 'class_teacher', 'subject
  * (non-null when this teacher is that class's homeroom teacher). Infer our
  * grouping role from those, honoring an explicit `role` if a future backend adds one.
  */
+const PRINCIPAL_DESIGNATIONS = [
+  'principal',
+  'vice principal',
+  'headmaster',
+  'headmistress',
+  'head teacher',
+  'school head',
+  'head of school',
+  'admin',
+  'administrator',
+];
+
 function inferTeacherRole(d: TeacherDTO): Teacher['role'] {
   if (TEACHER_ROLES.includes(d.role as Teacher['role'])) return d.role as Teacher['role'];
-  if ((d.designation ?? '').trim().toLowerCase().includes('principal')) return 'principal';
+  // Normalize punctuation so "Vice-Principal" / "vice_principal" / "vice  principal"
+  // all match the same way as "vice principal".
+  const designation = (d.designation ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ');
+  if (PRINCIPAL_DESIGNATIONS.some((title) => designation.includes(title))) return 'principal';
   if ((d.class_teacher ?? '').trim()) return 'class_teacher';
   return 'subject_teacher';
 }
@@ -169,6 +188,7 @@ export const toTeacher = (d: TeacherDTO): Teacher => {
     subj,
     online: !!d.online,
     role: inferTeacherRole(d),
+    designation: (d.designation ?? '').trim() || undefined,
   };
 };
 
@@ -402,6 +422,7 @@ export const toChatMessage = (d: ChatMessageDTO): ChatMessage => ({
   text: (d.text ?? '').trim(),
   time: formatChatWhen(d.sent_at),
   status: receiptStatusFromDto(d),
+  imageUrl: d.image_url?.trim() || undefined,
 });
 
 /** Clock time stays as-is; ISO timestamps become a short local label. */
@@ -413,9 +434,10 @@ export function formatChatWhen(raw: string | null | undefined): string {
   const d = new Date(s);
   if (Number.isNaN(d.getTime())) return s;
   const sameDay = d.toDateString() === new Date().toDateString();
-  return sameDay
-    ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  if (sameDay) return time;
+  const date = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return `${date}, ${time}`;
 }
 
 function feeLabelFromStudent(d: StudentDTO): string {
