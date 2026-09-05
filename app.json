@@ -19,6 +19,11 @@
       "package": "com.schooldesk.student",
       "adaptiveIcon": {
         "backgroundColor": "#0C4A6E"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCLBnzIqfPTAoo_HnCVMP_nnd57nOMU7GY"
+        }
       }
     },
     "web": {
@@ -40,7 +45,9 @@
         "projectId": "789277f1-7308-4b88-8b93-12fed225b44e"
       },
       "dataSource": "http",
-      "apiBaseUrl": "http://localhost:5162/v1"
+      "apiBaseUrl": "http://localhost:5162/v1",
+      "googleMapsApiKey": "AIzaSyCLBnzIqfPTAoo_HnCVMP_nnd57nOMU7GY",
+      "googleMapId": "aab697c91ef02136bf693efd"
     },
     "owner": "catre"
   }

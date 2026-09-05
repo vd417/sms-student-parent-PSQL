@@ -15,7 +15,7 @@ import type {
   SessionDTO, SessionUserDTO, StudentDTO, SubjectDTO,
   HomeworkDTO, ExamPaperDTO, GradeDTO, AnnouncementDTO, NotificationDTO, ChatThreadDTO, ChatMessageDTO,
   TeacherDTO, ChildDTO, FeeInvoiceDTO, PTMMeetingDTO,
-  TransportDTO, AttendanceRecordDTO, LeaveRequestDTO, TimetableSlotDTO, AchievementDTO, AppSettingsDTO,
+  ChildBusPositionDTO, AttendanceRecordDTO, LeaveRequestDTO, TimetableSlotDTO, AchievementDTO, AppSettingsDTO,
 } from './dtos';
 import {
   appRoleFromMe, rolesFromAccessToken, schoolFromMe, toStudent, toSubject,
@@ -450,10 +450,15 @@ export const httpServices: Services = {
     list: () => getJson<PTMMeetingDTO[]>('/ptm').then((a) => a.map(toPTM)),
     setStatus: (id, status) => patch<PTMMeetingDTO>(`/ptm/${id}`, { status }).then(toPTM),
   },
-  // No live transport-detail endpoint yet — null lets the screen show an empty state.
   transport: {
+    // Endpoint is scoped to the caller's own account, not childId — it returns every
+    // linked child's bus. Pick the row matching the selected child; fall back to the
+    // first row for a single-child (student) login.
     forChild: (childId) =>
-      getJson<TransportDTO>(`/children/${childId}/transport`).then(toTransport).catch(() => null),
+      getJson<ChildBusPositionDTO[]>('/me/children/bus')
+        .then((rows) => rows.find((r) => r.student_id === childId) ?? rows[0] ?? null)
+        .then((row) => (row ? toTransport(row) : null))
+        .catch(() => null),
   },
   attendance: {
     today: async (childId) => {

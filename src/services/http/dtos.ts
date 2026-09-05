@@ -188,8 +188,20 @@ export interface FeeItemDTO { label: string; amount: number; }
 export interface FeeInvoiceDTO { id: string; period: string; due_date: string; amount: number; status: 'due' | 'partial' | 'paid'; paid_amount?: number; items?: FeeItemDTO[]; paid_on?: string; method?: string; }
 export interface PTMMeetingDTO { id: string; date: string; time: string; teacher: string; subject: string; child: string; mode: string; status: 'confirmed' | 'pending'; }
 
-export interface TransportStopDTO { stop: string; eta: string; done: boolean; you?: boolean; }
-export interface TransportDTO { bus_no: string; driver: string; plate: string; eta: string; pickup_stop: string; next_stops: TransportStopDTO[]; }
+export interface ChildBusPositionDTO {
+  student_id: string;
+  student_name: string;
+  admission_no: string;
+  bus_id: string;
+  bus_no: string;
+  route_name: string | null;
+  status: 'idle' | 'delayed' | 'at_stop' | 'on_route';
+  lat: number | null;
+  lng: number | null;
+  speed_kmh: number | null;
+  next_stop_name: string | null;
+  last_ping_at: string | null;
+}
 
 export interface AttendanceDayDTO { d: number; kind: AttendanceDay['kind']; }
 export interface AttendanceFlagDTO { id: string; tone: AttendanceFlag['tone']; date: string; reason: string; action: string; }

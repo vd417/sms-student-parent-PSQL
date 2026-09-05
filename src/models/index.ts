@@ -234,20 +234,17 @@ export interface PTMMeeting {
   status: 'confirmed' | 'pending';
 }
 
-export interface TransportStop {
-  stop: string;
-  eta: string;
-  done: boolean;
-  you?: boolean;
-}
+export type TransportStatus = 'idle' | 'delayed' | 'at_stop' | 'on_route';
 
 export interface Transport {
   busNo: string;
-  driver: string;
-  plate: string;
-  eta: string;
-  pickupStop: string;
-  nextStops: TransportStop[];
+  routeName: string | null;
+  status: TransportStatus;
+  lat: number | null;
+  lng: number | null;
+  speedKmh: number | null;
+  nextStopName: string | null;
+  lastPingAt: string | null;
 }
 
 export interface CalendarEvent {

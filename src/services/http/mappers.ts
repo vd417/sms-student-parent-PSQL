@@ -11,7 +11,7 @@ import type {
   AchievementDTO, AnnouncementDTO, AttendanceMonthDTO, AttendanceRecordDTO, ChatMessageDTO, ChatThreadDTO,
   ChildDTO, ExamPaperDTO, FeeInvoiceDTO, GradeDTO, HomeworkDTO,
   LeaveRequestDTO, NotificationDTO, ParentDTO, PeerDTO, PTMMeetingDTO, SchoolDTO, SessionDTO, SessionUserDTO, StudentDTO,
-  SubjectDTO, TeacherDTO, TimetableSlotDTO, TodayBlockDTO, TransportDTO,
+  SubjectDTO, TeacherDTO, TimetableSlotDTO, TodayBlockDTO, ChildBusPositionDTO,
 } from './dtos';
 
 function isParentRoleName(value: string): boolean {
@@ -481,7 +481,16 @@ export const toChild = (d: ChildDTO | StudentDTO): Child => {
 
 export const toFee = (d: FeeInvoiceDTO): Fee => ({ id: d.id, period: d.period, dueDate: d.due_date, amount: d.amount, status: d.status, paidAmount: d.paid_amount, items: d.items?.map((i) => ({ l: i.label, amt: i.amount })), paidOn: d.paid_on, method: d.method });
 export const toPTM = (d: PTMMeetingDTO): PTMMeeting => ({ id: d.id, date: d.date, time: d.time, teacher: d.teacher, subj: d.subject, child: d.child, mode: d.mode, status: d.status });
-export const toTransport = (d: TransportDTO): Transport => ({ busNo: d.bus_no, driver: d.driver, plate: d.plate, eta: d.eta, pickupStop: d.pickup_stop, nextStops: d.next_stops.map((s) => ({ stop: s.stop, eta: s.eta, done: s.done, you: s.you })) });
+export const toTransport = (d: ChildBusPositionDTO): Transport => ({
+  busNo: d.bus_no,
+  routeName: d.route_name,
+  status: d.status,
+  lat: d.lat,
+  lng: d.lng,
+  speedKmh: d.speed_kmh,
+  nextStopName: d.next_stop_name,
+  lastPingAt: d.last_ping_at,
+});
 
 export const toAttendanceMonth = (d: AttendanceMonthDTO): { days: AttendanceDay[]; flags: AttendanceFlag[] } => ({
   days: d.days.map((x) => ({ d: x.d, kind: x.kind })),

@@ -5,6 +5,8 @@ export type DataSource = 'mock' | 'http';
 const extra = (Constants.expoConfig?.extra ?? {}) as {
   dataSource?: DataSource;
   apiBaseUrl?: string;
+  googleMapsApiKey?: string;
+  googleMapId?: string;
 };
 
 // Global default data source. Per-domain/method composition lives in
@@ -15,6 +17,11 @@ export const DATA_SOURCE: DataSource = extra.dataSource ?? 'http';
 // from EAS env at build time; the app.json value is the dev default. Replace
 // the placeholder host with the real backend origin before running against live.
 export const API_BASE_URL: string = extra.apiBaseUrl ?? '';
+
+// Web build of the transport map uses the Google Static Maps API; native uses react-native-maps
+// (Android reads the same key from app.json's android.config.googleMaps.apiKey).
+export const GOOGLE_MAPS_API_KEY: string = extra.googleMapsApiKey ?? '';
+export const GOOGLE_MAP_ID: string = extra.googleMapId ?? '';
 
 // Network tuning. Timeout is measured after a connection slot is acquired so
 // Chrome's 6-connection-per-host queue does not abort waiting fetches as (canceled).

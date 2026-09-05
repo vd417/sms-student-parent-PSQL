@@ -152,17 +152,13 @@ export const ptm: PTMMeeting[] = [
 
 export const transport: Transport = {
   busNo: '12',
-  driver: 'Mr. Sandeep R.',
-  plate: 'WB-3402',
-  eta: '15:48',
-  pickupStop: 'Maple & 4th',
-  nextStops: [
-    { stop: 'Walnut Crossing', eta: '15:42', done: true },
-    { stop: 'Sunrise Park', eta: '15:45', done: true },
-    { stop: 'Maple & 4th', eta: '15:48', done: false, you: true },
-    { stop: 'Hillcrest Drive', eta: '15:53', done: false },
-    { stop: 'Westbrook Gate', eta: '15:58', done: false },
-  ],
+  routeName: 'Route 7',
+  status: 'on_route',
+  lat: 28.4595,
+  lng: 77.0266,
+  speedKmh: 22.5,
+  nextStopName: 'Maple & 4th',
+  lastPingAt: new Date().toISOString(),
 };
 
 // parentChats pc1..pc5 → ChatThread[]
