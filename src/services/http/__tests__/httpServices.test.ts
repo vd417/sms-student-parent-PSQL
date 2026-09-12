@@ -77,6 +77,31 @@ describe('httpServices', () => {
     expect(fees[0].dueDate).toBe('2026-07-10');
     spy.mockRestore();
   });
+
+  it('fees.createRazorpayOrder POSTs /fees/invoices/{id}/razorpay/order and maps the snake_case order', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce({
+      order_id: 'order_x', amount: 480000, currency: 'INR', key_id: 'rzp_test_school1',
+    } as any);
+    const order = await httpServices.fees.createRazorpayOrder('INV-1');
+    expect(spy.mock.calls[0][0]).toBe('/fees/invoices/INV-1/razorpay/order');
+    expect(order).toEqual({ orderId: 'order_x', amount: 480000, currency: 'INR', keyId: 'rzp_test_school1' });
+    spy.mockRestore();
+  });
+
+  it('fees.verifyRazorpayPayment POSTs /fees/invoices/{id}/razorpay/verify with a snake_case body', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce({
+      id: 'INV-1', period: 'Jul', due_date: '2026-07-10', amount: 4800, status: 'paid',
+    } as any);
+    const fee = await httpServices.fees.verifyRazorpayPayment('INV-1', {
+      razorpayOrderId: 'order_x', razorpayPaymentId: 'pay_x', razorpaySignature: 'sig',
+    });
+    expect(spy.mock.calls[0][0]).toBe('/fees/invoices/INV-1/razorpay/verify');
+    expect(JSON.parse(spy.mock.calls[0][1].body as string)).toEqual({
+      razorpay_order_id: 'order_x', razorpay_payment_id: 'pay_x', razorpay_signature: 'sig',
+    });
+    expect(fee.status).toBe('paid');
+    spy.mockRestore();
+  });
 });
 
 describe('httpServices derived paths', () => {

@@ -37,6 +37,21 @@ export function feesMock(opts: Opts = {}): FeesService {
         fee.method = 'Visa •• 4421';
         return fee;
       }, opts),
+    createRazorpayOrder: (feeId) =>
+      withLatency(() => {
+        const fee = db.fees!.find((f) => f.id === feeId);
+        if (!fee) throw new Error(`Fee ${feeId} not found`);
+        return { orderId: `order_mock_${feeId}`, amount: fee.amount, currency: 'INR', keyId: 'rzp_test_mock' };
+      }, opts),
+    verifyRazorpayPayment: (feeId, _body) =>
+      withLatency(() => {
+        const fee = db.fees!.find((f) => f.id === feeId);
+        if (!fee) throw new Error(`Fee ${feeId} not found`);
+        fee.status = 'paid';
+        fee.paidOn = 'today';
+        fee.method = 'Razorpay';
+        return fee;
+      }, opts),
   };
 }
 

@@ -445,6 +445,19 @@ export const httpServices: Services = {
       return rows.map(toFee);
     },
     pay: (feeId) => post<FeeInvoiceDTO>(`/fees/invoices/${feeId}/pay`, {}).then(toFee),
+    createRazorpayOrder: async (feeId) => {
+      const wire = await post<{ order_id: string; amount: number; currency: string; key_id: string }>(
+        `/fees/invoices/${feeId}/razorpay/order`,
+        {},
+      );
+      return { orderId: wire.order_id, amount: wire.amount, currency: wire.currency, keyId: wire.key_id };
+    },
+    verifyRazorpayPayment: (feeId, body) =>
+      post<FeeInvoiceDTO>(`/fees/invoices/${feeId}/razorpay/verify`, {
+        razorpay_order_id: body.razorpayOrderId,
+        razorpay_payment_id: body.razorpayPaymentId,
+        razorpay_signature: body.razorpaySignature,
+      }).then(toFee),
   },
   ptm: {
     list: () => getJson<PTMMeetingDTO[]>('/ptm').then((a) => a.map(toPTM)),

@@ -110,9 +110,21 @@ export interface ParentService {
   childToday(childId: string): Promise<ChildToday | null>;
 }
 
+export interface RazorpayOrder {
+  orderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+}
+
 export interface FeesService {
   list(childId: string): Promise<Fee[]>;
   pay(feeId: string): Promise<Fee>;
+  createRazorpayOrder(feeId: string): Promise<RazorpayOrder>;
+  verifyRazorpayPayment(
+    feeId: string,
+    body: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string },
+  ): Promise<Fee>;
 }
 
 export interface PTMService {
