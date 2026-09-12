@@ -1,17 +1,51 @@
+import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Button, Empty, ErrorState, IconButton, Loading, ScreenHeader } from '@/components/ui';
-import { useFees } from '@/hooks/useFees';
+import { RazorpayCheckoutModal } from '@/components/payments/RazorpayCheckoutModal';
+import { useFees, useCreateRazorpayOrder, useVerifyRazorpayPayment } from '@/hooks/useFees';
+import { useChildren } from '@/hooks/useParent';
 import { useSelectedChild } from '@/providers/ChildProvider';
 import { useToast } from '@/providers/ToastProvider';
+import type { Fee } from '@/models';
+import type { RazorpayOrder } from '@/services/types';
 import { colors, fontFamily, primaryGradient, radius, spacing, typography } from '@/theme';
 
 export function ParentFeesScreen() {
   const { childId } = useSelectedChild();
   const toast = useToast();
   const feesQ = useFees(childId);
+  const createOrder = useCreateRazorpayOrder();
+  const verifyPayment = useVerifyRazorpayPayment(childId);
+  const childrenQ = useChildren();
+  const child = childrenQ.data?.find((c) => c.id === childId);
+  const [checkout, setCheckout] = useState<{ order: RazorpayOrder; feeId: string } | null>(null);
+
+  const handlePay = async (fee: Fee) => {
+    try {
+      const order = await createOrder.mutateAsync(fee.id);
+      setCheckout({ order, feeId: fee.id });
+    } catch {
+      toast('Could not start payment. Please try again.');
+    }
+  };
+
+  const handleCheckoutSuccess = async (result: {
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+  }) => {
+    if (!checkout) return;
+    setCheckout(null);
+    try {
+      await verifyPayment.mutateAsync({ feeId: checkout.feeId, body: result });
+      toast('Payment successful');
+    } catch {
+      toast('Payment could not be confirmed. If money was deducted, it will be reflected shortly.');
+    }
+  };
 
   if (!childId) {
     return (
@@ -99,8 +133,13 @@ export function ParentFeesScreen() {
               </View>
 
               <View style={{ marginTop: 14 }}>
-                <Button variant="white" full onPress={() => toast('Coming soon')}>
-                  Pay now
+                <Button
+                  variant="white"
+                  full
+                  onPress={() => { void handlePay(due); }}
+                  disabled={createOrder.isPending}
+                >
+                  {createOrder.isPending ? 'Starting payment…' : 'Pay now'}
                 </Button>
               </View>
             </LinearGradient>
@@ -146,6 +185,15 @@ export function ParentFeesScreen() {
           </View>
         )}
       </ScrollView>
+      {checkout && (
+        <RazorpayCheckoutModal
+          order={checkout.order}
+          visible
+          schoolName={child?.school ?? 'School'}
+          onSuccess={(result) => { void handleCheckoutSuccess(result); }}
+          onDismiss={() => setCheckout(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }
