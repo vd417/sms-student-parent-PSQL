@@ -447,17 +447,20 @@ export const httpServices: Services = {
     pay: (feeId) => post<FeeInvoiceDTO>(`/fees/invoices/${feeId}/pay`, {}).then(toFee),
     createRazorpayOrder: async (feeId) => {
       const wire = await post<{ order_id: string; amount: number; currency: string; key_id: string }>(
-        `/fees/invoices/${feeId}/razorpay/order`,
+        `/fees/invoices/${encodeURIComponent(feeId)}/razorpay/order`,
         {},
       );
       return { orderId: wire.order_id, amount: wire.amount, currency: wire.currency, keyId: wire.key_id };
     },
+    // The backend returns a payment record here (id/student/amount/method/ref/date/...),
+    // not a FeeInvoiceDTO — only its status is worth surfacing; callers refetch the
+    // invoice list (via query invalidation) for the real invoice state.
     verifyRazorpayPayment: (feeId, body) =>
-      post<FeeInvoiceDTO>(`/fees/invoices/${feeId}/razorpay/verify`, {
+      post<{ status: string }>(`/fees/invoices/${encodeURIComponent(feeId)}/razorpay/verify`, {
         razorpay_order_id: body.razorpayOrderId,
         razorpay_payment_id: body.razorpayPaymentId,
         razorpay_signature: body.razorpaySignature,
-      }).then(toFee),
+      }).then((data) => ({ status: data.status })),
   },
   ptm: {
     list: () => getJson<PTMMeetingDTO[]>('/ptm').then((a) => a.map(toPTM)),

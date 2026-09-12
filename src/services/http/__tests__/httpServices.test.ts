@@ -88,18 +88,22 @@ describe('httpServices', () => {
     spy.mockRestore();
   });
 
-  it('fees.verifyRazorpayPayment POSTs /fees/invoices/{id}/razorpay/verify with a snake_case body', async () => {
+  it('fees.verifyRazorpayPayment POSTs /fees/invoices/{id}/razorpay/verify with a snake_case body and surfaces only the payment status', async () => {
+    // The backend returns a payment record here (id/student/amount/method/ref/date/...), not
+    // a FeeInvoiceDTO — the mocked response below stands in for that shape.
     const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce({
-      id: 'INV-1', period: 'Jul', due_date: '2026-07-10', amount: 4800, status: 'paid',
+      id: 'pay_x', tenant_id: 't1', student_id: 's1', student_name: 'Kid', class_label: '5A',
+      fee_type: 'Tuition', amount: 4800, method: 'razorpay', ref: 'pay_x', date: '2026-07-10',
+      invoice_id: 'INV-1', head_id: 'h1', status: 'paid',
     } as any);
-    const fee = await httpServices.fees.verifyRazorpayPayment('INV-1', {
+    const result = await httpServices.fees.verifyRazorpayPayment('INV-1', {
       razorpayOrderId: 'order_x', razorpayPaymentId: 'pay_x', razorpaySignature: 'sig',
     });
     expect(spy.mock.calls[0][0]).toBe('/fees/invoices/INV-1/razorpay/verify');
     expect(JSON.parse(spy.mock.calls[0][1].body as string)).toEqual({
       razorpay_order_id: 'order_x', razorpay_payment_id: 'pay_x', razorpay_signature: 'sig',
     });
-    expect(fee.status).toBe('paid');
+    expect(result).toEqual({ status: 'paid' });
     spy.mockRestore();
   });
 });

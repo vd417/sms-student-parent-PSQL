@@ -1,4 +1,5 @@
-import { Modal, SafeAreaView, StyleSheet } from 'react-native';
+import { Modal, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import type { RazorpayOrder } from '@/services/types';
 
@@ -49,12 +50,20 @@ function checkoutHtml(order: RazorpayOrder, schoolName: string): string {
 
 export function RazorpayCheckoutModal({ order, visible, schoolName, onSuccess, onDismiss }: Props) {
   const handleMessage = (event: WebViewMessageEvent) => {
-    const msg = JSON.parse(event.nativeEvent.data);
+    // The WebView also hosts Razorpay's own checkout.js plus any bank/3DS redirect
+    // pages — third-party code that could post a non-JSON message. Ignore anything
+    // that doesn't parse rather than let a malformed message crash mid-payment.
+    let msg: { type?: string; [key: string]: unknown };
+    try {
+      msg = JSON.parse(event.nativeEvent.data);
+    } catch {
+      return;
+    }
     if (msg.type === 'success') {
       onSuccess({
-        razorpayOrderId: msg.razorpay_order_id,
-        razorpayPaymentId: msg.razorpay_payment_id,
-        razorpaySignature: msg.razorpay_signature,
+        razorpayOrderId: msg.razorpay_order_id as string,
+        razorpayPaymentId: msg.razorpay_payment_id as string,
+        razorpaySignature: msg.razorpay_signature as string,
       });
     } else if (msg.type === 'dismiss') {
       onDismiss();

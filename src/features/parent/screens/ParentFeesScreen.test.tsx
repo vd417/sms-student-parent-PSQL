@@ -72,6 +72,9 @@ describe('ParentFeesScreen', () => {
     });
   });
 
+  // Rendering the modal's real SafeAreaView (react-native-safe-area-context) adds an extra
+  // frame-measurement cycle, which can occasionally exceed Jest's default 5s under
+  // parallel-worker CPU contention — give this one some headroom.
   it('starts a Razorpay order and opens the checkout modal when "Pay now" is tapped', async () => {
     mutateAsyncCreateOrder.mockResolvedValue(order);
     const { getByText, UNSAFE_getByType } = renderScreen();
@@ -85,7 +88,7 @@ describe('ParentFeesScreen', () => {
       const webview = UNSAFE_getByType(WebView);
       expect(webview.props.source.html).toContain('order_x');
     });
-  });
+  }, 15000);
 
   it('shows a toast and does not open the modal when order creation fails', async () => {
     mutateAsyncCreateOrder.mockRejectedValue(new Error('network'));

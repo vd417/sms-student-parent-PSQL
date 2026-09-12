@@ -137,7 +137,7 @@ export function ParentFeesScreen() {
                   variant="white"
                   full
                   onPress={() => { void handlePay(due); }}
-                  disabled={createOrder.isPending}
+                  disabled={createOrder.isPending || verifyPayment.isPending}
                 >
                   {createOrder.isPending ? 'Starting payment…' : 'Pay now'}
                 </Button>
@@ -189,7 +189,7 @@ export function ParentFeesScreen() {
         <RazorpayCheckoutModal
           order={checkout.order}
           visible
-          schoolName={child?.school ?? 'School'}
+          schoolName={child?.school || 'School'}
           onSuccess={(result) => { void handleCheckoutSuccess(result); }}
           onDismiss={() => setCheckout(null)}
         />

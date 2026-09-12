@@ -50,7 +50,7 @@ export function feesMock(opts: Opts = {}): FeesService {
         fee.status = 'paid';
         fee.paidOn = 'today';
         fee.method = 'Razorpay';
-        return fee;
+        return { status: fee.status };
       }, opts),
   };
 }

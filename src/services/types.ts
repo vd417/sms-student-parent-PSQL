@@ -121,10 +121,15 @@ export interface FeesService {
   list(childId: string): Promise<Fee[]>;
   pay(feeId: string): Promise<Fee>;
   createRazorpayOrder(feeId: string): Promise<RazorpayOrder>;
+  /**
+   * The backend returns a payment record (not the invoice), so only the bit worth
+   * exposing to callers — the resulting status — is surfaced here. Callers should
+   * rely on invalidating/refetching the invoice list for the real invoice state.
+   */
   verifyRazorpayPayment(
     feeId: string,
     body: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string },
-  ): Promise<Fee>;
+  ): Promise<{ status: string }>;
 }
 
 export interface PTMService {
