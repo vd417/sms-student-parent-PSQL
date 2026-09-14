@@ -7,6 +7,7 @@ import { Button, Empty, ErrorState, IconButton, Loading, ScreenHeader } from '@/
 import { RazorpayCheckoutModal } from '@/components/payments/RazorpayCheckoutModal';
 import { useFees, useCreateRazorpayOrder, useVerifyRazorpayPayment } from '@/hooks/useFees';
 import { useChildren } from '@/hooks/useParent';
+import { useSchool } from '@/hooks/useSchool';
 import { useSelectedChild } from '@/providers/ChildProvider';
 import { useToast } from '@/providers/ToastProvider';
 import type { Fee } from '@/models';
@@ -43,15 +44,22 @@ export function ParentFeesScreen() {
   const verifyPayment = useVerifyRazorpayPayment(childId);
   const childrenQ = useChildren();
   const child = childrenQ.data?.find((c) => c.id === childId);
+  const schoolQ = useSchool();
   const [checkout, setCheckout] = useState<{ order: RazorpayOrder; feeId: string; description: string } | null>(null);
 
   const handleDownload = async (fee: Fee) => {
     try {
-      await downloadInvoice(fee, {
-        studentName: child?.name ?? 'Student',
-        grade: child?.grade,
-        school: child?.school,
-      });
+      // The invoice PDF shows human-readable dates, same as the screen — the raw
+      // backend value is only needed for chronological sorting, done upstream.
+      await downloadInvoice(
+        { ...fee, dueDate: formatFeeDate(fee.dueDate), paidOn: fee.paidOn ? formatFeeDate(fee.paidOn) : fee.paidOn },
+        {
+          studentName: child?.name ?? 'Student',
+          grade: child?.grade,
+          school: child?.school,
+          schoolLogoUrl: schoolQ.data?.logoUrl,
+        },
+      );
     } catch {
       toast('Could not generate the invoice. Please try again.');
     }

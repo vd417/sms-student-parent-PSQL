@@ -2,69 +2,164 @@ import { Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import type { Fee } from '@/models';
+import { colors } from '@/theme';
+import { monogramFromName } from '@/components/ui/monogram';
 
 interface InvoiceMeta {
   studentName: string;
   grade?: string;
   school?: string;
+  /** School brand mark — falls back to a monogram of `school` when missing/unreachable. */
+  schoolLogoUrl?: string;
 }
 
-function invoiceHtml(fee: Fee, meta: InvoiceMeta): string {
+function esc(value: string): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/** Stable, display-only invoice number derived from the invoice id — not a sequence counter. */
+function invoiceNumber(feeId: string): string {
+  const digits = feeId.replace(/[^a-zA-Z0-9]/g, '').slice(-8).toUpperCase();
+  return `INV-${digits || '00000000'}`;
+}
+
+function formatGeneratedAt(date: Date): string {
+  return date.toLocaleString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function brandLogo(schoolName: string, logoUrl: string | undefined): string {
+  const url = (logoUrl ?? '').trim();
+  const initials = esc(monogramFromName(schoolName || 'School'));
+  if (url) {
+    return `<img class="logo" src="${esc(url)}" alt="${esc(schoolName)}" onerror="this.outerHTML='<div class=&quot;logo logo-fallback&quot;>${initials}</div>'" />`;
+  }
+  return `<div class="logo logo-fallback">${initials}</div>`;
+}
+
+export function invoiceHtml(fee: Fee, meta: InvoiceMeta, generatedAt: Date = new Date()): string {
   const amountPaid = fee.status === 'paid' ? fee.amount : (fee.paidAmount ?? 0);
   const balance = fee.amount - amountPaid;
   const statusLabel = fee.status === 'paid' ? 'PAID' : fee.status === 'partial' ? 'PARTIALLY PAID' : 'DUE';
   const items = fee.items ?? [];
 
-  const itemRows = items
-    .map(
-      (it) => `<tr><td class="cell">${it.l}</td><td class="cell amt">₹${it.amt.toLocaleString()}</td></tr>`
-    )
+  // A manually created invoice can have no fee-head lines yet — fall back to a single
+  // row for the period so the table is never empty, without inventing a breakdown.
+  const rows = items.length > 0 ? items.map((it) => ({ label: it.l, amount: it.amt })) : [{ label: fee.period, amount: fee.amount }];
+  const itemRows = rows
+    .map((r) => `<tr><td class="cell">${esc(r.label)}</td><td class="cell amt">₹${r.amount.toLocaleString()}</td></tr>`)
     .join('');
 
-  return `
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <style>
-          body { font-family: -apple-system, Helvetica, Arial, sans-serif; color: #1a1a1a; padding: 32px; }
-          h1 { font-size: 20px; margin-bottom: 4px; }
-          .muted { color: #666; font-size: 12px; margin-bottom: 24px; }
-          .status { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; letter-spacing: 0.5px; }
-          .status.paid { background: #e3f6e8; color: #1c8a3d; }
-          .status.due { background: #fdeaea; color: #c0392b; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          .cell { padding: 8px 0; border-bottom: 1px solid #eee; font-size: 13px; }
-          .amt { text-align: right; }
-          .totals { margin-top: 16px; }
-          .totals-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; }
-          .totals-row.grand { font-size: 16px; font-weight: bold; border-top: 1px solid #ddd; padding-top: 10px; margin-top: 6px; }
-        </style>
-      </head>
-      <body>
-        <h1>Fee Invoice</h1>
-        <div class="muted">
-          ${meta.studentName}${meta.grade ? ` · ${meta.grade}` : ''}${meta.school ? ` · ${meta.school}` : ''}
-        </div>
-        <div>
-          <span class="status ${fee.status === 'paid' ? 'paid' : 'due'}">${statusLabel}</span>
-        </div>
-        <div class="muted" style="margin-top: 12px;">
-          Period: ${fee.period}<br/>
-          Due date: ${fee.dueDate}
-          ${fee.paidOn ? `<br/>Paid on: ${fee.paidOn}` : ''}
-          ${fee.method ? `<br/>Method: ${fee.method}` : ''}
-        </div>
+  const schoolName = meta.school || 'School';
+  const studentLine = [meta.studentName, meta.grade]
+    .filter((v): v is string => Boolean(v))
+    .map(esc)
+    .join(' · ');
 
-        <table>${itemRows}</table>
-
-        <div class="totals">
-          <div class="totals-row"><span>Amount paid</span><span>₹${amountPaid.toLocaleString()}</span></div>
-          <div class="totals-row grand"><span>Total</span><span>₹${fee.amount.toLocaleString()}</span></div>
-          ${balance > 0 ? `<div class="totals-row"><span>Balance due</span><span>₹${balance.toLocaleString()}</span></div>` : ''}
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${esc(invoiceNumber(fee.id))} · ${esc(schoolName)}</title>
+    <style>
+      @page { size: A4; margin: 14mm; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, Helvetica, Arial, sans-serif;
+        color: ${colors.ink};
+        font-size: 13px;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 2px solid ${colors.primary};
+        padding-bottom: 20px;
+      }
+      .brand { display: flex; align-items: center; gap: 12px; }
+      .logo { width: 48px; height: 48px; border-radius: 10px; object-fit: contain; }
+      .logo-fallback {
+        display: flex; align-items: center; justify-content: center;
+        background: ${colors.primary}; color: #fff; font-weight: 800; font-size: 16px;
+      }
+      .brand-name { font-size: 16px; font-weight: 700; color: ${colors.primary}; }
+      .doc-title { text-align: right; }
+      .doc-title h1 { font-size: 22px; margin: 0; letter-spacing: 1px; color: ${colors.primary}; }
+      .doc-meta { color: ${colors.inkMuted}; font-size: 11px; margin-top: 6px; line-height: 1.5; }
+      .parties { display: flex; justify-content: space-between; margin-top: 28px; gap: 24px; }
+      .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: ${colors.inkMuted}; margin-bottom: 4px; }
+      .status { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; letter-spacing: 0.5px; margin-top: 8px; }
+      .status.paid { background: #e3f6e8; color: #1c8a3d; }
+      .status.due { background: #fdeaea; color: #c0392b; }
+      table { width: 100%; border-collapse: collapse; margin-top: 28px; }
+      th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: ${colors.inkMuted}; padding-bottom: 8px; border-bottom: 1px solid ${colors.rule}; }
+      th.amt, .amt { text-align: right; }
+      .cell { padding: 10px 0; border-bottom: 1px solid ${colors.ruleSoft}; font-size: 13px; }
+      .totals { margin-top: 16px; margin-left: auto; width: 260px; }
+      .totals-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; }
+      .totals-row.grand { font-size: 16px; font-weight: bold; border-top: 1px solid ${colors.rule}; padding-top: 10px; margin-top: 6px; color: ${colors.primary}; }
+      .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid ${colors.ruleSoft}; color: ${colors.inkMuted}; font-size: 11px; }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="brand">
+        ${brandLogo(schoolName, meta.schoolLogoUrl)}
+        <div class="brand-name">${esc(schoolName)}</div>
+      </div>
+      <div class="doc-title">
+        <h1>INVOICE</h1>
+        <div class="doc-meta">
+          ${esc(invoiceNumber(fee.id))}<br/>
+          Generated ${esc(formatGeneratedAt(generatedAt))}
         </div>
-      </body>
-    </html>
-  `;
+      </div>
+    </div>
+
+    <div class="parties">
+      <div>
+        <div class="label">Billed to</div>
+        <div>${studentLine || 'Student'}</div>
+        <span class="status ${fee.status === 'paid' ? 'paid' : 'due'}">${statusLabel}</span>
+      </div>
+      <div style="text-align:right;">
+        <div class="label">Fee period</div>
+        <div>${esc(fee.period)}</div>
+        <div class="label" style="margin-top:8px;">Due date</div>
+        <div>${esc(fee.dueDate || '—')}</div>
+      </div>
+    </div>
+
+    <table>
+      <thead><tr><th>Description</th><th class="amt">Amount</th></tr></thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+
+    <div class="totals">
+      <div class="totals-row grand"><span>Total</span><span>₹${fee.amount.toLocaleString()}</span></div>
+      <div class="totals-row"><span>Amount paid</span><span>₹${amountPaid.toLocaleString()}</span></div>
+      ${balance > 0 ? `<div class="totals-row"><span>Balance due</span><span>₹${balance.toLocaleString()}</span></div>` : ''}
+    </div>
+
+    <div class="footer">
+      ${fee.paidOn ? `Paid on ${esc(fee.paidOn)}${fee.method ? ` via ${esc(fee.method)}` : ''}<br/>` : ''}
+      This is a system-generated invoice and does not require a signature.
+    </div>
+  </body>
+</html>`;
 }
 
 export async function downloadInvoice(fee: Fee, meta: InvoiceMeta): Promise<void> {

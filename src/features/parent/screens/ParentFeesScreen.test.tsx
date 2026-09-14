@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { ParentFeesScreen } from './ParentFeesScreen';
 import { useFees, useCreateRazorpayOrder, useVerifyRazorpayPayment } from '@/hooks/useFees';
 import { useChildren } from '@/hooks/useParent';
+import { useSchool } from '@/hooks/useSchool';
 import { useSelectedChild } from '@/providers/ChildProvider';
 import { useToast } from '@/providers/ToastProvider';
 
@@ -14,6 +15,10 @@ jest.mock('@/hooks/useFees', () => ({
 
 jest.mock('@/hooks/useParent', () => ({
   useChildren: jest.fn(),
+}));
+
+jest.mock('@/hooks/useSchool', () => ({
+  useSchool: jest.fn(),
 }));
 
 jest.mock('@/providers/ChildProvider', () => ({
@@ -55,6 +60,7 @@ describe('ParentFeesScreen', () => {
     (useChildren as jest.Mock).mockReturnValue({
       data: [{ id: 'child-1', name: 'Kid', initials: 'K', grade: '5', school: 'Green Valley School', avg: 0, attn: 0, fee: '', unread: 0, hue: 'blue' }],
     });
+    (useSchool as jest.Mock).mockReturnValue({ data: { id: 'sch-1', name: 'Green Valley School', logoUrl: '' } });
     (useFees as jest.Mock).mockReturnValue({
       isLoading: false,
       isError: false,
