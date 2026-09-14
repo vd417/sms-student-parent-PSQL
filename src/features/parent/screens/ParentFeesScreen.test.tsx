@@ -374,4 +374,29 @@ describe('ParentFeesScreen', () => {
     expect(getByText(summary)).toBeTruthy();
     expect(getByText(`₹${total.toLocaleString()}`)).toBeTruthy();
   });
+
+  it('formats the paid-on date in Payment History instead of showing a raw ISO timestamp', () => {
+    const paidFee = {
+      id: 'fee-paid',
+      period: '2026-27 Term 1',
+      dueDate: '2026-08-01T00:00:00',
+      amount: 133055,
+      status: 'paid' as const,
+      paidOn: '2026-08-15T00:00:00',
+      method: 'upi_autopay',
+      items: [{ l: 'Tuition Fee', amt: 133055 }],
+    };
+    (useFees as jest.Mock).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isRefetching: false,
+      data: [paidFee],
+      refetch: jest.fn(),
+    });
+    const { getByText, queryByText } = renderScreen();
+
+    expect(queryByText(/2026-08-15T00:00:00/)).toBeNull();
+    expect(getByText(/upi_autopay.*Aug.*15.*2026|upi_autopay.*15.*Aug.*2026/)).toBeTruthy();
+    expect(getByText(`₹${(133055).toLocaleString()}`)).toBeTruthy();
+  });
 });

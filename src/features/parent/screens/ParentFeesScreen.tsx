@@ -237,7 +237,7 @@ export function ParentFeesScreen() {
             {paid.map((f) => {
               const isFullyPaid = f.status === 'paid';
               const amountPaid = isFullyPaid ? f.amount : (f.paidAmount ?? 0);
-              const meta = [f.method, f.paidOn].filter(Boolean).join(' · ');
+              const meta = [f.method, f.paidOn ? formatFeeDate(f.paidOn) : ''].filter(Boolean).join(' · ');
               return (
                 <Pressable
                   key={f.id}
