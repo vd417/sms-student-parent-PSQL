@@ -1,4 +1,7 @@
-import { invoiceHtml } from './invoicePdf';
+import { Platform } from 'react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import { downloadInvoice, invoiceHtml } from './invoicePdf';
 import type { Fee } from '@/models';
 
 const baseFee: Fee = {
@@ -96,5 +99,39 @@ describe('invoiceHtml', () => {
 
     expect(html).toContain('Paid on 15 Aug 2026');
     expect(html).toContain('upi_autopay');
+  });
+});
+
+describe('downloadInvoice', () => {
+  const originalOS = Platform.OS;
+
+  afterEach(() => {
+    Platform.OS = originalOS;
+    jest.restoreAllMocks();
+  });
+
+  it('never calls expo-print on web — its web shim ignores `html` and prints whatever screen is currently open', async () => {
+    // expo-print's own web implementation is `async print() { window.print(); }` — it discards
+    // the html entirely, so calling it here would print the parent's current screen instead of
+    // the invoice. Guard against ever wiring that path back in.
+    Platform.OS = 'web';
+    const printAsyncSpy = jest.spyOn(Print, 'printAsync');
+
+    // No `document` in this test environment, so the web print path can't actually open a
+    // window — it should fail loudly rather than silently doing nothing or falling back to
+    // expo-print.
+    await expect(downloadInvoice(baseFee, { studentName: 'Maya Patel', school: 'Green Valley School' })).rejects.toThrow();
+    expect(printAsyncSpy).not.toHaveBeenCalled();
+  });
+
+  it('generates a PDF file and shares it on native platforms', async () => {
+    Platform.OS = 'ios';
+    jest.spyOn(Print, 'printToFileAsync').mockResolvedValue({ uri: 'file:///invoice.pdf' } as any);
+    jest.spyOn(Sharing, 'isAvailableAsync').mockResolvedValue(true);
+    const shareSpy = jest.spyOn(Sharing, 'shareAsync').mockResolvedValue(undefined as any);
+
+    await downloadInvoice(baseFee, { studentName: 'Maya Patel', school: 'Green Valley School' });
+
+    expect(shareSpy).toHaveBeenCalledWith('file:///invoice.pdf', { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
   });
 });

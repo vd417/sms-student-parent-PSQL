@@ -162,11 +162,112 @@ export function invoiceHtml(fee: Fee, meta: InvoiceMeta, generatedAt: Date = new
 </html>`;
 }
 
+function getWindow(): Window | null {
+  return typeof window === 'undefined' ? null : window;
+}
+
+function getDocument(): Document | null {
+  return typeof document === 'undefined' ? null : document;
+}
+
+/** Prints once every image in `doc` has settled (loaded or errored), instead of racing the layout. */
+function printWhenReady(win: Window, doc: Document, onDone?: () => void): void {
+  const go = () => {
+    try {
+      win.focus();
+      win.print();
+    } finally {
+      onDone?.();
+    }
+  };
+  const imgs = Array.from(doc.images || []);
+  if (!imgs.length || imgs.every((img) => img.complete)) {
+    win.setTimeout(go, 30);
+    return;
+  }
+  let left = imgs.length;
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    go();
+  };
+  imgs.forEach((img) => {
+    if (img.complete) {
+      if (--left <= 0) finish();
+      return;
+    }
+    img.onload = img.onerror = () => {
+      if (--left <= 0) finish();
+    };
+  });
+  win.setTimeout(finish, 150);
+}
+
+/**
+ * expo-print's web shim ignores the `html` option entirely and just calls the browser's
+ * `window.print()` on the current page (see expo-print/src/ExponentPrint.web.ts) — using it
+ * here would print whatever screen the parent happens to be on, not the invoice. So on web we
+ * render the invoice into its own window/iframe and print that, the same technique already
+ * used for report cards (see `printReportCard` in `src/lib/reportCardPrint.ts`).
+ */
+function printHtmlOnWeb(html: string, title: string): boolean {
+  const winGlobal = getWindow();
+  const docGlobal = getDocument();
+  if (!winGlobal || !docGlobal) return false;
+
+  const popup = winGlobal.open('', '_blank');
+  if (popup) {
+    popup.document.open();
+    popup.document.write(html);
+    popup.document.close();
+    try {
+      popup.document.title = title;
+    } catch {
+      /* ignore */
+    }
+    printWhenReady(popup, popup.document, () => {
+      winGlobal.setTimeout(() => {
+        try {
+          popup.close();
+        } catch {
+          /* ignore */
+        }
+      }, 1_000);
+    });
+    return true;
+  }
+
+  // Popup blocked — fall back to a hidden iframe printed in place.
+  const iframe = docGlobal.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.setAttribute('title', title);
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none';
+  docGlobal.body.appendChild(iframe);
+
+  const win = iframe.contentWindow;
+  const doc = win?.document;
+  if (!win || !doc) {
+    iframe.remove();
+    return false;
+  }
+
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  printWhenReady(win, doc, () => {
+    winGlobal.setTimeout(() => iframe.remove(), 30_000);
+  });
+  return true;
+}
+
 export async function downloadInvoice(fee: Fee, meta: InvoiceMeta): Promise<void> {
   const html = invoiceHtml(fee, meta);
 
   if (Platform.OS === 'web') {
-    await Print.printAsync({ html });
+    const printed = printHtmlOnWeb(html, `${invoiceNumber(fee.id)} · ${meta.school || 'Invoice'}`);
+    if (!printed) throw new Error('Printing is not available in this browser');
     return;
   }
 
