@@ -12,6 +12,28 @@ import { useToast } from '@/providers/ToastProvider';
 import type { Fee } from '@/models';
 import type { RazorpayOrder } from '@/services/types';
 import { colors, fontFamily, primaryGradient, radius, spacing, typography } from '@/theme';
+import { downloadInvoice } from '../utils/invoicePdf';
+
+/** Human-readable summary of what a fee is for, shown on Razorpay's checkout screen. */
+function feeDescription(fee: Fee): string {
+  const items = (fee.items ?? []).map((it) => it.l).join(', ');
+  return items ? `${fee.period} · ${items}` : fee.period;
+}
+
+/** Formats a `YYYY-MM-DD[THH:mm:ss]` backend date as `23 Sep 2026` for display; passes through anything else. */
+function formatFeeDate(date: string | undefined): string {
+  const raw = (date ?? '').trim();
+  if (!raw) return '';
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return raw;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/** Compact "what's included" line, e.g. "Tuition fee ₹40,000 · Transport fee ₹4,800". */
+function itemsSummary(fee: Fee): string {
+  return (fee.items ?? []).map((it) => `${it.l} ₹${it.amt.toLocaleString()}`).join(' · ');
+}
 
 export function ParentFeesScreen() {
   const { childId } = useSelectedChild();
@@ -21,12 +43,24 @@ export function ParentFeesScreen() {
   const verifyPayment = useVerifyRazorpayPayment(childId);
   const childrenQ = useChildren();
   const child = childrenQ.data?.find((c) => c.id === childId);
-  const [checkout, setCheckout] = useState<{ order: RazorpayOrder; feeId: string } | null>(null);
+  const [checkout, setCheckout] = useState<{ order: RazorpayOrder; feeId: string; description: string } | null>(null);
+
+  const handleDownload = async (fee: Fee) => {
+    try {
+      await downloadInvoice(fee, {
+        studentName: child?.name ?? 'Student',
+        grade: child?.grade,
+        school: child?.school,
+      });
+    } catch {
+      toast('Could not generate the invoice. Please try again.');
+    }
+  };
 
   const handlePay = async (fee: Fee) => {
     try {
       const order = await createOrder.mutateAsync(fee.id);
-      setCheckout({ order, feeId: fee.id });
+      setCheckout({ order, feeId: fee.id, description: feeDescription(fee) });
     } catch {
       toast('Could not start payment. Please try again.');
     }
@@ -84,7 +118,16 @@ export function ParentFeesScreen() {
 
   const fees = feesQ.data!;
   // 'partial' invoices are still outstanding — a fee only leaves the due card once fully paid.
-  const due = fees.find((f) => f.status === 'due' || f.status === 'partial');
+  // Sort by due date so the most urgent outstanding invoice becomes the hero card; any other
+  // outstanding invoices (e.g. a newly announced fee) still surface below instead of being
+  // silently dropped.
+  // Live invoices aren't as tidy as mock fixtures — a freshly created fee can arrive with no
+  // due date yet, so guard the comparator instead of trusting the DTO's non-null string type.
+  const outstanding = fees
+    .filter((f) => f.status === 'due' || f.status === 'partial')
+    .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''));
+  const due = outstanding[0];
+  const otherOutstanding = outstanding.slice(1);
   const remaining = due ? due.amount - (due.paidAmount ?? 0) : 0;
   // A partial invoice already has real money against it — that payment belongs in
   // history too, even though the invoice itself is still outstanding above.
@@ -95,7 +138,7 @@ export function ParentFeesScreen() {
       <ScreenHeader
         kicker="Fees"
         title="Fees & payments"
-        right={<IconButton icon="download-outline" onPress={() => toast('Coming soon')} />}
+        right={due ? <IconButton icon="download-outline" onPress={() => handleDownload(due)} /> : undefined}
       />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -119,7 +162,7 @@ export function ParentFeesScreen() {
               </Text>
               <Text style={styles.heroMeta}>
                 {due.period}
-                {due.dueDate ? ` · due ${due.dueDate}` : ''}
+                {due.dueDate ? ` · due ${formatFeeDate(due.dueDate)}` : ''}
                 {due.status === 'partial' ? ` · ₹${(due.paidAmount ?? 0).toLocaleString()} already paid` : ''}
               </Text>
 
@@ -127,7 +170,7 @@ export function ParentFeesScreen() {
                 {(due.items ?? []).map((it, i) => (
                   <View key={i} style={styles.itemRow}>
                     <Text style={styles.itemLabel}>{it.l}</Text>
-                    <Text style={styles.itemAmt}>₹{it.amt}</Text>
+                    <Text style={styles.itemAmt}>₹{it.amt.toLocaleString()}</Text>
                   </View>
                 ))}
               </View>
@@ -146,6 +189,36 @@ export function ParentFeesScreen() {
           </View>
         ) : null}
 
+        {otherOutstanding.length > 0 ? (
+          <View style={{ paddingHorizontal: 18, paddingBottom: 14, gap: 8 }}>
+            <Text style={typography.eyebrow}>Other pending fees</Text>
+            {otherOutstanding.map((f) => {
+              const owed = f.amount - (f.paidAmount ?? 0);
+              return (
+                <View key={f.id} style={styles.row}>
+                  <View style={styles.rowIcon}>
+                    <Ionicons name="alert-circle-outline" size={18} color={colors.ink} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowTitle}>{f.period}</Text>
+                    <Text style={styles.rowMeta}>
+                      {f.dueDate ? `Due ${formatFeeDate(f.dueDate)}` : ''}
+                      {f.status === 'partial' ? ` · ₹${(f.paidAmount ?? 0).toLocaleString()} already paid` : ''}
+                    </Text>
+                    {itemsSummary(f) ? <Text style={styles.rowItems}>{itemsSummary(f)}</Text> : null}
+                  </View>
+                  <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                    <Text style={styles.rowAmt}>₹{owed.toLocaleString()}</Text>
+                    <Pressable onPress={() => { void handlePay(f); }} disabled={createOrder.isPending || verifyPayment.isPending}>
+                      <Text style={styles.payLink}>Pay now</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
+
         <Text style={[typography.eyebrow, { paddingHorizontal: 18, marginBottom: 8 }]}>
           Payment history
         </Text>
@@ -160,7 +233,7 @@ export function ParentFeesScreen() {
               return (
                 <Pressable
                   key={f.id}
-                  onPress={() => toast('Coming soon')}
+                  onPress={() => handleDownload(f)}
                   style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
                 >
                   <View style={styles.rowIcon}>
@@ -169,6 +242,7 @@ export function ParentFeesScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowTitle}>{f.period}</Text>
                     {meta ? <Text style={styles.rowMeta}>{meta}</Text> : null}
+                    {itemsSummary(f) ? <Text style={styles.rowItems}>{itemsSummary(f)}</Text> : null}
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={styles.rowAmt}>₹{amountPaid.toLocaleString()}</Text>
@@ -177,7 +251,7 @@ export function ParentFeesScreen() {
                   <IconButton
                     icon="download-outline"
                     size={32}
-                    onPress={() => toast('Coming soon')}
+                    onPress={() => handleDownload(f)}
                   />
                 </Pressable>
               );
@@ -190,6 +264,7 @@ export function ParentFeesScreen() {
           order={checkout.order}
           visible
           schoolName={child?.school || 'School'}
+          description={checkout.description}
           onSuccess={(result) => { void handleCheckoutSuccess(result); }}
           onDismiss={() => setCheckout(null)}
         />
@@ -252,6 +327,7 @@ const styles = StyleSheet.create({
   },
   rowTitle: { fontFamily: fontFamily.bold, fontSize: 13.5, color: colors.ink },
   rowMeta: { fontFamily: fontFamily.medium, fontSize: 11, color: colors.inkMuted, marginTop: 2 },
+  rowItems: { fontFamily: fontFamily.medium, fontSize: 11, color: colors.inkMuted, marginTop: 2 },
   rowAmt: {
     fontFamily: fontFamily.extraBold,
     fontSize: 14,
@@ -259,4 +335,5 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   rowPaid: { fontFamily: fontFamily.bold, fontSize: 10, color: colors.present },
+  payLink: { fontFamily: fontFamily.bold, fontSize: 12, color: colors.primary },
 });

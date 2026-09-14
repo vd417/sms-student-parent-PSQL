@@ -164,4 +164,208 @@ describe('ParentFeesScreen', () => {
     const { getByText } = renderScreen();
     expect(getByText('Starting payment…')).toBeTruthy();
   });
+
+  it('surfaces every outstanding invoice, not just the earliest one', () => {
+    const newerFee = {
+      id: 'fee-2',
+      period: 'Term 2',
+      dueDate: '2026-11-01',
+      amount: 5200,
+      status: 'due' as const,
+      items: [{ l: 'Tuition', amt: 5200 }],
+    };
+    (useFees as jest.Mock).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isRefetching: false,
+      data: [dueFee, newerFee],
+      refetch: jest.fn(),
+    });
+    const { getByText } = renderScreen();
+
+    // Earliest due invoice is the hero card.
+    expect(getByText(/Term 1/)).toBeTruthy();
+    // The other outstanding invoice must still be visible, not silently dropped.
+    expect(getByText('Other pending fees')).toBeTruthy();
+    expect(getByText('Term 2')).toBeTruthy();
+    expect(getByText('₹5,200')).toBeTruthy();
+  });
+
+  it('starts a Razorpay order for a non-primary pending fee', async () => {
+    const newerFee = {
+      id: 'fee-2',
+      period: 'Term 2',
+      dueDate: '2026-11-01',
+      amount: 5200,
+      status: 'due' as const,
+      items: [{ l: 'Tuition', amt: 5200 }],
+    };
+    (useFees as jest.Mock).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isRefetching: false,
+      data: [dueFee, newerFee],
+      refetch: jest.fn(),
+    });
+    mutateAsyncCreateOrder.mockResolvedValue(order);
+    const { getAllByText } = renderScreen();
+
+    fireEvent.press(getAllByText('Pay now')[1]);
+
+    await waitFor(() => expect(mutateAsyncCreateOrder).toHaveBeenCalledWith('fee-2'));
+  });
+
+  it('shows the fee item breakdown and a formatted due date, not a raw ISO timestamp', () => {
+    const annualFee = {
+      id: 'fee-annual',
+      period: '2026-27 Annual',
+      dueDate: '2026-09-23T00:00:00',
+      amount: 50000,
+      status: 'due' as const,
+      items: [
+        { l: 'Tuition fee', amt: 45000 },
+        { l: 'Transport fee', amt: 5000 },
+      ],
+    };
+    (useFees as jest.Mock).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isRefetching: false,
+      data: [dueFee, annualFee],
+      refetch: jest.fn(),
+    });
+    const { getByText, queryByText } = renderScreen();
+
+    expect(getByText('Tuition fee ₹45,000 · Transport fee ₹5,000')).toBeTruthy();
+    expect(queryByText(/2026-09-23T00:00:00/)).toBeNull();
+    expect(getByText(/Sep.*23.*2026|23.*Sep.*2026/)).toBeTruthy();
+  });
+
+  it('does not crash when a live invoice arrives with no due date yet', () => {
+    const undated = {
+      id: 'fee-3',
+      period: 'Term 3',
+      dueDate: undefined as unknown as string,
+      amount: 3000,
+      status: 'due' as const,
+      items: [{ l: 'Tuition', amt: 3000 }],
+    };
+    (useFees as jest.Mock).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isRefetching: false,
+      data: [dueFee, undated],
+      refetch: jest.fn(),
+    });
+
+    expect(() => renderScreen()).not.toThrow();
+  });
+
+  it('shows only the actual fee components for a non-transport invoice (no invented Transport line)', () => {
+    // Default beforeEach fee has a single Tuition line and no transport line.
+    const { getByText, queryByText } = renderScreen();
+
+    expect(getByText('Tuition')).toBeTruthy();
+    expect(queryByText(/Transport/)).toBeNull();
+  });
+
+  it('shows Transport Fee as its own line when the invoice actually includes it', () => {
+    const withTransport = {
+      id: 'fee-transport',
+      period: '2026-27 Term 2',
+      dueDate: '2026-09-23',
+      amount: 23800,
+      status: 'due' as const,
+      items: [
+        { l: 'Exam Fee', amt: 500 },
+        { l: 'Tuition Fee', amt: 6300 },
+        { l: 'Transport Fee', amt: 17000 },
+      ],
+    };
+    (useFees as jest.Mock).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isRefetching: false,
+      data: [withTransport],
+      refetch: jest.fn(),
+    });
+    const { getByText } = renderScreen();
+
+    expect(getByText('Exam Fee')).toBeTruthy();
+    expect(getByText('Tuition Fee')).toBeTruthy();
+    expect(getByText('Transport Fee')).toBeTruthy();
+  });
+
+  it('shows correct, independent breakdowns for a mixed transport/non-transport pair of invoices', () => {
+    const noTransport = {
+      id: 'fee-no-transport',
+      period: '2026-27 Term 1',
+      dueDate: '2026-08-01',
+      amount: 6800,
+      status: 'due' as const,
+      items: [
+        { l: 'Exam Fee', amt: 500 },
+        { l: 'Tuition Fee', amt: 6300 },
+      ],
+    };
+    const withTransport = {
+      id: 'fee-with-transport',
+      period: '2026-27 Term 2',
+      dueDate: '2026-09-23',
+      amount: 23800,
+      status: 'due' as const,
+      items: [
+        { l: 'Exam Fee', amt: 500 },
+        { l: 'Tuition Fee', amt: 6300 },
+        { l: 'Transport Fee', amt: 17000 },
+      ],
+    };
+    (useFees as jest.Mock).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isRefetching: false,
+      data: [noTransport, withTransport],
+      refetch: jest.fn(),
+    });
+    const { getByText } = renderScreen();
+
+    // noTransport has the earlier due date, so it becomes the hero — its item box shows
+    // per-line rows with no Transport Fee row.
+    expect(getByText('Exam Fee')).toBeTruthy();
+    expect(getByText('Tuition Fee')).toBeTruthy();
+    // withTransport surfaces in "Other pending fees" with its own, separate breakdown —
+    // including the Transport Fee that the hero invoice does not have.
+    expect(getByText('Exam Fee ₹500 · Tuition Fee ₹6,300 · Transport Fee ₹17,000')).toBeTruthy();
+  });
+
+  it('displays a total that equals the sum of the invoice lines, with no hard-coded fee amounts', () => {
+    // Amounts are only ever defined once, here, and summed at runtime — nothing in the
+    // component or this assertion hard-codes ₹500 / ₹6,300 / ₹17,000 / ₹23,800.
+    const lines = [
+      { l: 'Exam Fee', amt: 500 },
+      { l: 'Tuition Fee', amt: 6300 },
+      { l: 'Transport Fee', amt: 17000 },
+    ];
+    const total = lines.reduce((sum, it) => sum + it.amt, 0);
+    const invoice = {
+      id: 'fee-total',
+      period: '2026-27 Term 2',
+      dueDate: '2026-09-23',
+      amount: total,
+      status: 'due' as const,
+      items: lines,
+    };
+    (useFees as jest.Mock).mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isRefetching: false,
+      data: [dueFee, invoice],
+      refetch: jest.fn(),
+    });
+    const { getByText } = renderScreen();
+
+    const summary = lines.map((it) => `${it.l} ₹${it.amt.toLocaleString()}`).join(' · ');
+    expect(getByText(summary)).toBeTruthy();
+    expect(getByText(`₹${total.toLocaleString()}`)).toBeTruthy();
+  });
 });

@@ -82,15 +82,38 @@ describe('http mappers → domain', () => {
     });
   });
 
-  it('toFee maps due_date/paid_on/items', () => {
+  it('toFee maps due_date/paid_on/lines, using the Fee Head name verbatim', () => {
     const d: FeeInvoiceDTO = {
       id: 'f1', period: 'Jul', due_date: '2026-07-10', amount: 12000, status: 'paid',
-      items: [{ label: 'Tuition', amount: 12000 }], paid_on: '2026-07-01', method: 'UPI',
+      lines: [{ head_name: 'Tuition', amount: 12000 }], paid_on: '2026-07-01', method: 'UPI',
     };
     expect(toFee(d)).toEqual({
       id: 'f1', period: 'Jul', dueDate: '2026-07-10', amount: 12000, status: 'paid',
       items: [{ l: 'Tuition', amt: 12000 }], paidOn: '2026-07-01', method: 'UPI',
     });
+  });
+
+  it('toFee maps a multi-line invoice (tuition + transport) without inventing or dropping heads', () => {
+    const d: FeeInvoiceDTO = {
+      id: 'f2', period: '2026-27 Term 2', due_date: '2026-09-23', amount: 23800, status: 'due',
+      lines: [
+        { head_id: 'h-exam', head_name: 'Exam Fee', amount: 500 },
+        { head_id: 'h-tuition', head_name: 'Tuition Fee', amount: 6300 },
+        { head_id: 'h-transport', head_name: 'Transport Fee', amount: 17000 },
+      ],
+    };
+    expect(toFee(d).items).toEqual([
+      { l: 'Exam Fee', amt: 500 },
+      { l: 'Tuition Fee', amt: 6300 },
+      { l: 'Transport Fee', amt: 17000 },
+    ]);
+  });
+
+  it('toFee leaves items undefined for a manually created invoice with no lines', () => {
+    const d: FeeInvoiceDTO = {
+      id: 'f3', period: 'Manual adjustment', due_date: '2026-10-01', amount: 1000, status: 'due',
+    };
+    expect(toFee(d).items).toBeUndefined();
   });
 
   it('toAnnouncement maps date→when', () => {

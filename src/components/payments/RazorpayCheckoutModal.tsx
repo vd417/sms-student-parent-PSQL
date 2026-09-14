@@ -7,6 +7,8 @@ interface Props {
   order: RazorpayOrder;
   visible: boolean;
   schoolName: string;
+  /** What the fee is for, e.g. the invoice period/name — shown on Razorpay's checkout screen. */
+  description: string;
   onSuccess: (result: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string }) => void;
   onDismiss: () => void;
 }
@@ -16,7 +18,7 @@ function jsStringLiteral(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/</g, '\\x3C');
 }
 
-function checkoutHtml(order: RazorpayOrder, schoolName: string): string {
+function checkoutHtml(order: RazorpayOrder, schoolName: string, description: string): string {
   return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script></head>
   <body style="margin:0">
@@ -27,7 +29,7 @@ function checkoutHtml(order: RazorpayOrder, schoolName: string): string {
       currency: '${jsStringLiteral(order.currency)}',
       order_id: '${jsStringLiteral(order.orderId)}',
       name: '${jsStringLiteral(schoolName)}',
-      description: 'Fee payment',
+      description: '${jsStringLiteral(description)}',
       handler: function (response) {
         window.ReactNativeWebView.postMessage(JSON.stringify({
           type: 'success',
@@ -48,7 +50,7 @@ function checkoutHtml(order: RazorpayOrder, schoolName: string): string {
   </body></html>`;
 }
 
-export function RazorpayCheckoutModal({ order, visible, schoolName, onSuccess, onDismiss }: Props) {
+export function RazorpayCheckoutModal({ order, visible, schoolName, description, onSuccess, onDismiss }: Props) {
   const handleMessage = (event: WebViewMessageEvent) => {
     // The WebView also hosts Razorpay's own checkout.js plus any bank/3DS redirect
     // pages — third-party code that could post a non-JSON message. Ignore anything
@@ -75,7 +77,7 @@ export function RazorpayCheckoutModal({ order, visible, schoolName, onSuccess, o
       <SafeAreaView style={styles.safe}>
         <WebView
           originWhitelist={['*']}
-          source={{ html: checkoutHtml(order, schoolName) }}
+          source={{ html: checkoutHtml(order, schoolName, description) }}
           onMessage={handleMessage}
         />
       </SafeAreaView>

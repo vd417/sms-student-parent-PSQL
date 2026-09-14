@@ -10,13 +10,13 @@ describe('canonical DTO key contract', () => {
     expect(Object.keys(d)).toEqual(expect.arrayContaining(['admission_no', 'attendance_pct', 'class_label', 'overall_avg', 'rank_of']));
   });
 
-  it('FeeInvoiceDTO uses due_date / paid_on and item {label, amount}', () => {
+  it('FeeInvoiceDTO uses due_date / paid_on and per-Fee-Head lines {head_name, amount}', () => {
     const d: FeeInvoiceDTO = {
       id: 'f1', period: 'Jul 2026', due_date: '2026-07-10', amount: 12000,
-      status: 'due', items: [{ label: 'Tuition', amount: 10000 }],
+      status: 'due', lines: [{ head_name: 'Tuition', amount: 10000 }],
     };
     expect(d.due_date).toBe('2026-07-10');
-    expect(d.items?.[0].label).toBe('Tuition');
+    expect(d.lines?.[0].head_name).toBe('Tuition');
   });
 
   it('AnnouncementDTO uses date (not when) and has type', () => {

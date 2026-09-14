@@ -479,7 +479,20 @@ export const toChild = (d: ChildDTO | StudentDTO): Child => {
   };
 };
 
-export const toFee = (d: FeeInvoiceDTO): Fee => ({ id: d.id, period: d.period, dueDate: d.due_date, amount: d.amount, status: d.status, paidAmount: d.paid_amount, items: d.items?.map((i) => ({ l: i.label, amt: i.amount })), paidOn: d.paid_on, method: d.method });
+export const toFee = (d: FeeInvoiceDTO): Fee => ({
+  id: d.id,
+  period: d.period,
+  // Kept as the raw backend date (not display-formatted here) — the screen sorts
+  // outstanding invoices chronologically by this field before formatting it for display.
+  dueDate: d.due_date,
+  amount: d.amount,
+  status: d.status,
+  paidAmount: d.paid_amount,
+  // Fee Head name is the real, backend-persisted line label — never inferred from the amount.
+  items: d.lines?.map((ln) => ({ l: ln.head_name, amt: ln.amount })),
+  paidOn: d.paid_on,
+  method: d.method,
+});
 export const toPTM = (d: PTMMeetingDTO): PTMMeeting => ({ id: d.id, date: d.date, time: d.time, teacher: d.teacher, subj: d.subject, child: d.child, mode: d.mode, status: d.status });
 export const toTransport = (d: ChildBusPositionDTO): Transport => ({
   busNo: d.bus_no,

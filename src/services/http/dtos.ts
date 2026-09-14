@@ -184,8 +184,11 @@ export interface ChildDTO { id: string; name: string; initials: string; grade: s
 export interface ChildClassDTO { t: string; label: string; done: boolean; attn: 'present' | 'late' | null; }
 export interface ChildTodayDTO { classes: ChildClassDTO[]; meals: { breakfast: string; lunch: string }; pickup: string; }
 
-export interface FeeItemDTO { label: string; amount: number; }
-export interface FeeInvoiceDTO { id: string; period: string; due_date: string; amount: number; status: 'due' | 'partial' | 'paid'; paid_amount?: number; items?: FeeItemDTO[]; paid_on?: string; method?: string; }
+// The backend's real field is `lines` — a per-Fee-Head breakdown (e.g. "Transport Fee") that's
+// snapshotted at invoice-generation time — not `items`. A manually created invoice (flat amount,
+// no fee structure) has no lines: an empty/absent array here is real, not a bug.
+export interface FeeInvoiceLineDTO { head_id?: string | null; head_name: string; amount: number; description?: string | null; }
+export interface FeeInvoiceDTO { id: string; period: string; due_date: string; amount: number; status: 'due' | 'partial' | 'paid'; paid_amount?: number; lines?: FeeInvoiceLineDTO[]; paid_on?: string; method?: string; }
 export interface PTMMeetingDTO { id: string; date: string; time: string; teacher: string; subject: string; child: string; mode: string; status: 'confirmed' | 'pending'; }
 
 export interface ChildBusPositionDTO {
