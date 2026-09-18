@@ -1,4 +1,4 @@
-import { rangeForPreset } from '../attendanceRange';
+import { localDateLabel, monthDayKey, rangeForPreset } from '../attendanceRange';
 
 describe('rangeForPreset', () => {
   // 2024-01-01 is a Monday; 2024-01-10 is a Wednesday in the same month.
@@ -23,5 +23,12 @@ describe('rangeForPreset', () => {
   it('week preset spanning a Sunday still resolves to Monday-Sunday', () => {
     const sunday = new Date(2024, 0, 14);
     expect(rangeForPreset('week', sunday)).toEqual({ from: '2024-01-08', to: '2024-01-14' });
+  });
+});
+
+describe('monthDayKey', () => {
+  it('pads month and day for a calendar cell', () => {
+    expect(monthDayKey(2026, 8, 18)).toBe('2026-09-18');
+    expect(localDateLabel(new Date(2026, 8, 7))).toBe('2026-09-07');
   });
 });

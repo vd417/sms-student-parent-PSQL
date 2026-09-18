@@ -59,8 +59,8 @@ export function GradesScreen() {
   const schoolQ = useSchool();
   const summaryQ = useAttendanceSummary(studentId);
 
-  const isLoading = profileQ.isLoading || gradesQ.isLoading;
-  const isError = profileQ.isError || gradesQ.isError;
+  const isLoading = (profileQ.isLoading && profileQ.data === undefined) || (gradesQ.isLoading && gradesQ.data === undefined);
+  const isError = (profileQ.isError && profileQ.data === undefined) && (gradesQ.isError && gradesQ.data === undefined);
   const onRefresh = () => {
     profileQ.refetch();
     subjectsQ.refetch();

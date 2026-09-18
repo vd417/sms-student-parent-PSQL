@@ -2,8 +2,11 @@ import { hueForName, type SubjectHue } from '@/theme';
 import { SUBJECT_HUES } from '@/theme/derive';
 import { monogramFromName } from '@/components/ui/monogram';
 import { receiptStatusFromDto } from '@/lib/chatReceipt';
+import { trackingFromLegacy } from '@/lib/busTracking';
+import { deriveTodayAttendance } from '@/lib/todayAttendance';
+import { leaveDateKey } from '@/lib/leaveHistory';
 import type {
-  Achievement, Announcement, AttendanceDay, AttendanceFlag, ChatMessage, ChatThread,
+  Achievement, Announcement, AttendanceDay, AttendanceFlag, AttendanceKind, ChatMessage, ChatThread,
   Child, Exam, Fee, Grade, Homework, InboxNotice, LeaveRequest, Parent, Peer, PTMMeeting,
   Role, School, Session, Student, Subject, Teacher, TodayBlock, Transport,
 } from '@/models';
@@ -387,13 +390,35 @@ export const toGrade = (d: GradeDTO): Grade => {
 
 export const toAnnouncement = (d: AnnouncementDTO): Announcement => ({ id: d.id, from: d.from, role: d.role, when: d.date, title: d.title, body: d.body });
 export const toNotice = (d: NotificationDTO): Announcement => {
-  const chat = (d.tone ?? '').trim().toLowerCase() === 'chat';
+  const tone = (d.tone ?? '').trim().toLowerCase();
+  const title = (d.title ?? '').trim();
+  const chat = tone === 'chat';
+  const bus = tone === 'bus';
+  const fees = tone === 'fee' || tone === 'fees';
+  const attendance = /absent|attendance/i.test(`${title} ${d.body ?? ''}`);
   return {
     id: String(d.id),
-    from: chat ? (d.title ?? 'Chat') : 'School',
-    role: chat ? 'message' : 'notice',
-    when: (d.time ?? '').toString(),
-    title: chat ? `Message from ${d.title ?? 'teacher'}` : (d.title ?? 'Notice'),
+    from: chat
+      ? (d.title ?? 'Chat')
+      : bus
+        ? 'Transport'
+        : fees
+          ? 'Fees'
+          : attendance
+            ? 'Attendance'
+            : 'School',
+    role: chat
+      ? 'message'
+      : bus
+        ? 'bus'
+        : fees
+          ? 'fees'
+          : attendance
+            ? 'attendance'
+            : 'notice',
+    when: formatChatWhen(d.time),
+    unread: d.unread !== false,
+    title: chat ? `Message from ${d.title ?? 'teacher'}` : (title || 'Notice'),
     body: (d.body ?? '').trim(),
   };
 };
@@ -430,14 +455,55 @@ export function formatChatWhen(raw: string | null | undefined): string {
   if (!raw) return '';
   const s = String(raw).trim();
   if (!s) return '';
-  if (/^\d{1,2}:\d{2}(\s*[AP]M)?$/i.test(s) || /^now$/i.test(s)) return s;
-  const d = new Date(s);
+  if (/^now$/i.test(s) || /^just now$/i.test(s)) return s;
+  if (/^\d{1,2}:\d{2}(\s*[AP]M)?$/i.test(s)) return s;
+  const withSeconds = s.match(/^(\d{1,2}):(\d{2}):\d{2}$/);
+  if (withSeconds) {
+    const hours = Number(withSeconds[1]);
+    const minutes = Number(withSeconds[2]);
+    const d = new Date();
+    d.setHours(hours, minutes, 0, 0);
+    return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+  // .NET often emits UTC without Z; treat that as UTC (same as teacher-app parseApiInstant).
+  const d =
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)
+      ? new Date(`${s}Z`)
+      : new Date(s);
   if (Number.isNaN(d.getTime())) return s;
   const sameDay = d.toDateString() === new Date().toDateString();
   const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
   if (sameDay) return time;
   const date = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   return `${date}, ${time}`;
+}
+
+/** Newest-first sort key for notice/announcement timestamps. */
+export function noticeSortMs(raw: string | null | undefined): number {
+  const s = (raw ?? '').trim();
+  if (!s) return 0;
+  if (/^(now|just now)$/i.test(s)) return Date.now();
+  const clock = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*([AP]M))?$/i);
+  if (clock) {
+    let hours = Number(clock[1]);
+    const minutes = Number(clock[2]);
+    const seconds = Number(clock[3] ?? 0);
+    const ampm = clock[4];
+    if (ampm) {
+      const up = ampm.toUpperCase();
+      if (up === 'PM' && hours < 12) hours += 12;
+      if (up === 'AM' && hours === 12) hours = 0;
+    }
+    const d = new Date();
+    d.setHours(hours, minutes, seconds, 0);
+    return d.getTime();
+  }
+  const parsed =
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)
+      ? new Date(`${s}Z`)
+      : new Date(s);
+  const ms = parsed.getTime();
+  return Number.isNaN(ms) ? 0 : ms;
 }
 
 function feeLabelFromStudent(d: StudentDTO): string {
@@ -494,16 +560,65 @@ export const toFee = (d: FeeInvoiceDTO): Fee => ({
   method: d.method,
 });
 export const toPTM = (d: PTMMeetingDTO): PTMMeeting => ({ id: d.id, date: d.date, time: d.time, teacher: d.teacher, subj: d.subject, child: d.child, mode: d.mode, status: d.status });
-export const toTransport = (d: ChildBusPositionDTO): Transport => ({
-  busNo: d.bus_no,
-  routeName: d.route_name,
-  status: d.status,
-  lat: d.lat,
-  lng: d.lng,
-  speedKmh: d.speed_kmh,
-  nextStopName: d.next_stop_name,
-  lastPingAt: d.last_ping_at,
-});
+export const toTransport = (d: ChildBusPositionDTO): Transport => {
+  const status = d.status;
+  const tracking = d.tracking_status ?? trackingFromLegacy(status);
+  const assignment = d.assignment ?? (d.bus_id ? 'assigned' : 'none');
+  return {
+    studentId: d.student_id,
+    studentName: d.student_name ?? '',
+    grade: d.grade ?? null,
+    section: d.section ?? null,
+    busId: d.bus_id ?? null,
+    busNo: d.bus_no ?? '',
+    routeName: d.route_name,
+    status,
+    trackingStatus: tracking,
+    motion: d.motion ?? (status === 'at_stop' ? 'stopped' : status === 'on_route' ? 'moving' : null),
+    assignment,
+    driver: d.driver ?? null,
+    driverPhone: d.driver_phone ?? null,
+    boardingState: d.boarding_state ?? null,
+    etaNextStopMin: tracking === 'LIVE' ? (d.eta_next_stop_min ?? null) : null,
+    currentStopIndex: d.current_stop_index ?? null,
+    currentStopName: d.current_stop_name ?? null,
+    passedStopCount: d.passed_stop_count ?? null,
+    totalStops: d.total_stops ?? null,
+    lat: d.lat,
+    lng: d.lng,
+    speedKmh: d.speed_kmh,
+    nextStopName: d.next_stop_name,
+    lastPingAt: d.last_ping_at,
+    studentStopId: d.student_stop_id ?? null,
+    studentStopName: d.student_stop_name ?? null,
+    studentStopLat: d.student_stop_lat ?? null,
+    studentStopLng: d.student_stop_lng ?? null,
+    distanceToStudentStopM: d.distance_to_student_stop_m ?? null,
+    routeStops: (d.route_stops ?? []).map((s) => ({
+      id: String(s.id),
+      name: (s.name ?? '').trim() || 'Stop',
+      seq: Number(s.seq) || 0,
+      lat: s.lat ?? null,
+      lng: s.lng ?? null,
+    })),
+  };
+};
+
+function kindFromDailyStatus(status: string): AttendanceKind {
+  const s = status.trim().toLowerCase();
+  if (s === 'late' || s === 'l') return 'late';
+  if (s === 'absent' || s === 'a') return 'absent';
+  if (s === 'leave' || s === 'v' || s === 'off') return 'off';
+  return 'present';
+}
+
+function kindFromDayStatus(status: ReturnType<typeof deriveTodayAttendance>): AttendanceKind | null {
+  if (status === 'absent') return 'absent';
+  if (status === 'late') return 'late';
+  if (status === 'leave') return 'off';
+  if (status === 'present') return 'present';
+  return null;
+}
 
 export const toAttendanceMonth = (d: AttendanceMonthDTO): { days: AttendanceDay[]; flags: AttendanceFlag[] } => ({
   days: d.days.map((x) => ({ d: x.d, kind: x.kind })),
@@ -514,30 +629,45 @@ export function toAttendanceFromRecords(rows: AttendanceRecordDTO[] | null | und
   days: AttendanceDay[];
   flags: AttendanceFlag[];
 } {
-  const lastByDate = new Map<string, AttendanceRecordDTO>();
-  for (const row of rows ?? []) {
+  return mergeAttendanceCalendar(rows, []);
+}
+
+/** Period marks win a calendar day; daily roll fills days with no period history. */
+export function mergeAttendanceCalendar(
+  dailyRows: AttendanceRecordDTO[] | null | undefined,
+  periodRows: AttendanceRecordDTO[] | null | undefined,
+): { days: AttendanceDay[]; flags: AttendanceFlag[] } {
+  const lastDaily = new Map<string, AttendanceRecordDTO>();
+  for (const row of dailyRows ?? []) {
     const date = typeof row.date === 'string' ? row.date.slice(0, 10) : '';
-    if (date) lastByDate.set(date, row);
+    if (date) lastDaily.set(date, row);
+  }
+  const periodStatusByDate = new Map<string, string[]>();
+  const periodFlagByDate = new Map<string, AttendanceRecordDTO>();
+  for (const row of periodRows ?? []) {
+    const date = typeof row.date === 'string' ? row.date.slice(0, 10) : '';
+    if (!date) continue;
+    const list = periodStatusByDate.get(date) ?? [];
+    list.push(row.status ?? '');
+    periodStatusByDate.set(date, list);
+    periodFlagByDate.set(date, row);
   }
 
+  const dates = new Set([...lastDaily.keys(), ...periodStatusByDate.keys()]);
   const days: AttendanceDay[] = [];
   const flags: AttendanceFlag[] = [];
-  for (const [date, row] of lastByDate) {
+  for (const date of dates) {
     const day = Number(date.slice(8, 10));
-    const status = (row.status ?? '').toLowerCase();
-    const kind: AttendanceDay['kind'] =
-      status === 'late'
-        ? 'late'
-        : status === 'absent'
-          ? 'absent'
-          : status === 'leave' || status === 'v' || status === 'off'
-            ? 'off'
-            : 'present';
     if (!Number.isFinite(day) || day < 1) continue;
+    const fromPeriods = kindFromDayStatus(deriveTodayAttendance(periodStatusByDate.get(date) ?? []));
+    const daily = lastDaily.get(date);
+    const kind = fromPeriods ?? (daily ? kindFromDailyStatus(daily.status ?? '') : null);
+    if (!kind) continue;
     days.push({ d: day, kind });
     if (kind === 'absent' || kind === 'late') {
+      const row = periodFlagByDate.get(date) ?? daily;
       flags.push({
-        id: row.id,
+        id: row?.id ?? date,
         tone: kind,
         date,
         reason: kind === 'late' ? 'Late' : 'Absent',
@@ -545,6 +675,44 @@ export function toAttendanceFromRecords(rows: AttendanceRecordDTO[] | null | und
       });
     }
   }
+  days.sort((a, b) => a.d - b.d);
+  flags.sort((a, b) => a.date.localeCompare(b.date));
   return { days, flags };
 }
-export const toLeaveRequest = (d: LeaveRequestDTO): LeaveRequest => ({ id: d.id, childId: d.child_id, from: d.from_date, to: d.to_date, reason: d.reason, note: d.note, status: d.status });
+
+/** Fill every calendar cell so history sits on the correct date, not a packed list. */
+export function attendanceMonthCells(
+  year: number,
+  monthIndex: number,
+  recorded: AttendanceDay[],
+): AttendanceDay[] {
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const byDay = new Map(recorded.map((x) => [x.d, x.kind]));
+  return Array.from({ length: daysInMonth }, (_, i) => {
+    const d = i + 1;
+    return { d, kind: byDay.get(d) ?? 'future' };
+  });
+}
+export function parseLeaveAttachmentUrls(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === 'string' && x.length > 0);
+  if (typeof raw !== 'string' || !raw.trim()) return [];
+  try {
+    return parseLeaveAttachmentUrls(JSON.parse(raw) as unknown);
+  } catch {
+    return raw.startsWith('data:image/') || raw.startsWith('http') ? [raw] : [];
+  }
+}
+
+export const toLeaveRequest = (d: LeaveRequestDTO): LeaveRequest => {
+  const attachmentUrls = parseLeaveAttachmentUrls(d.attachment_urls);
+  return {
+    id: d.id,
+    childId: d.child_id ?? '',
+    from: leaveDateKey(d.from_date),
+    to: leaveDateKey(d.to_date),
+    reason: d.reason ?? '',
+    note: d.note || d.decided_note || '',
+    status: (d.status ?? 'pending').toLowerCase() as LeaveRequest['status'],
+    ...(attachmentUrls.length ? { attachmentUrls } : {}),
+  };
+};

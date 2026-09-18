@@ -14,6 +14,7 @@ import {
   Pill,
   SchoolBadge,
   SectionHeader,
+  LastUpdated,
 } from '@/components/ui';
 import { SubjectCard } from '@/components/cards/SubjectCard';
 import { HomeworkCard } from '@/components/cards/HomeworkCard';
@@ -45,6 +46,8 @@ import {
 import { formatHomeAttn, formatHomeRank, formatReportOrHomeAvg } from '@/lib/homeStats';
 import { buildReportFromGrades } from '@/lib/reportCardBuild';
 import { gradesForSubject, normalizeSubjectName } from '@/lib/belongsToSubject';
+import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
+import { goToLatestNotice, unreadNoticeCount } from '@/lib/noticeRoute';
 
 type Nav = BottomTabNavigationProp<TabParamList, 'Home'> & {
   navigate: NativeStackNavigationProp<RootStackParamList>['navigate'];
@@ -66,29 +69,29 @@ export function HomeScreen() {
     useCallback(() => {
       void todayQ.refetch();
       void annQ.refetch();
-    }, [todayQ.refetch, annQ.refetch]),
+      void noticesQ.refetch();
+    }, [todayQ.refetch, annQ.refetch, noticesQ.refetch]),
   );
 
-  const isLoading = profileQ.isLoading || todayQ.isLoading;
-  const isError = profileQ.isError || todayQ.isError;
   const onRefresh = () => {
     profileQ.refetch();
     todayQ.refetch();
     homeworkQ.refetch();
     subjectsQ.refetch();
     annQ.refetch();
+    noticesQ.refetch();
     todayAttnQ.refetch();
     gradesQ.refetch();
   };
 
-  if (isLoading) {
+  if (isInitialLoad(profileQ)) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <Loading />
       </SafeAreaView>
     );
   }
-  if (isError) {
+  if (isBlockingError(profileQ)) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ErrorState onRetry={onRefresh} />
@@ -124,19 +127,8 @@ export function HomeScreen() {
   const overallLabel = formatReportOrHomeAvg(report, student.overallAvg);
   const attnChip = dailyAttendanceChip(todayAttnQ.data ?? null);
   const notices = noticesQ.data ?? [];
-  const hasUnreadNotice = notices.some((n) => n.unread);
-  const latestUnread = notices.find((n) => n.unread);
-  const onBellPress = () => {
-    const tone = (latestUnread?.tone ?? '').trim().toLowerCase();
-    const text = `${latestUnread?.title ?? ''} ${latestUnread?.body ?? ''}`.toLowerCase();
-    if (tone === 'chat') {
-      nav.navigate('Main', { screen: 'Inbox' });
-    } else if (tone.includes('homework') || text.includes('homework')) {
-      nav.navigate('Main', { screen: 'Homework' });
-    } else {
-      nav.navigate('Announcements');
-    }
-  };
+  const unreadNotices = unreadNoticeCount(notices);
+  const onBellPress = () => goToLatestNotice(nav, notices, 'student');
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -145,6 +137,7 @@ export function HomeScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={profileQ.isRefetching} onRefresh={onRefresh} />}
       >
+        <LastUpdated at={profileQ.dataUpdatedAt} />
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <SchoolBadge logoOnly />
@@ -161,7 +154,7 @@ export function HomeScreen() {
               </Text>
             </View>
           </View>
-          <IconButton icon="notifications-outline" badge={hasUnreadNotice} onPress={onBellPress} />
+          <IconButton icon="notifications-outline" badge={unreadNotices} onPress={onBellPress} />
         </View>
 
         <Pressable
@@ -226,6 +219,20 @@ export function HomeScreen() {
             hue="amber"
           />
         </View>
+
+        <Pressable
+          onPress={() => nav.navigate('Transport')}
+          style={({ pressed }) => [styles.busTrack, pressed && { opacity: 0.88 }]}
+        >
+          <View style={styles.busTrackIcon}>
+            <Ionicons name="bus" size={20} color={hueColor('pink')} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.busTrackTitle}>Bus track</Text>
+            <Text style={styles.busTrackMeta}>Live location of your bus</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.inkMuted} />
+        </Pressable>
 
         <View style={{ marginTop: 20 }}>
           <SectionHeader
@@ -413,6 +420,26 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statsRow: { flexDirection: 'row', gap: 8, marginTop: 16, alignItems: 'stretch' },
+  busTrack: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: hueColor('pink', 'tint'),
+    borderRadius: radius.lg,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  busTrackIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  busTrackTitle: { fontFamily: fontFamily.extraBold, fontSize: 14, color: colors.ink },
+  busTrackMeta: { fontFamily: fontFamily.medium, fontSize: 12, color: colors.inkMuted, marginTop: 2 },
   tile: {
     flex: 1,
     minWidth: 0,

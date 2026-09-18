@@ -21,6 +21,14 @@ export function deriveTodayAttendance(statuses: readonly unknown[]): DailyAttend
   return 'leave';
 }
 
+/** Period marks win the Home chip; daily roll is only the fallback when nothing is marked. */
+export function resolveTodayAttendance(
+  periodStatuses: readonly unknown[],
+  dailyRoll: DailyAttendanceStatus,
+): DailyAttendanceStatus {
+  return deriveTodayAttendance(periodStatuses) ?? dailyRoll;
+}
+
 /** Official % = (present + late) / marked periods. */
 export function attendancePctFromStatuses(statuses: readonly unknown[]): number | null {
   let present = 0;

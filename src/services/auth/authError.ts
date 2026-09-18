@@ -5,7 +5,7 @@ export function mapAuthError(err: unknown): string {
     if (err.code === 'no_delivery_channel') {
       return 'No email or phone on file. Contact your school.';
     }
-    if (err.status === 0 || /network|timed out/i.test(err.message)) {
+    if (err.status === 0 || err.kind === 'NETWORK_OFFLINE' || /network|timed out/i.test(err.message)) {
       return 'Cannot reach the server. Check that the API is running.';
     }
     if (err.status === 404) return 'No account found. Contact your school.';

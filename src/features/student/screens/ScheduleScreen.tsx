@@ -48,8 +48,8 @@ export function ScheduleScreen() {
     }, [timetableQ.refetch]),
   );
 
-  const isLoading = timetableQ.isLoading;
-  const isError = timetableQ.isError;
+  const isLoading = timetableQ.isLoading && timetableQ.data === undefined;
+  const isError = timetableQ.isError && timetableQ.data === undefined;
   const onRefresh = () => {
     timetableQ.refetch();
     subjectsQ.refetch();

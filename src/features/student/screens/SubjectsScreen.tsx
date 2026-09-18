@@ -33,7 +33,7 @@ export function SubjectsScreen() {
     }, [subjectsQ.refetch]),
   );
 
-  if (subjectsQ.isLoading) {
+  if (subjectsQ.isLoading && subjectsQ.data === undefined) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScreenHeader
@@ -53,7 +53,7 @@ export function SubjectsScreen() {
       </SafeAreaView>
     );
   }
-  if (subjectsQ.isError) {
+  if (subjectsQ.isError && subjectsQ.data === undefined) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScreenHeader kicker={classLabel || undefined} title="My subjects" />

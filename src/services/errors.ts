@@ -5,15 +5,40 @@ export class NotImplementedError extends Error {
   }
 }
 
+export type ErrorKind =
+  | 'NETWORK_OFFLINE'
+  | 'NETWORK_TIMEOUT'
+  | 'DNS_FAILURE'
+  | 'CONNECTION_ERROR'
+  | 'SERVER_ERROR'
+  | 'RATE_LIMITED'
+  | 'AUTH_EXPIRED'
+  | 'FORBIDDEN'
+  | 'VALIDATION_ERROR'
+  | 'NOT_FOUND'
+  | 'UNKNOWN_ERROR';
+
+export function kindFromHttpStatus(status: number): ErrorKind {
+  if (status === 401) return 'AUTH_EXPIRED';
+  if (status === 403) return 'FORBIDDEN';
+  if (status === 404) return 'NOT_FOUND';
+  if (status === 429) return 'RATE_LIMITED';
+  if (status >= 500) return 'SERVER_ERROR';
+  if (status >= 400) return 'VALIDATION_ERROR';
+  return 'UNKNOWN_ERROR';
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
     public status?: number,
     public body?: unknown,
     public code?: string,
+    public kind?: ErrorKind,
   ) {
     super(message);
     this.name = 'ApiError';
+    this.kind = kind ?? (status && status > 0 ? kindFromHttpStatus(status) : kind);
   }
 }
 
@@ -50,5 +75,5 @@ function readErrorMessage(rawBody: unknown): string | undefined {
  */
 export function normalizeError(status: number, rawBody: unknown): ApiError {
   const message = readErrorMessage(rawBody) ?? `Request failed (${status})`;
-  return new ApiError(message, status, rawBody, readErrorCode(rawBody));
+  return new ApiError(message, status, rawBody, readErrorCode(rawBody), kindFromHttpStatus(status));
 }

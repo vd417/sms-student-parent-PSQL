@@ -36,8 +36,8 @@ export function HomeworkListScreen() {
   const homeworkQ = useHomework();
   const subjectsQ = useSubjects();
 
-  const isLoading = homeworkQ.isLoading;
-  const isError = homeworkQ.isError;
+  const isLoading = homeworkQ.isLoading && homeworkQ.data === undefined;
+  const isError = homeworkQ.isError && homeworkQ.data === undefined;
   const onRefresh = () => {
     homeworkQ.refetch();
     subjectsQ.refetch();

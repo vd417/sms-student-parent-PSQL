@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
   PlusJakartaSans_400Regular,
@@ -13,11 +13,13 @@ import {
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { QueryProvider } from '@/providers/QueryProvider';
+import { NetworkProvider } from '@/providers/NetworkProvider';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { LiveProvider } from '@/providers/LiveProvider';
 import { BrandProvider } from '@/providers/BrandProvider';
 import { ChildProvider } from '@/providers/ChildProvider';
 import { ToastProvider } from '@/providers/ToastProvider';
+import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { colors } from '@/theme';
 
 const isWeb = Platform.OS === 'web';
@@ -41,20 +43,24 @@ export default function App() {
 
   const inner = (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <StatusBar style="auto" />
         <QueryProvider>
-          <AuthProvider>
-            <LiveProvider>
-              <BrandProvider>
-                <ChildProvider>
-                  <ToastProvider>
-                    <RootNavigator />
-                  </ToastProvider>
-                </ChildProvider>
-              </BrandProvider>
-            </LiveProvider>
-          </AuthProvider>
+          <NetworkProvider>
+            <AuthProvider>
+              <LiveProvider>
+                <BrandProvider>
+                  <ChildProvider>
+                    <ToastProvider>
+                      <AppErrorBoundary>
+                        <RootNavigator />
+                      </AppErrorBoundary>
+                    </ToastProvider>
+                  </ChildProvider>
+                </BrandProvider>
+              </LiveProvider>
+            </AuthProvider>
+          </NetworkProvider>
         </QueryProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

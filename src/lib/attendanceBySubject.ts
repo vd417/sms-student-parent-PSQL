@@ -88,6 +88,13 @@ function slotMatchesRow(row: PeriodAttendanceEntry, slot: TimetableSlotRef): boo
   return wantName.length > 0 && normalizeSubjectName(row.subject) === wantName;
 }
 
+export function periodsForDate(rows: PeriodAttendanceEntry[], date: string): PeriodAttendanceEntry[] {
+  const key = date.slice(0, 10);
+  return rows
+    .filter((r) => r.date.slice(0, 10) === key)
+    .sort((a, b) => a.period - b.period);
+}
+
 /** Today's period mark for a timetable block, or null if unmarked / not a class. */
 export function statusForTimetableSlot(
   rows: PeriodAttendanceEntry[],

@@ -1,6 +1,7 @@
 import {
   attendanceBySubject,
   isAbsentStatus,
+  periodsForDate,
   statusForTimetableSlot,
 } from '../attendanceBySubject';
 import type { PeriodAttendanceEntry } from '@/models';
@@ -67,5 +68,20 @@ describe('statusForTimetableSlot', () => {
     expect(isAbsentStatus('absent')).toBe(true);
     expect(isAbsentStatus('present')).toBe(false);
     expect(isAbsentStatus(null)).toBe(false);
+  });
+});
+
+describe('periodsForDate', () => {
+  const rows: PeriodAttendanceEntry[] = [
+    { id: '2', date: '2026-09-18', period: 3, subject: 'Physics', status: 'absent' },
+    { id: '1', date: '2026-09-18T00:00:00', period: 1, subject: 'Maths', status: 'present' },
+    { id: '3', date: '2026-09-17', period: 1, subject: 'English', status: 'present' },
+  ];
+
+  it('returns that day’s periods in order, ignoring other dates', () => {
+    expect(periodsForDate(rows, '2026-09-18').map((r) => `${r.period}:${r.subject}`)).toEqual([
+      '1:Maths',
+      '3:Physics',
+    ]);
   });
 });

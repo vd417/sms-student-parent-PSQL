@@ -9,6 +9,8 @@ import {
   toChatMessage,
   toChatThread,
   toAttendanceFromRecords,
+  mergeAttendanceCalendar,
+  attendanceMonthCells,
   toTimetableBlock,
   compareTimetableBlocks,
   parseHm,
@@ -21,8 +23,11 @@ import {
   toTeacher,
   appRoleFromMe,
   rolesFromAccessToken,
+  toTransport,
+  formatChatWhen,
+  noticeSortMs,
 } from '@/services/http/mappers';
-import type { StudentDTO, FeeInvoiceDTO, AnnouncementDTO, NotificationDTO, SessionDTO, ExamPaperDTO, LeaveRequestDTO, ChatMessageDTO, SessionUserDTO, TeacherDTO } from '@/services/http/dtos';
+import type { StudentDTO, FeeInvoiceDTO, AnnouncementDTO, NotificationDTO, SessionDTO, ExamPaperDTO, LeaveRequestDTO, ChatMessageDTO, SessionUserDTO, TeacherDTO, ChildBusPositionDTO } from '@/services/http/dtos';
 
 describe('http mappers → domain', () => {
   it('toTeacher maps the role field', () => {
@@ -155,6 +160,7 @@ describe('http mappers → domain', () => {
       when: 'Just now',
       title: 'Timetable updated',
       body: '1 class · 30 periods with bell times — open Schedule to refresh.',
+      unread: true,
     });
   });
 
@@ -172,9 +178,132 @@ describe('http mappers → domain', () => {
       id: 'c1',
       from: 'Amit Yadav',
       role: 'message',
-      when: '10:15:00',
+      when: formatChatWhen('10:15:00'),
       title: 'Message from Amit Yadav',
       body: 'Please bring the notebook',
+      unread: true,
+    });
+  });
+
+  it('toNotice maps bus alerts as transport notices', () => {
+    expect(
+      toNotice({
+        id: 'b1',
+        title: 'Bus started',
+        body: 'Bus #12 has started today\'s trip for Rahul.',
+        tone: 'bus',
+        time: '07:40:00',
+        unread: true,
+      }),
+    ).toEqual({
+      id: 'b1',
+      from: 'Transport',
+      role: 'bus',
+      when: formatChatWhen('07:40:00'),
+      title: 'Bus started',
+      body: 'Bus #12 has started today\'s trip for Rahul.',
+      unread: true,
+    });
+  });
+
+  it('toNotice maps fee alerts onto the notices feed', () => {
+    expect(
+      toNotice({
+        id: 'f1',
+        title: 'Fee due',
+        body: 'Term 4 is due 5 May.',
+        tone: 'fees',
+        time: '09:00:00',
+        unread: true,
+      }),
+    ).toMatchObject({ from: 'Fees', role: 'fees', title: 'Fee due' });
+  });
+
+  it('toNotice maps absent alerts as attendance notices', () => {
+    expect(
+      toNotice({
+        id: 'a1',
+        title: 'Rahul Sharma marked absent',
+        body: 'Physics · period 3 · 2026-09-18',
+        tone: 'warn',
+        time: 'Just now',
+        unread: true,
+      }),
+    ).toMatchObject({
+      from: 'Attendance',
+      role: 'attendance',
+      title: 'Rahul Sharma marked absent',
+    });
+  });
+
+  it('formats HH:mm:ss notice times without seconds', () => {
+    expect(formatChatWhen('23:28:21')).not.toBe('23:28:21');
+    expect(formatChatWhen('23:28:21')).not.toMatch(/:\d{2}:\d{2}/);
+    expect(noticeSortMs('23:28:21')).toBeGreaterThan(noticeSortMs('09:00:00'));
+  });
+
+  it('toTransport maps the assigned student stop and route stops', () => {
+    const d: ChildBusPositionDTO = {
+      student_id: 'sis-1',
+      student_name: 'Rahul',
+      admission_no: 'A1',
+      bus_id: 'bus-1',
+      bus_no: '12',
+      route_name: 'Route 7',
+      status: 'on_route',
+      lat: 28.45,
+      lng: 77.02,
+      speed_kmh: 20,
+      next_stop_name: 'Oak Gate',
+      last_ping_at: '2026-09-18T02:00:00Z',
+      student_stop_id: 'stop-2',
+      student_stop_name: 'Maple & 4th',
+      student_stop_lat: 28.46,
+      student_stop_lng: 77.03,
+      distance_to_student_stop_m: 900,
+      route_stops: [
+        { id: 'stop-1', name: 'Oak Gate', seq: 1, lat: 28.44, lng: 77.01 },
+        { id: 'stop-2', name: 'Maple & 4th', seq: 2, lat: 28.46, lng: 77.03 },
+      ],
+    };
+    expect(toTransport(d)).toMatchObject({
+      studentId: 'sis-1',
+      busNo: '12',
+      trackingStatus: 'LIVE',
+      assignment: 'assigned',
+      studentStopId: 'stop-2',
+      studentStopName: 'Maple & 4th',
+      distanceToStudentStopM: 900,
+      routeStops: [
+        { id: 'stop-1', name: 'Oak Gate', seq: 1 },
+        { id: 'stop-2', name: 'Maple & 4th', seq: 2 },
+      ],
+    });
+  });
+
+  it('toTransport maps an unassigned child without inventing a bus', () => {
+    const d: ChildBusPositionDTO = {
+      student_id: 'sis-2',
+      student_name: 'Ananya',
+      admission_no: 'A2',
+      bus_id: null,
+      bus_no: null,
+      route_name: null,
+      status: 'idle',
+      tracking_status: 'OFFLINE',
+      assignment: 'none',
+      lat: null,
+      lng: null,
+      speed_kmh: null,
+      next_stop_name: null,
+      last_ping_at: null,
+    };
+    expect(toTransport(d)).toMatchObject({
+      studentId: 'sis-2',
+      busId: null,
+      busNo: '',
+      assignment: 'none',
+      trackingStatus: 'OFFLINE',
     });
   });
 
@@ -321,9 +450,55 @@ describe('http mappers → domain', () => {
     expect(toLeaveRequest(d)).toEqual({ id: 'l1', childId: 'c1', from: '2026-07-01', to: '2026-07-02', reason: 'Trip', note: 'n', status: 'pending' });
   });
 
+  it('toLeaveRequest slices ISO DateTime leave dates from the API', () => {
+    const d: LeaveRequestDTO = {
+      id: 'l1',
+      child_id: 'c1',
+      from_date: '2026-07-01T00:00:00',
+      to_date: '2026-07-02T00:00:00Z',
+      reason: 'Medical',
+      status: 'Approved',
+    };
+    expect(toLeaveRequest(d)).toMatchObject({
+      from: '2026-07-01',
+      to: '2026-07-02',
+      status: 'approved',
+      note: '',
+    });
+  });
+
+  it('toLeaveRequest parses attachment_urls JSON from the API', () => {
+    const d: LeaveRequestDTO = {
+      id: 'l1',
+      child_id: 'c1',
+      from_date: '2026-07-01',
+      to_date: '2026-07-02',
+      reason: 'Medical',
+      note: '',
+      status: 'pending',
+      attachment_urls: '["data:image/jpeg;base64,abc"]',
+    };
+    expect(toLeaveRequest(d).attachmentUrls).toEqual(['data:image/jpeg;base64,abc']);
+  });
+
   it('toChatMessage maps is_mine→from and sent_at→time', () => {
     const d: ChatMessageDTO = { id: 'm1', thread_id: 't1', sender_id: 'u1', text: 'hi', sent_at: '10:00', is_mine: true };
     expect(toChatMessage(d)).toEqual({ id: 'm1', threadId: 't1', from: 'me', text: 'hi', time: '10:00', status: 'sent' });
+  });
+
+  it('toChatMessage treats naive ISO sent_at as UTC (not local wall time)', () => {
+    const d: ChatMessageDTO = {
+      id: 'm1',
+      thread_id: 't1',
+      text: 'hi',
+      sent_at: '2026-09-18T04:30:00',
+      is_mine: true,
+    };
+    const expected = new Date('2026-09-18T04:30:00Z').toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    expect(toChatMessage(d).time).toBe(expected);
   });
 
   it('toChatMessage maps double-blue-tick read receipts on outgoing messages', () => {
@@ -400,6 +575,44 @@ describe('http mappers → domain', () => {
         action: '',
       }],
     });
+  });
+
+  it('merges period absents onto the calendar even when the daily roll is present', () => {
+    expect(
+      mergeAttendanceCalendar(
+        [{ id: 'd1', date: '2026-09-18', status: 'present' }],
+        [
+          { id: 'p1', date: '2026-09-18', period: 1, status: 'present' },
+          { id: 'p2', date: '2026-09-18', period: 2, status: 'absent' },
+        ],
+      ),
+    ).toEqual({
+      days: [{ d: 18, kind: 'absent' }],
+      flags: [{
+        id: 'p2',
+        tone: 'absent',
+        date: '2026-09-18',
+        reason: 'Absent',
+        action: '',
+      }],
+    });
+  });
+
+  it('uses period-only history when the daily roll is empty', () => {
+    expect(
+      mergeAttendanceCalendar([], [
+        { id: 'p1', date: '2026-09-03', period: 1, status: 'present' },
+        { id: 'p2', date: '2026-09-03', period: 2, status: 'late' },
+      ]).days,
+    ).toEqual([{ d: 3, kind: 'late' }]);
+  });
+
+  it('fills every day of the month so history sits on the real date', () => {
+    const cells = attendanceMonthCells(2026, 8, [{ d: 18, kind: 'absent' }]);
+    expect(cells).toHaveLength(30);
+    expect(cells[0]).toEqual({ d: 1, kind: 'future' });
+    expect(cells[17]).toEqual({ d: 18, kind: 'absent' });
+    expect(cells[29]).toEqual({ d: 30, kind: 'future' });
   });
 
   it('toChild maps a live StudentResponse (IV-B class_label + attendance_pct)', () => {

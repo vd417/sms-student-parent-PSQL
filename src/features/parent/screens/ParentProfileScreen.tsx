@@ -22,8 +22,8 @@ export function ParentProfileScreen() {
   const profileQ = useParentProfile();
   const childrenQ = useChildren();
 
-  const isLoading = profileQ.isLoading || childrenQ.isLoading;
-  const isError = profileQ.isError || childrenQ.isError;
+  const isLoading = (profileQ.isLoading && profileQ.data === undefined) || (childrenQ.isLoading && childrenQ.data === undefined);
+  const isError = profileQ.isError && profileQ.data === undefined;
   const onRefresh = () => {
     profileQ.refetch();
     childrenQ.refetch();

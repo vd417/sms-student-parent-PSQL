@@ -13,10 +13,11 @@ const extra = (Constants.expoConfig?.extra ?? {}) as {
 // services/index.ts. Defaults to live HTTP; mock is opt-in for offline dev.
 export const DATA_SOURCE: DataSource = extra.dataSource ?? 'http';
 
-// Base URL carries the API version (ends in /v1). Per-environment values come
-// from EAS env at build time; the app.json value is the dev default. Replace
-// the placeholder host with the real backend origin before running against live.
-export const API_BASE_URL: string = extra.apiBaseUrl ?? '';
+// Base URL carries the API version (ends in /v1). Preview APKs read
+// EXPO_PUBLIC_API_BASE_URL from eas.json (PC Wi-Fi IP). Local web/dev keep
+// app.json (localhost). A phone cannot reach localhost on this machine.
+export const API_BASE_URL: string =
+  process.env.EXPO_PUBLIC_API_BASE_URL || extra.apiBaseUrl || '';
 
 // Web build of the transport map uses the Google Static Maps API; native uses react-native-maps
 // (Android reads the same key from app.json's android.config.googleMaps.apiKey).

@@ -138,6 +138,8 @@ export interface PTMService {
 }
 
 export interface TransportService {
+  /** Every linked child. Server-scoped — never accepts a student id. */
+  list(): Promise<Transport[]>;
   /** Null when the backend has no transport detail for this child yet (no live endpoint). */
   forChild(childId: string): Promise<Transport | null>;
 }

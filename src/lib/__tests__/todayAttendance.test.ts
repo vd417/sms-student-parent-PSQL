@@ -1,6 +1,7 @@
 import {
   attendancePctFromStatuses,
   deriveTodayAttendance,
+  resolveTodayAttendance,
 } from '../todayAttendance';
 
 describe('deriveTodayAttendance', () => {
@@ -20,6 +21,21 @@ describe('deriveTodayAttendance', () => {
   it('is leave only when every marked period is leave', () => {
     expect(deriveTodayAttendance(['leave', 'leave'])).toBe('leave');
     expect(deriveTodayAttendance(['leave', 'present'])).toBe('present');
+  });
+});
+
+describe('resolveTodayAttendance', () => {
+  it('shows absent on Home when any class period is absent, even if the daily roll is present', () => {
+    expect(resolveTodayAttendance(['present', 'absent'], 'present')).toBe('absent');
+  });
+
+  it('shows present when period marks are all present after a correction', () => {
+    expect(resolveTodayAttendance(['present', 'present'], 'absent')).toBe('present');
+  });
+
+  it('uses the daily roll only when no period is marked', () => {
+    expect(resolveTodayAttendance([null, ''], 'present')).toBe('present');
+    expect(resolveTodayAttendance([], null)).toBeNull();
   });
 });
 

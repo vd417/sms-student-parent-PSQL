@@ -9,6 +9,8 @@ import {
   shouldToastNotice,
   toastTextForNotice,
 } from '@/lib/noticeAlert';
+import { currentRouteName } from '@/navigation/navigationRef';
+import { noticeKind } from '@/lib/noticeRoute';
 import type { InboxNotice } from '@/models';
 
 export const useNotifications = () =>
@@ -16,6 +18,7 @@ export const useNotifications = () =>
     queryKey: qk.notifications,
     queryFn: () => services.notifications.list(),
     refetchOnMount: 'always',
+    refetchInterval: 12_000,
   });
 
 export const useSettings = () =>
@@ -44,10 +47,13 @@ export function NoticeWatcher() {
 
     const announce = (n: InboxNotice) => {
       const alert = alertFor(n);
-      if (!shouldToastNotice(prefs, alert)) return;
+      if (!shouldToastNotice(prefs, alert, currentRouteName())) return;
       toast(toastTextForNotice(alert), 4000);
       void qc.invalidateQueries({ queryKey: qk.announcements('student') });
       void qc.invalidateQueries({ queryKey: qk.announcements('parent') });
+      if (noticeKind(alert) === 'chat') {
+        void qc.invalidateQueries({ queryKey: ['threads'] });
+      }
       if (noticeRefreshesTimetable(alert)) {
         void qc.invalidateQueries({ queryKey: qk.today });
         void qc.invalidateQueries({ queryKey: ['student', 'timetable'] });

@@ -44,8 +44,8 @@ export function InboxScreen() {
   const openThread = useOpenThread('student');
   const toast = useToast();
 
-  const isLoading = threadsQ.isLoading;
-  const isError = threadsQ.isError;
+  const isLoading = threadsQ.isLoading && threadsQ.data === undefined;
+  const isError = threadsQ.isError && threadsQ.data === undefined;
   const onRefresh = () => {
     threadsQ.refetch();
     teachersQ.refetch();
@@ -64,7 +64,7 @@ export function InboxScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader title="Inbox" />
+        <ScreenHeader title="Inbox" showBack={false} />
         <Loading />
       </SafeAreaView>
     );
@@ -72,7 +72,7 @@ export function InboxScreen() {
   if (isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader title="Inbox" />
+        <ScreenHeader title="Inbox" showBack={false} />
         <ErrorState onRetry={onRefresh} />
       </SafeAreaView>
     );
@@ -93,7 +93,7 @@ export function InboxScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScreenHeader title="Inbox" />
+      <ScreenHeader title="Inbox" showBack={false} />
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}

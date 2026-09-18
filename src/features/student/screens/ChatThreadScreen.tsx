@@ -2,25 +2,22 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Avatar, Empty, ErrorState, IconButton, Loading, MessageTicks } from '@/components/ui';
+import { ChatThreadLayout } from '@/components/chat/ChatThreadLayout';
+import { Avatar, ErrorState, IconButton, Loading, MessageTicks } from '@/components/ui';
 import { useCachedThread, useMessages, useChatComposer } from '@/hooks/useMessaging';
+import { useChatAutoScroll } from '@/hooks/useChatAutoScroll';
 import { useToast } from '@/providers/ToastProvider';
 import { pickAndCompressChatImage } from '@/lib/chatImage';
-import { colors, fontFamily, hueForName, radius, spacing } from '@/theme';
+import { colors, fontFamily, hueForName, radius } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ChatThread'>;
@@ -65,107 +62,56 @@ export function ChatThreadScreen() {
     }
   };
 
-  const onRefresh = () => {
-    messagesQ.refetch();
-  };
+  const messages = messagesQ.data ?? [];
+  const lastMessageKey = `${messages.length}:${messages[messages.length - 1]?.id ?? ''}`;
+  const { scrollRef, onContentSizeChange } = useChatAutoScroll(lastMessageKey);
+
+  const header = (
+    <View style={styles.header}>
+      <Pressable
+        onPress={() => nav.goBack()}
+        style={({ pressed }) => [styles.back, pressed && { opacity: 0.7 }]}
+      >
+        <Ionicons name="chevron-back" size={20} color={colors.ink} />
+      </Pressable>
+      <Avatar initials={initialsFor(headerName)} size={40} hue={hueForName(headerName)} />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.name}>{headerName}</Text>
+        <Text style={styles.subj}>● {headerSubj}</Text>
+      </View>
+      <IconButton icon="notifications-outline" size={36} onPress={() => nav.navigate('Announcements')} />
+    </View>
+  );
 
   if (messagesQ.isLoading) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => nav.goBack()}
-            style={({ pressed }) => [styles.back, pressed && { opacity: 0.7 }]}
-          >
-            <Ionicons name="chevron-back" size={20} color={colors.ink} />
-          </Pressable>
-          <View style={{ flex: 1 }} />
-        </View>
+      <View style={styles.boot}>
+        {header}
         <Loading />
-      </SafeAreaView>
+      </View>
     );
   }
-  if (messagesQ.isError) {
+  if (messagesQ.isError && messagesQ.data === undefined) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.header}>
-          <Pressable
-            onPress={() => nav.goBack()}
-            style={({ pressed }) => [styles.back, pressed && { opacity: 0.7 }]}
-          >
-            <Ionicons name="chevron-back" size={20} color={colors.ink} />
-          </Pressable>
-          <View style={{ flex: 1 }} />
-        </View>
+      <View style={styles.boot}>
+        {header}
         <ErrorState onRetry={() => messagesQ.refetch()} />
-      </SafeAreaView>
+      </View>
     );
   }
-
-  const messages = messagesQ.data ?? [];
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => nav.goBack()}
-          style={({ pressed }) => [styles.back, pressed && { opacity: 0.7 }]}
-        >
-          <Ionicons name="chevron-back" size={20} color={colors.ink} />
-        </Pressable>
-        <Avatar initials={initialsFor(headerName)} size={40} hue={hueForName(headerName)} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{headerName}</Text>
-          <Text style={styles.subj}>● {headerSubj}</Text>
-        </View>
-        <IconButton icon="notifications-outline" size={36} onPress={() => toast('Coming soon')} />
-      </View>
-
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        {messages.length === 0 ? (
-          <Empty message="No messages yet. Say hello!" />
-        ) : (
-          <ScrollView
-            contentContainerStyle={styles.thread}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl refreshing={messagesQ.isRefetching} onRefresh={onRefresh} />
-            }
-          >
-            {messages.map((m) => {
-              const me = m.from === 'me';
-              return (
-                <View
-                  key={m.id}
-                  style={[styles.bubbleWrap, { alignSelf: me ? 'flex-end' : 'flex-start' }]}
-                >
-                  <View
-                    style={[
-                      styles.bubble,
-                      me ? styles.bubbleMe : styles.bubbleThem,
-                      { borderBottomRightRadius: me ? 4 : 18, borderBottomLeftRadius: me ? 18 : 4 },
-                    ]}
-                  >
-                    {m.imageUrl ? (
-                      <Image source={{ uri: m.imageUrl }} style={styles.image} resizeMode="cover" />
-                    ) : null}
-                    {m.text ? <Text style={styles.msg}>{m.text}</Text> : null}
-                    <View style={styles.metaRow}>
-                      <Text style={styles.time}>{m.time}</Text>
-                      {me && m.status ? <MessageTicks status={m.status} /> : null}
-                    </View>
-                  </View>
-                </View>
-              );
-            })}
-          </ScrollView>
-        )}
-
-        {moderationError ? <Text style={styles.moderationErrorText}>{moderationWarning}</Text> : null}
-
+    <ChatThreadLayout
+      header={header}
+      empty={messages.length === 0}
+      scrollRef={scrollRef}
+      onContentSizeChange={onContentSizeChange}
+      refreshing={messagesQ.isRefetching}
+      onRefresh={() => messagesQ.refetch()}
+      moderation={
+        moderationError ? <Text style={styles.moderationErrorText}>{moderationWarning}</Text> : null
+      }
+      composer={
         <View style={styles.composer}>
           {attaching ? (
             <View style={[styles.composerIconSlot, { alignItems: 'center', justifyContent: 'center' }]}>
@@ -183,6 +129,12 @@ export function ChatThreadScreen() {
             placeholder="Message..."
             placeholderTextColor={colors.inkMuted}
             style={styles.input}
+            autoComplete="off"
+            textContentType="none"
+            importantForAutofill="no"
+            autoCorrect
+            returnKeyType="send"
+            blurOnSubmit={false}
             onSubmitEditing={send}
           />
           <Pressable
@@ -192,8 +144,35 @@ export function ChatThreadScreen() {
             <Ionicons name="send" size={18} color={colors.white} />
           </Pressable>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      }
+    >
+      {messages.map((m) => {
+        const me = m.from === 'me';
+        return (
+          <View
+            key={m.id}
+            style={[styles.bubbleWrap, { alignSelf: me ? 'flex-end' : 'flex-start' }]}
+          >
+            <View
+              style={[
+                styles.bubble,
+                me ? styles.bubbleMe : styles.bubbleThem,
+                { borderBottomRightRadius: me ? 4 : 18, borderBottomLeftRadius: me ? 18 : 4 },
+              ]}
+            >
+              {m.imageUrl ? (
+                <Image source={{ uri: m.imageUrl }} style={styles.image} resizeMode="cover" />
+              ) : null}
+              {m.text ? <Text style={styles.msg}>{m.text}</Text> : null}
+              <View style={styles.metaRow}>
+                <Text style={styles.time}>{m.time}</Text>
+                {me && m.status ? <MessageTicks status={m.status} /> : null}
+              </View>
+            </View>
+          </View>
+        );
+      })}
+    </ChatThreadLayout>
   );
 }
 
@@ -207,7 +186,7 @@ function initialsFor(name: string): string {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.paper },
+  boot: { flex: 1, backgroundColor: colors.paper },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -239,12 +218,6 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     color: colors.present,
   },
-  thread: {
-    paddingHorizontal: spacing.l,
-    paddingTop: 16,
-    paddingBottom: 16,
-    gap: 8,
-  },
   bubbleWrap: { maxWidth: '78%' },
   bubble: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 18 },
   bubbleMe: { backgroundColor: colors.primarySoft },
@@ -268,7 +241,7 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.semiBold,
     fontSize: 12,
     color: colors.coral,
-    paddingHorizontal: spacing.l,
+    paddingHorizontal: 18,
     paddingTop: 8,
   },
   composer: {
@@ -277,7 +250,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 14,
     paddingTop: 12,
-    paddingBottom: 18,
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.rule,

@@ -101,7 +101,7 @@ export function ParentFeesScreen() {
     );
   }
 
-  if (feesQ.isLoading) {
+  if (feesQ.isLoading && feesQ.data === undefined) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScreenHeader
@@ -112,7 +112,7 @@ export function ParentFeesScreen() {
       </SafeAreaView>
     );
   }
-  if (feesQ.isError) {
+  if (feesQ.isError && feesQ.data === undefined) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScreenHeader

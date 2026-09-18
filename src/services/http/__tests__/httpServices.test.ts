@@ -56,6 +56,17 @@ describe('httpServices', () => {
     spy.mockRestore();
   });
 
+  it('does not swallow network errors as empty achievement lists', async () => {
+    const { ApiError } = require('@/services/errors');
+    const spy = jest
+      .spyOn(client, 'apiFetch')
+      .mockRejectedValueOnce(new ApiError('Network error: /achievements', 0, undefined, undefined, 'CONNECTION_ERROR'));
+    await expect(httpServices.student.getAchievements('sis-1')).rejects.toMatchObject({
+      kind: 'CONNECTION_ERROR',
+    });
+    spy.mockRestore();
+  });
+
   it('settings.get GETs /me/settings', async () => {
     const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce({
       chat_alerts: false,
@@ -104,6 +115,43 @@ describe('httpServices', () => {
       razorpay_order_id: 'order_x', razorpay_payment_id: 'pay_x', razorpay_signature: 'sig',
     });
     expect(result).toEqual({ status: 'paid' });
+    spy.mockRestore();
+  });
+
+  it('transport.list GETs /me/children/bus and maps every child row', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce([
+      {
+        student_id: 'sis-1', student_name: 'Aarav', admission_no: 'A1',
+        bus_id: 'bus-12', bus_no: '12', route_name: 'Morning',
+        status: 'on_route', tracking_status: 'LIVE', assignment: 'assigned',
+        lat: 1, lng: 2, speed_kmh: 20, next_stop_name: 'Gate', last_ping_at: '2026-09-18T06:00:00Z',
+      },
+    ] as any);
+    const rows = await httpServices.transport.list();
+    expect(spy.mock.calls[0][0]).toBe('/me/children/bus');
+    expect(rows[0]).toMatchObject({ studentId: 'sis-1', busNo: '12', trackingStatus: 'LIVE' });
+    spy.mockRestore();
+  });
+
+  it('transport.forChild without an id pins to /students/me, not a sibling row', async () => {
+    const spy = jest.spyOn(client, 'apiFetch')
+      .mockResolvedValueOnce([
+        {
+          student_id: 'sib-9', student_name: 'Sibling', admission_no: 'B2',
+          bus_id: 'bus-99', bus_no: '99', route_name: 'Other',
+          status: 'idle', tracking_status: 'OFFLINE', assignment: 'assigned',
+        },
+        {
+          student_id: 'sis-1', student_name: 'Cube', admission_no: 'A1',
+          bus_id: 'bus-12', bus_no: 'BUS 001 UP', route_name: 'cube',
+          status: 'idle', tracking_status: 'OFFLINE', assignment: 'assigned',
+        },
+      ] as any)
+      .mockResolvedValueOnce({ id: 'sis-1', name: 'Cube', admission_no: 'A1' } as any);
+    const row = await httpServices.transport.forChild('');
+    expect(spy.mock.calls[0][0]).toBe('/me/children/bus');
+    expect(spy.mock.calls[1][0]).toBe('/students/me');
+    expect(row).toMatchObject({ studentId: 'sis-1', busNo: 'BUS 001 UP' });
     spy.mockRestore();
   });
 });
@@ -190,7 +238,12 @@ describe('httpServices derived paths', () => {
   });
 
   it('subjects.list loads GET /subjects?student_id for a parent child', async () => {
-    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce([] as any);
+    const spy = jest.spyOn(client, 'apiFetch').mockImplementation(async (path: unknown) => {
+      const p = String(path);
+      if (p.startsWith('/subjects')) return [] as any;
+      if (p.includes('/timetable')) return [] as any;
+      throw new Error(`unexpected ${p}`);
+    });
     await httpServices.subjects.list('child-sis');
     expect(spy.mock.calls[0][0]).toBe('/subjects?student_id=child-sis');
     spy.mockRestore();
@@ -315,7 +368,35 @@ describe('httpServices derived paths', () => {
     ]);
     expect(result?.meals).toEqual({ breakfast: '', lunch: '' });
     expect(result?.pickup).toBe('—');
-    expect(result?.todayAttn).toBe('leave');
+    expect(result?.todayAttn).toBe('present');
+  });
+
+  it('childToday shows absent on Home when a class period is absent even if the daily roll is present', async () => {
+    const today = weekdayShort();
+    jest.spyOn(client, 'apiFetch').mockImplementation(async (path: unknown) => {
+      const p = String(path);
+      if (p === '/students/c1/timetable') {
+        return [
+          { day: today, period: 1, subject: 'Math', start_time: '00:00', end_time: '00:01' },
+          { day: today, period: 2, subject: 'Science', start_time: '00:02', end_time: '00:03' },
+        ] as any;
+      }
+      if (p.startsWith('/subjects')) return [] as any;
+      if (p.includes('/attendance/periods')) {
+        return [
+          { id: 'p1', date: '2026-09-18', period: 1, status: 'present' },
+          { id: 'p2', date: '2026-09-18', period: 2, status: 'absent' },
+        ] as any;
+      }
+      if (p.includes('/attendance')) {
+        return [{ id: 'a1', date: '2026-09-18', status: 'present' }] as any;
+      }
+      return [] as any;
+    });
+
+    const result = await httpServices.parent.childToday('c1');
+    expect(result?.classes.map((c) => c.attn)).toEqual(['present', 'absent']);
+    expect(result?.todayAttn).toBe('absent');
   });
 
   it('childToday uses period marks when the daily roll is not marked', async () => {
@@ -364,9 +445,12 @@ describe('httpServices derived paths', () => {
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const lastDay = String(new Date(year, now.getMonth() + 1, 0).getDate()).padStart(2, '0');
-    expect(spy.mock.calls[0][0]).toBe(
+    const urls = spy.mock.calls.map((c) => c[0]);
+    expect(urls).toEqual(expect.arrayContaining([
       `/students/c1/attendance?from=${year}-${month}-01&to=${year}-${month}-${lastDay}`,
-    );
+      `/students/c1/attendance/periods?from=${year}-${month}-01&to=${year}-${month}-${lastDay}`,
+    ]));
+    spy.mockRestore();
   });
 
   it('attendance.periods for a parent child skips /students/me', async () => {
@@ -396,6 +480,49 @@ describe('httpServices derived paths', () => {
     const spy = jest.spyOn(client, 'apiFetch').mockResolvedValue([] as any);
     await httpServices.leave.list('c1');
     expect(spy.mock.calls[0][0]).toBe('/leave?student_id=c1');
+    spy.mockRestore();
+  });
+
+  it('leave.list keeps only the selected child’s requests', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValue([
+      { id: 'l1', child_id: 'c1', from_date: '2026-07-01T00:00:00', to_date: '2026-07-02', reason: 'Trip', status: 'pending' },
+      { id: 'l2', child_id: 'c2', from_date: '2026-07-03', to_date: '2026-07-03', reason: 'Sick', status: 'approved' },
+    ] as any);
+    const rows = await httpServices.leave.list('c1');
+    expect(rows.map((r) => r.id)).toEqual(['l1']);
+    expect(rows[0].from).toBe('2026-07-01');
+    spy.mockRestore();
+  });
+
+  it('leave.submit POSTs attachment_urls with the leave body', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValue({
+      id: 'l1',
+      child_id: 'c1',
+      from_date: '2026-07-01',
+      to_date: '2026-07-02',
+      reason: 'Medical',
+      note: 'flu',
+      status: 'pending',
+    } as any);
+    await httpServices.leave.submit({
+      childId: 'c1',
+      from: '2026-07-01',
+      to: '2026-07-02',
+      reason: 'Medical',
+      note: 'flu',
+      attachmentUrls: ['data:image/jpeg;base64,abc'],
+    });
+    expect(spy.mock.calls[0][0]).toBe('/leave');
+    expect(JSON.parse(spy.mock.calls[0][1].body as string)).toMatchObject({
+      type: 'medical',
+      child_id: 'c1',
+      from_date: '2026-07-01',
+      to_date: '2026-07-02',
+      reason: 'Medical',
+      note: 'flu',
+      attachment_urls: ['data:image/jpeg;base64,abc'],
+    });
+    spy.mockRestore();
   });
 });
 
@@ -529,6 +656,43 @@ describe('httpServices.auth', () => {
     expect(rows.map((r) => r.id)).toEqual(['n1', 'a1']);
     expect(rows[0]).toMatchObject({ from: 'School', role: 'notice', title: 'Timetable updated' });
     spy.mockRestore();
+  });
+
+  it('announcements.list maps chat alerts onto the notices feed', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockImplementation(async (path: string) => {
+      if (String(path).startsWith('/announcements')) return [];
+      if (path === '/notifications') {
+        return [
+          { id: 'c1', title: 'Amit', body: 'Hi', tone: 'chat', unread: true },
+          { id: 'f1', title: 'Fee due', body: 'Pay by May 5', tone: 'fees', unread: true },
+        ];
+      }
+      throw new Error(`unexpected ${path}`);
+    });
+    const rows = await httpServices.announcements.list('student');
+    expect(rows.map((r) => r.id)).toEqual(['c1', 'f1']);
+    expect(rows[0]).toMatchObject({ from: 'Amit', role: 'message' });
+    expect(rows[1]).toMatchObject({ from: 'Fees', role: 'fees' });
+    spy.mockRestore();
+  });
+
+  it('announcements.list puts the newest notification first', async () => {
+    jest.spyOn(client, 'apiFetch').mockImplementation(async (path: string) => {
+      if (String(path).startsWith('/announcements')) {
+        return [{ id: 'a1', from: 'Office', role: 'admin', date: '2026-08-13', title: 'Holiday', body: 'Closed', type: 'info' }];
+      }
+      if (path === '/notifications') {
+        return [
+          { id: 'old', title: 'Old note', body: 'yesterday', time: '09:00:00', unread: false },
+          { id: 'new', title: 'School Owner', body: 'gg', tone: 'chat', time: '23:28:21', unread: true },
+        ];
+      }
+      throw new Error(`unexpected ${path}`);
+    });
+    const rows = await httpServices.announcements.list('parent');
+    expect(rows.map((r) => r.id)).toEqual(['new', 'a1']);
+    expect(rows[0]).toMatchObject({ id: 'new', title: 'Message from School Owner', body: 'gg', unread: true });
+    expect(rows.find((r) => r.id === 'old')).toBeUndefined();
   });
 
   it('student.getTimetable does not swallow GET /timetable errors', async () => {

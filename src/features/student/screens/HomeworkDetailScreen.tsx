@@ -19,8 +19,8 @@ export function HomeworkDetailScreen() {
   const statusMut = useSetHomeworkStatus();
   const [toast, setToast] = useState(false);
 
-  const isLoading = hwQ.isLoading;
-  const isError = hwQ.isError || !hwQ.data;
+  const isLoading = hwQ.isLoading && hwQ.data === undefined;
+  const isError = hwQ.isError && hwQ.data === undefined;
 
   const onRefresh = () => {
     hwQ.refetch();
@@ -47,7 +47,16 @@ export function HomeworkDetailScreen() {
     );
   }
 
-  const h = hwQ.data!;
+  if (!hwQ.data) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader title="Homework" />
+        <ErrorState message="Couldn't load this homework." onRetry={onRefresh} />
+      </SafeAreaView>
+    );
+  }
+
+  const h = hwQ.data;
   const subjects = subjectsQ.data ?? [];
   const sub = subjects.find((s) => s.id === h.subjId) ??
     subjects[0] ?? {

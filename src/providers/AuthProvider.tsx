@@ -3,8 +3,11 @@ import type { Role, Session } from '@/models';
 import { services } from '@/services';
 import type { PasswordResetSent } from '@/services/types';
 import { setAuthToken, setRefreshHandler, setSessionExpiredHandler } from '@/api/client';
+import { isConfirmedAuthFailure, isRefreshCredentialRejection } from '@/api/errorKind';
 import { tokenStore } from '@/services/auth/tokenStore';
 import { ApiError } from '@/services/errors';
+import { clearSisStudentCache } from '@/services/http/sisStudent';
+import { clearPersistedQueryCache } from './QueryProvider';
 import { authReducer, initialAuthState } from './authReducer';
 
 interface AuthContextValue {
@@ -19,11 +22,25 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+export function sessionFromPersisted(access: string, role: Role, email: string): Session {
+  return { token: access, role, email };
+}
+
+/** NETWORK FAILURE != AUTH FAILURE != LOGOUT */
+export function shouldInvalidateSession(err: unknown): boolean {
+  return isConfirmedAuthFailure(err);
+}
+
+async function wipeLocalSession() {
+  await tokenStore.clear();
+  setAuthToken(null);
+  clearSisStudentCache();
+  await clearPersistedQueryCache();
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(authReducer, initialAuthState);
 
-  // Wire the client's refresh + session-expired handlers once. The refresh
-  // handler loads the persisted refresh token, exchanges it, and re-persists.
   useEffect(() => {
     setRefreshHandler(async () => {
       const persisted = await tokenStore.load();
@@ -32,13 +49,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { access, refresh } = await services.auth.refresh(persisted.refresh);
         await tokenStore.save({ ...persisted, access, refresh: refresh ?? persisted.refresh });
         return access;
-      } catch {
-        return null;
+      } catch (err) {
+        if (isRefreshCredentialRejection(err)) return null;
+        throw err;
       }
     });
     setSessionExpiredHandler(() => {
-      void tokenStore.clear();
-      dispatch({ type: 'SIGNED_OUT' });
+      void wipeLocalSession().then(() => dispatch({ type: 'SIGNED_OUT' }));
     });
     return () => {
       setRefreshHandler(null);
@@ -46,28 +63,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Launch bootstrap: restore the persisted session and validate it via /me.
+  // Restore persisted auth without requiring the network. /me runs in the
+  // background and may only log out on a confirmed auth failure.
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const persisted = await tokenStore.load();
+      if (!persisted?.access) {
+        await clearPersistedQueryCache();
+        if (!cancelled) dispatch({ type: 'RESTORE_FAILED' });
+        return;
+      }
+      setAuthToken(persisted.access);
+      if (!cancelled) {
+        dispatch({
+          type: 'SIGNED_IN',
+          session: sessionFromPersisted(persisted.access, persisted.role, persisted.email),
+        });
+      }
       try {
-        const persisted = await tokenStore.load();
-        if (!persisted?.access) {
-          if (!cancelled) dispatch({ type: 'RESTORE_FAILED' });
-          return;
-        }
-        setAuthToken(persisted.access);
         const me = await services.auth.getMe();
         if (!cancelled) {
           dispatch({
             type: 'SIGNED_IN',
-            session: { token: persisted.access, role: me.role, email: me.email },
+            session: sessionFromPersisted(persisted.access, me.role, me.email),
           });
         }
-      } catch {
-        await tokenStore.clear();
-        setAuthToken(null);
-        if (!cancelled) dispatch({ type: 'RESTORE_FAILED' });
+      } catch (err) {
+        if (!shouldInvalidateSession(err)) return;
+        await wipeLocalSession();
+        if (!cancelled) dispatch({ type: 'SIGNED_OUT' });
       }
     })();
     return () => {
@@ -83,8 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn: async (email, password, role) => {
         const session = await services.auth.signIn(email, password, role);
         if (session.role !== role) {
-          await tokenStore.clear();
-          setAuthToken(null);
+          await wipeLocalSession();
           throw new ApiError(
             role === 'student'
               ? 'This is a parent login. Switch to the Parent tab.'
@@ -94,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             'wrong_role',
           );
         }
+        await clearPersistedQueryCache();
         setAuthToken(session.token);
         dispatch({ type: 'SIGNED_IN', session });
       },
@@ -103,6 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut: async () => {
         await services.auth.signOut();
         setAuthToken(null);
+        clearSisStudentCache();
+        await clearPersistedQueryCache();
         dispatch({ type: 'SIGNED_OUT' });
       },
     }),

@@ -15,6 +15,7 @@ import {
   Pill,
   SchoolBadge,
   SectionHeader,
+  LastUpdated,
 } from '@/components/ui';
 import type { PillTone } from '@/components/ui';
 import { KidSwitcher } from '../components/KidSwitcher';
@@ -31,13 +32,15 @@ import type { ParentStackParamList, ParentTabParamList } from '@/navigation/type
 import { buildReportFromGrades } from '@/lib/reportCardBuild';
 import { formatHomeAttn, formatReportOrHomeAvg } from '@/lib/homeStats';
 import { attendancePctFromStatuses } from '@/lib/todayAttendance';
+import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
+import { goToLatestNotice, unreadNoticeCount } from '@/lib/noticeRoute';
 
 type Nav = BottomTabNavigationProp<ParentTabParamList, 'Home'> & {
   navigate: NativeStackNavigationProp<ParentStackParamList>['navigate'];
 };
 
 const ACTIONS = [
-  { icon: 'card' as const, label: 'Pay fees', target: 'Fees' as const, hue: 'coral' as const },
+  { icon: 'clipboard' as const, label: 'Attendance', target: 'Attendance' as const, hue: 'forest' as const },
   { icon: 'flag' as const, label: 'Apply leave', target: 'Leave' as const, hue: 'blue' as const },
   { icon: 'calendar' as const, label: 'PTM', target: 'PTM' as const, hue: 'teal' as const },
   { icon: 'bus' as const, label: 'Bus track', target: 'Transport' as const, hue: 'pink' as const },
@@ -60,28 +63,28 @@ export function ParentHomeScreen() {
     useCallback(() => {
       void todayQ.refetch();
       void annQ.refetch();
-    }, [todayQ.refetch, annQ.refetch]),
+      void noticesQ.refetch();
+    }, [todayQ.refetch, annQ.refetch, noticesQ.refetch]),
   );
 
-  const isLoading = profileQ.isLoading || childrenQ.isLoading || todayQ.isLoading || annQ.isLoading;
-  const isError = profileQ.isError || childrenQ.isError || todayQ.isError || annQ.isError;
   const onRefresh = () => {
     profileQ.refetch();
     childrenQ.refetch();
     todayQ.refetch();
     annQ.refetch();
+    noticesQ.refetch();
     gradesQ.refetch();
     subjectsQ.refetch();
   };
 
-  if (isLoading) {
+  if (isInitialLoad(profileQ)) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <Loading />
       </SafeAreaView>
     );
   }
-  if (isError) {
+  if (isBlockingError(profileQ)) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ErrorState onRetry={onRefresh} />
@@ -112,8 +115,8 @@ export function ParentHomeScreen() {
             </View>
             <IconButton
               icon="notifications-outline"
-              badge={(noticesQ.data ?? []).some((n) => n.unread)}
-              onPress={() => nav.navigate('Announcements')}
+              badge={unreadNoticeCount(noticesQ.data)}
+              onPress={() => goToLatestNotice(nav, noticesQ.data, 'parent')}
             />
           </View>
           <Empty message="No children are linked to this account yet." />
@@ -159,8 +162,8 @@ export function ParentHomeScreen() {
           </View>
           <IconButton
             icon="notifications-outline"
-            badge={(noticesQ.data ?? []).some((n) => n.unread)}
-            onPress={() => nav.navigate('Announcements')}
+            badge={unreadNoticeCount(noticesQ.data)}
+            onPress={() => goToLatestNotice(nav, noticesQ.data, 'parent')}
           />
         </View>
 
@@ -267,13 +270,13 @@ export function ParentHomeScreen() {
             style={{ marginBottom: 12 }}
           />
           {firstAnn ? (
-            <Card style={{ padding: 14 }}>
+            <Card style={{ padding: 14, borderColor: firstAnn.unread ? colors.absent : colors.rule }}>
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 <View style={styles.noticeIcon}>
-                  <Ionicons name="megaphone" size={16} color={colors.coral} />
+                  <Ionicons name="megaphone" size={16} color={firstAnn.unread ? colors.absent : colors.coral} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.noticeTitle}>{firstAnn.title}</Text>
+                  <Text style={[styles.noticeTitle, firstAnn.unread && { color: colors.absent }]}>{firstAnn.title}</Text>
                   <Text style={styles.noticeBody}>{firstAnn.body}</Text>
                   <Text style={styles.noticeMeta}>
                     {firstAnn.from} · {firstAnn.when}
@@ -373,8 +376,8 @@ const styles = StyleSheet.create({
   classDivider: { borderBottomWidth: 1, borderBottomColor: colors.ruleSoft },
   classTime: { width: 50, fontFamily: fontFamily.bold, fontSize: 12, color: colors.ink3 },
   classLabel: { flex: 1, fontFamily: fontFamily.bold, fontSize: 13 },
-  actions: { flexDirection: 'row', gap: 10 },
-  action: { flex: 1, alignItems: 'center' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  action: { width: '18%', flexGrow: 1, alignItems: 'center' },
   actionIcon: {
     width: '100%',
     aspectRatio: 1,
@@ -383,7 +386,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 6,
   },
-  actionLabel: { fontFamily: fontFamily.semiBold, fontSize: 11, color: colors.ink2 },
+  actionLabel: { fontFamily: fontFamily.semiBold, fontSize: 11, color: colors.ink2, textAlign: 'center' },
   feeAlert: {
     flexDirection: 'row',
     alignItems: 'center',

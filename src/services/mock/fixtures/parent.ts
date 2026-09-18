@@ -151,14 +151,39 @@ export const ptm: PTMMeeting[] = [
 ];
 
 export const transport: Transport = {
+  studentId: 'k1',
+  studentName: 'Maya Patel',
+  grade: '10',
+  section: 'A',
+  busId: 'bus-12',
   busNo: '12',
   routeName: 'Route 7',
   status: 'on_route',
+  trackingStatus: 'LIVE',
+  motion: 'moving',
+  assignment: 'assigned',
+  driver: 'Raj Kumar',
+  driverPhone: null,
+  boardingState: null,
+  etaNextStopMin: 6,
+  currentStopIndex: 0,
+  currentStopName: 'Oak Gate',
+  passedStopCount: 0,
+  totalStops: 2,
   lat: 28.4595,
   lng: 77.0266,
   speedKmh: 22.5,
   nextStopName: 'Maple & 4th',
   lastPingAt: new Date().toISOString(),
+  studentStopId: 'stop-maple',
+  studentStopName: 'Maple & 4th',
+  studentStopLat: 28.4601,
+  studentStopLng: 77.0272,
+  distanceToStudentStopM: 850,
+  routeStops: [
+    { id: 'stop-oak', name: 'Oak Gate', seq: 1, lat: 28.458, lng: 77.02 },
+    { id: 'stop-maple', name: 'Maple & 4th', seq: 2, lat: 28.4601, lng: 77.0272 },
+  ],
 };
 
 // parentChats pc1..pc5 → ChatThread[]

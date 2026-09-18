@@ -18,8 +18,9 @@ type Props = {
 export function ScreenHeader({ title, kicker, onBack, right, brand, showBack }: Props) {
   const nav = useNavigation();
   const state = nav.getState();
-  const inTab = state?.type === 'tab';
-  const canGoBack = !inTab && nav.canGoBack();
+  const parentIsTab = nav.getParent()?.getState()?.type === 'tab';
+  const atTabRoot = state?.type === 'tab' || (parentIsTab && (state?.index ?? 0) === 0);
+  const canGoBack = !atTabRoot && nav.canGoBack();
   const showBackButton = showBack ?? (onBack != null || canGoBack);
 
   const handleBack = () => {

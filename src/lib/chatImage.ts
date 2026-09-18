@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 
@@ -11,8 +12,10 @@ const CHAT_IMAGE_QUALITY = 0.6;
  * user cancelled or denied the permission.
  */
 export async function pickChatImage(): Promise<string | null> {
-  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!perm.granted) return null;
+  if (Platform.OS !== 'web') {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return null;
+  }
 
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],

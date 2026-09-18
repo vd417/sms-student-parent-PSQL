@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { services } from '@/services';
-import { ApiError } from '@/services/errors';
+import { isConfirmedAuthFailure } from '@/api/errorKind';
+import { queryShouldRetry } from '@/api/retry';
 import { useAuth } from '@/providers/AuthProvider';
 import { qk } from './keys';
 
@@ -12,7 +13,7 @@ export const useChildren = () => {
     queryKey: qk.children,
     queryFn: () => services.parent.children(),
     enabled: role === 'parent',
-    retry: (n, err) => n < 1 && !(err instanceof ApiError && err.status === 401),
+    retry: (n, err) => queryShouldRetry(n, err) && !isConfirmedAuthFailure(err),
   });
 };
 export const useChildToday = (childId: string) =>

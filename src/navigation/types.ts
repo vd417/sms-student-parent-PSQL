@@ -5,6 +5,11 @@ export type AuthStackParamList = {
   Login: undefined;
 };
 
+export type InboxStackParamList = {
+  InboxList: undefined;
+  ChatThread: { id: string; name?: string; role?: string; kid?: string | null };
+};
+
 export type RootStackParamList = {
   Login: undefined;
   Main: NavigatorScreenParams<TabParamList> | undefined;
@@ -15,6 +20,7 @@ export type RootStackParamList = {
   Grades: { studentId?: string } | undefined;
   ChatThread: { id: string; name?: string; role?: string };
   Announcements: undefined;
+  Transport: undefined;
   PersonalInfo: undefined;
   Privacy: undefined;
   NotificationSettings: undefined;
@@ -24,11 +30,10 @@ export type TabParamList = {
   Home: undefined;
   Homework: undefined;
   Subjects: undefined;
-  Inbox: undefined;
+  Inbox: NavigatorScreenParams<InboxStackParamList> | undefined;
   Profile: undefined;
 };
 
-// Parent (used in Milestone 3)
 export type ParentStackParamList = {
   Main: NavigatorScreenParams<ParentTabParamList> | undefined;
   Attendance: undefined;
@@ -49,6 +54,6 @@ export type ParentTabParamList = {
   Home: undefined;
   Class: undefined;
   Fees: undefined;
-  Inbox: undefined;
+  Inbox: NavigatorScreenParams<InboxStackParamList> | undefined;
   Profile: undefined;
 };

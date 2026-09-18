@@ -36,4 +36,16 @@ describe('shouldToastNotice', () => {
     expect(shouldToastNotice({ inAppToasts: true, chatAlerts: true, schoolNotices: false }, school)).toBe(false);
     expect(shouldToastNotice({ inAppToasts: true, chatAlerts: false, schoolNotices: true }, school)).toBe(true);
   });
+
+  it('does not toast chat while the thread is already open', () => {
+    expect(
+      shouldToastNotice({ inAppToasts: true, chatAlerts: true, schoolNotices: true }, chat, 'ChatThread'),
+    ).toBe(false);
+    expect(
+      shouldToastNotice({ inAppToasts: true, chatAlerts: true, schoolNotices: true }, chat, 'InboxList'),
+    ).toBe(true);
+    expect(
+      shouldToastNotice({ inAppToasts: true, chatAlerts: true, schoolNotices: true }, school, 'ChatThread'),
+    ).toBe(true);
+  });
 });

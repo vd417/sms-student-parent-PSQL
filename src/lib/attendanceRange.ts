@@ -1,10 +1,14 @@
 export type AttendancePreset = 'day' | 'week' | 'month' | 'overall';
 
-function localDateLabel(date: Date): string {
+export function localDateLabel(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+export function monthDayKey(year: number, monthIndex: number, day: number): string {
+  return localDateLabel(new Date(year, monthIndex, day));
 }
 
 export function rangeForPreset(preset: AttendancePreset, now: Date): { from?: string; to?: string } {

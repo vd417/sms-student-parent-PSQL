@@ -1,13 +1,16 @@
-import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Button, Card, ScreenHeader, Toast } from '@/components/ui';
-import { useSubmitLeave } from '@/hooks/useLeave';
+import { Button, Card, Pill, ScreenHeader, Toast } from '@/components/ui';
+import { useLeave, useSubmitLeave } from '@/hooks/useLeave';
 import { useChildren } from '@/hooks/useParent';
 import { useSelectedChild } from '@/providers/ChildProvider';
+import { useToast } from '@/providers/ToastProvider';
+import { pickAndCompressChatImage } from '@/lib/chatImage';
+import { leaveStatusLabel, leaveStatusTone } from '@/lib/leaveHistory';
 import { colors, fontFamily, radius } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
 
@@ -141,8 +144,10 @@ function DateRangePicker({
 
 export function ParentLeaveScreen() {
   const nav = useNavigation<Nav>();
+  const toastMsg = useToast();
   const { childId } = useSelectedChild();
   const childrenQ = useChildren();
+  const leaveQ = useLeave(childId);
   const submitMut = useSubmitLeave(childId);
 
   const [reason, setReason] = useState('Family event');
@@ -151,22 +156,54 @@ export function ParentLeaveScreen() {
   const [from, setFrom] = useState<string | null>(null);
   const [to, setTo] = useState<string | null>(null);
   const [activeField, setActiveField] = useState<'from' | 'to' | null>(null);
+  const [attachment, setAttachment] = useState<string | null>(null);
+  const [attaching, setAttaching] = useState(false);
 
   const child = childrenQ.data?.find((c) => c.id === childId);
+  const history = [...(leaveQ.data ?? [])].sort(
+    (a, b) => b.from.localeCompare(a.from) || b.id.localeCompare(a.id),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      void leaveQ.refetch();
+    }, [leaveQ.refetch]),
+  );
   const daysNote =
     from && to
       ? `${schoolDaysBetween(from, to)} school day${schoolDaysBetween(from, to) === 1 ? '' : 's'}`
       : 'Pick a start and end date';
 
+  const onAttach = async () => {
+    if (attaching) return;
+    setAttaching(true);
+    try {
+      const dataUrl = await pickAndCompressChatImage();
+      if (dataUrl) setAttachment(dataUrl);
+    } catch {
+      toastMsg("Could not attach the note. Try a smaller photo.");
+    } finally {
+      setAttaching(false);
+    }
+  };
+
   const onSubmit = () => {
     if (!from) return;
     submitMut.mutate(
-      { childId, from, to: to ?? from, reason, note },
+      {
+        childId,
+        from,
+        to: to ?? from,
+        reason,
+        note,
+        ...(attachment ? { attachmentUrls: [attachment] } : {}),
+      },
       {
         onSuccess: () => {
           setToast(true);
           setTimeout(() => nav.goBack(), 1100);
         },
+        onError: () => toastMsg('Could not send the leave request. Try again.'),
       },
     );
   };
@@ -180,6 +217,9 @@ export function ParentLeaveScreen() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={leaveQ.isRefetching} onRefresh={() => leaveQ.refetch()} />
+        }
       >
         <View style={{ paddingHorizontal: 18, paddingBottom: 14 }}>
           <Card style={{ padding: 14 }}>
@@ -265,12 +305,53 @@ export function ParentLeaveScreen() {
           <View style={styles.tip}>
             <Text style={styles.tipTxt}>Tip · attach a doctor&apos;s note if leave is medical</Text>
           </View>
+          {attachment ? (
+            <View style={styles.attachedRow}>
+              <Image source={{ uri: attachment }} style={styles.attachedThumb} />
+              <Text style={styles.attachedName}>Doctor&apos;s note attached</Text>
+              <Pressable onPress={() => setAttachment(null)} hitSlop={8} accessibilityLabel="Remove attachment">
+                <Ionicons name="close-circle" size={20} color={colors.inkMuted} />
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={{ paddingHorizontal: 18, paddingBottom: 14 }}>
+          <Text style={[styles.eyebrow, { marginBottom: 10 }]}>Leave history</Text>
+          {history.length === 0 ? (
+            <Text style={styles.historyEmpty}>No leave requests yet.</Text>
+          ) : (
+            history.map((row) => {
+              const range =
+                row.to && row.to !== row.from
+                  ? `${formatShort(row.from)} – ${formatShort(row.to)}`
+                  : formatShort(row.from);
+              return (
+                <View key={row.id} style={styles.historyRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.historyDate}>{range}</Text>
+                    <Text style={styles.historyReason}>
+                      {row.reason}
+                      {row.note ? ` · ${row.note}` : ''}
+                      {row.attachmentUrls?.length ? ' · note attached' : ''}
+                    </Text>
+                  </View>
+                  <Pill tone={leaveStatusTone(row.status)}>{leaveStatusLabel(row.status)}</Pill>
+                </View>
+              );
+            })
+          )}
         </View>
       </ScrollView>
 
       <View style={styles.bar}>
-        <Button variant="ghost" leading={<Ionicons name="attach" size={16} color={colors.ink} />}>
-          Attach
+        <Button
+          variant="ghost"
+          loading={attaching}
+          onPress={onAttach}
+          leading={<Ionicons name="attach" size={16} color={colors.ink} />}
+        >
+          {attachment ? 'Change' : 'Attach'}
         </Button>
         <View style={{ flex: 1 }}>
           <Button
@@ -392,6 +473,33 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   tipTxt: { fontFamily: fontFamily.semiBold, fontSize: 11.5, color: colors.primary },
+  attachedRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.rule,
+  },
+  attachedThumb: { width: 44, height: 44, borderRadius: 8, backgroundColor: colors.paper2 },
+  attachedName: { flex: 1, fontFamily: fontFamily.semiBold, fontSize: 12, color: colors.ink },
+  historyEmpty: { fontFamily: fontFamily.medium, fontSize: 12.5, color: colors.inkMuted },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    marginBottom: 8,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.rule,
+    borderRadius: radius.md,
+  },
+  historyDate: { fontFamily: fontFamily.bold, fontSize: 13, color: colors.ink },
+  historyReason: { fontFamily: fontFamily.medium, fontSize: 12, color: colors.inkMuted, marginTop: 2 },
   bar: {
     position: 'absolute',
     left: 0,

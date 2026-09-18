@@ -9,6 +9,7 @@ import { AnnouncementsScreen } from '@/features/student/screens/AnnouncementsScr
 import { PersonalInfoScreen } from '@/features/student/screens/PersonalInfoScreen';
 import { PrivacyScreen } from '@/features/student/screens/PrivacyScreen';
 import { NotificationSettingsScreen } from '@/features/student/screens/NotificationSettingsScreen';
+import { ParentTransportScreen } from '@/features/parent/screens/ParentTransportScreen';
 import { TabNavigator } from './TabNavigator';
 import type { RootStackParamList } from './types';
 
@@ -28,6 +29,7 @@ export function StudentNavigator() {
       <Stack.Screen name="Grades" component={GradesScreen} />
       <Stack.Screen name="ChatThread" component={ChatThreadScreen} />
       <Stack.Screen name="Announcements" component={AnnouncementsScreen} />
+      <Stack.Screen name="Transport" component={ParentTransportScreen} />
       <Stack.Screen name="PersonalInfo" component={PersonalInfoScreen} />
       <Stack.Screen name="Privacy" component={PrivacyScreen} />
       <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />

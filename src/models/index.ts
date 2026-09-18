@@ -102,6 +102,7 @@ export interface Announcement {
   when: string;
   title: string;
   body: string;
+  unread?: boolean;
 }
 
 export interface InboxNotice {
@@ -235,16 +236,49 @@ export interface PTMMeeting {
 }
 
 export type TransportStatus = 'idle' | 'delayed' | 'at_stop' | 'on_route';
+export type TransportTrackingStatus = 'LIVE' | 'DELAYED' | 'OFFLINE';
+export type TransportAssignment = 'assigned' | 'pending' | 'none' | 'opted_out';
+export type TransportMotion = 'moving' | 'stopped';
+
+export interface RouteStop {
+  id: string;
+  name: string;
+  seq: number;
+  lat: number | null;
+  lng: number | null;
+}
 
 export interface Transport {
+  studentId: string;
+  studentName: string;
+  grade: string | null;
+  section: string | null;
+  busId: string | null;
   busNo: string;
   routeName: string | null;
   status: TransportStatus;
+  trackingStatus: TransportTrackingStatus;
+  motion: TransportMotion | null;
+  assignment: TransportAssignment;
+  driver: string | null;
+  driverPhone: string | null;
+  boardingState: string | null;
+  etaNextStopMin: number | null;
+  currentStopIndex: number | null;
+  currentStopName: string | null;
+  passedStopCount: number | null;
+  totalStops: number | null;
   lat: number | null;
   lng: number | null;
   speedKmh: number | null;
   nextStopName: string | null;
   lastPingAt: string | null;
+  studentStopId: string | null;
+  studentStopName: string | null;
+  studentStopLat: number | null;
+  studentStopLng: number | null;
+  distanceToStudentStopM: number | null;
+  routeStops: RouteStop[];
 }
 
 export interface CalendarEvent {
@@ -297,6 +331,8 @@ export interface LeaveRequest {
   reason: string;
   note: string;
   status: 'pending' | 'approved' | 'rejected';
+  /** Doctor's note / supporting photos as data URLs or http(s) URLs. */
+  attachmentUrls?: string[];
 }
 
 // ---------- school ----------

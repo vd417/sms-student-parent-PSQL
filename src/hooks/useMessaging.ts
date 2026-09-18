@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
-import { Alert } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ChatThread, Role } from '@/models';
 import { services } from '@/services';
 import { qk } from './keys';
+import { unreadChatCount } from '@/lib/noticeRoute';
 import { useLive } from '@/providers/LiveProvider';
 import { useToast } from '@/providers/ToastProvider';
+import { useNetwork } from './useNetwork';
 import {
   CHAT_MODERATION_WARNING,
   ChatModerationError,
@@ -23,8 +24,13 @@ export const useThreads = (audience: Role, enabled = true) =>
     staleTime: 30_000,
     refetchOnMount: 'always',
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
   });
+
+/** Tab badge: chat unread stays on Inbox, not the notification bell. */
+export function useInboxUnreadCount(audience: Role) {
+  const q = useThreads(audience, true);
+  return unreadChatCount(q.data);
+}
 
 /** Header lookup from Inbox cache. Never calls GET /threads. */
 export function useCachedThread(audience: Role, threadId: string) {
@@ -38,12 +44,13 @@ export function useCachedThread(audience: Role, threadId: string) {
 
 export const useMessages = (threadId: string) => {
   const { connected } = useLive();
+  const { online } = useNetwork();
   return useQuery({
     queryKey: qk.messages(threadId),
     queryFn: () => services.messaging.messages(threadId),
     enabled: threadId.length > 0,
     refetchOnMount: 'always',
-    refetchInterval: connected ? false : 4_000,
+    refetchInterval: online && !connected ? 4_000 : false,
   });
 };
 
@@ -101,7 +108,6 @@ export function useChatComposer(threadId: string) {
 
   const showBlocked = useCallback(() => {
     setModerationError(true);
-    Alert.alert('Message blocked', CHAT_MODERATION_WARNING);
   }, []);
 
   const sendMessage = useCallback(

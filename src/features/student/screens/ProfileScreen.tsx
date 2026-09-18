@@ -4,15 +4,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Card, Empty, ErrorState, IconButton, Loading, ScreenHeader, SectionHeader } from '@/components/ui';
+import { Card, Empty, ErrorState, IconButton, Loading, Pill, ScreenHeader, SectionHeader } from '@/components/ui';
 import { useStudentProfile, useAchievements } from '@/hooks/useStudent';
 import { useGrades } from '@/hooks/useGrades';
 import { useSubjects } from '@/hooks/useSubjects';
+import { useTransport } from '@/hooks/useTransport';
+import { assignmentMessage, trackingLabel } from '@/lib/busTracking';
 import { useAuth } from '@/providers/AuthProvider';
 import { buildReportFromGrades } from '@/lib/reportCardBuild';
 import { formatHomeAvg } from '@/lib/homeStats';
 import { colors, fontFamily, hueColor, primaryGradient, radius, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
+import type { Transport } from '@/models';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -31,14 +34,16 @@ export function ProfileScreen() {
   const achievementsQ = useAchievements();
   const gradesQ = useGrades();
   const subjectsQ = useSubjects();
+  const transportQ = useTransport();
 
-  const isLoading = profileQ.isLoading;
-  const isError = profileQ.isError;
+  const isLoading = profileQ.isLoading && profileQ.data === undefined;
+  const isError = profileQ.isError && profileQ.data === undefined;
   const onRefresh = () => {
     profileQ.refetch();
     achievementsQ.refetch();
     gradesQ.refetch();
     subjectsQ.refetch();
+    transportQ.refetch();
   };
 
   if (isLoading) {
@@ -154,6 +159,15 @@ export function ProfileScreen() {
         </View>
 
         <View style={{ marginTop: 18 }}>
+          <SectionHeader title="Transport" />
+          <StudentTransportCard
+            loading={transportQ.isLoading && transportQ.data === undefined}
+            row={transportQ.data ?? null}
+            onOpen={() => nav.navigate('Transport')}
+          />
+        </View>
+
+        <View style={{ marginTop: 18 }}>
           <SectionHeader title="Account" />
           <Card style={{ padding: 4, marginTop: 10 }}>
             <ProfileRow
@@ -196,6 +210,56 @@ export function ProfileScreen() {
         </Pressable>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function StudentTransportCard({
+  loading,
+  row,
+  onOpen,
+}: {
+  loading: boolean;
+  row: Transport | null;
+  onOpen: () => void;
+}) {
+  if (loading) {
+    return (
+      <Card style={{ padding: 16, marginTop: 10 }}>
+        <Text style={styles.prValue}>Loading transport…</Text>
+      </Card>
+    );
+  }
+  if (!row || row.assignment !== 'assigned') {
+    return (
+      <Card style={{ padding: 16, marginTop: 10 }}>
+        <Text style={styles.achWhen}>{assignmentMessage(row?.assignment ?? 'none')}</Text>
+      </Card>
+    );
+  }
+  return (
+    <Card style={{ padding: 16, marginTop: 10, gap: 10 }}>
+      <View style={styles.heroRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.achTitle}>Bus #{row.busNo}</Text>
+          <Text style={styles.achWhen}>{row.routeName || 'Route information unavailable.'}</Text>
+          <Text style={styles.achWhen}>{row.studentStopName ? `Stop · ${row.studentStopName}` : 'Assigned stop information unavailable.'}</Text>
+          {row.speedKmh != null ? (
+            <Text style={styles.achWhen}>Speed · {Math.round(row.speedKmh)} km/h</Text>
+          ) : null}
+        </View>
+        <Pill tone={row.trackingStatus === 'LIVE' ? 'present' : row.trackingStatus === 'DELAYED' ? 'late' : 'neutral'}>
+          {trackingLabel(row.trackingStatus, row.motion)}
+        </Pill>
+      </View>
+      <Pressable
+        onPress={onOpen}
+        style={({ pressed }) => [styles.viewReport, { marginTop: 4 }, pressed && { opacity: 0.85 }]}
+      >
+        <Ionicons name="bus-outline" size={18} color={colors.primary} />
+        <Text style={styles.viewReportTxt}>View live bus</Text>
+        <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+      </Pressable>
+    </Card>
   );
 }
 

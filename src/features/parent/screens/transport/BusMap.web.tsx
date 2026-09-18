@@ -1,40 +1,87 @@
-import { useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GOOGLE_MAPS_API_KEY } from '@/api/config';
 import { colors, fontFamily } from '@/theme';
+import type { BusMapProps } from './BusMap.types';
 
-export type BusMapProps = { lat: number; lng: number; busNo: string };
+export type { BusMapProps } from './BusMap.types';
 
-// Google Static Maps API doesn't support cloud-styling Map IDs (that's a dynamic-SDK
-// feature), so the web snapshot uses the key only — styling parity with native isn't
-// available here.
-export function BusMap({ lat, lng, busNo }: BusMapProps) {
+function busColor(status?: BusMapProps['trackingStatus']) {
+  if (status === 'OFFLINE') return '0x64748B';
+  if (status === 'DELAYED') return 'orange';
+  return 'red';
+}
+
+export function BusMap({
+  lat,
+  lng,
+  busNo,
+  trackingStatus,
+  studentStop,
+  stops = [],
+  fullscreen = false,
+  onPress,
+}: BusMapProps) {
   const [failed, setFailed] = useState(false);
+  const centerLat = lat ?? studentStop?.lat ?? stops[0]?.lat;
+  const centerLng = lng ?? studentStop?.lng ?? stops[0]?.lng;
 
-  if (!GOOGLE_MAPS_API_KEY || failed) {
-    return (
+  const uri = useMemo(() => {
+    if (!GOOGLE_MAPS_API_KEY || centerLat == null || centerLng == null) return '';
+    const params = new URLSearchParams({
+      center: `${centerLat},${centerLng}`,
+      zoom: lat != null && studentStop ? '14' : '15',
+      size: fullscreen ? '640x640' : '640x420',
+      scale: '2',
+      key: GOOGLE_MAPS_API_KEY,
+    });
+    const pathPts = stops.map((s) => `${s.lat},${s.lng}`);
+    if (pathPts.length > 1) {
+      params.append('path', `color:0x2563EB99|weight:4|${pathPts.join('|')}`);
+    }
+    if (lat != null && lng != null) {
+      params.append('markers', `color:${busColor(trackingStatus)}|label:B|${lat},${lng}`);
+    }
+    for (const stop of stops) {
+      if (stop.yours) continue;
+      params.append('markers', `color:${stop.passed ? '0x22C55E' : '0x94A3B8'}|size:tiny|${stop.lat},${stop.lng}`);
+    }
+    if (studentStop) params.append('markers', `color:blue|label:S|${studentStop.lat},${studentStop.lng}`);
+    return `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`;
+  }, [centerLat, centerLng, lat, lng, busNo, trackingStatus, studentStop, stops, fullscreen]);
+
+  if (!uri || failed) {
+    const fallback = (
       <View style={styles.fallback}>
-        <Text style={styles.fallbackText}>Map unavailable</Text>
+        <Text style={styles.fallbackText}>{failed ? 'Map unavailable' : 'Location temporarily unavailable.'}</Text>
       </View>
+    );
+    if (!onPress) return fallback;
+    return (
+      <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Open full map" style={styles.map}>
+        {fallback}
+      </Pressable>
     );
   }
 
-  const params = new URLSearchParams({
-    center: `${lat},${lng}`,
-    zoom: '16',
-    size: '640x360',
-    scale: '2',
-    markers: `color:red|${lat},${lng}`,
-    key: GOOGLE_MAPS_API_KEY,
-  });
-  const uri = `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`;
-  return (
+  const map = (
     <Image
       source={{ uri }}
       style={styles.map}
-      accessibilityLabel={`Map showing bus #${busNo}'s current location`}
+      accessibilityLabel={`Map showing bus #${busNo}, the route, and the assigned stop`}
       onError={() => setFailed(true)}
     />
+  );
+  if (!onPress) return map;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="Open full map"
+      style={styles.map}
+    >
+      {map}
+    </Pressable>
   );
 }
 

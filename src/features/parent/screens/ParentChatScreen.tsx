@@ -54,8 +54,8 @@ export function ParentChatScreen() {
   const teachersQ = useDirectory();
   const openThread = useOpenThread('parent');
 
-  const isLoading = threadsQ.isLoading || childrenQ.isLoading;
-  const isError = threadsQ.isError || childrenQ.isError;
+  const isLoading = (threadsQ.isLoading && threadsQ.data === undefined) || (childrenQ.isLoading && childrenQ.data === undefined);
+  const isError = threadsQ.isError && threadsQ.data === undefined;
   const onRefresh = () => {
     threadsQ.refetch();
     childrenQ.refetch();
@@ -75,7 +75,7 @@ export function ParentChatScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader title="Inbox" />
+        <ScreenHeader title="Inbox" showBack={false} />
         <Loading />
       </SafeAreaView>
     );
@@ -83,7 +83,7 @@ export function ParentChatScreen() {
   if (isError) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScreenHeader title="Inbox" />
+        <ScreenHeader title="Inbox" showBack={false} />
         <ErrorState onRetry={onRefresh} />
       </SafeAreaView>
     );
@@ -109,6 +109,7 @@ export function ParentChatScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScreenHeader
         title="Inbox"
+        showBack={false}
         right={<IconButton icon="create-outline" onPress={() => toast('Coming soon')} />}
       />
       <View style={{ paddingHorizontal: 18, paddingVertical: 14 }}>

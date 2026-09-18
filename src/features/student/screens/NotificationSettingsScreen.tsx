@@ -43,7 +43,7 @@ export function NotificationSettingsScreen() {
     void noticesQ.refetch();
   }, [noticesQ, settingsQ]);
 
-  if (settingsQ.isLoading) {
+  if (settingsQ.isLoading && settingsQ.data === undefined) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScreenHeader title="Notifications" />
@@ -51,7 +51,7 @@ export function NotificationSettingsScreen() {
       </SafeAreaView>
     );
   }
-  if (settingsQ.isError) {
+  if (settingsQ.isError && settingsQ.data === undefined) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScreenHeader title="Notifications" />
@@ -67,6 +67,8 @@ export function NotificationSettingsScreen() {
     setBusy(key);
     try {
       await save.mutateAsync({ [key]: value });
+    } catch {
+      /* offline/write errors surface via mutation state; do not crash */
     } finally {
       setBusy(null);
     }

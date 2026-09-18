@@ -22,8 +22,8 @@ export function ParentPTMScreen() {
   const childrenQ = useChildren();
   const setStatus = useSetPTMStatus();
 
-  const isLoading = ptmQ.isLoading || childrenQ.isLoading;
-  const isError = ptmQ.isError || childrenQ.isError;
+  const isLoading = (ptmQ.isLoading && ptmQ.data === undefined) || (childrenQ.isLoading && childrenQ.data === undefined);
+  const isError = ptmQ.isError && ptmQ.data === undefined;
   const onRefresh = () => {
     ptmQ.refetch();
     childrenQ.refetch();

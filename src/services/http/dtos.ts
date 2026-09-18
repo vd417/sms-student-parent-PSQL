@@ -191,19 +191,46 @@ export interface FeeInvoiceLineDTO { head_id?: string | null; head_name: string;
 export interface FeeInvoiceDTO { id: string; period: string; due_date: string; amount: number; status: 'due' | 'partial' | 'paid'; paid_amount?: number; lines?: FeeInvoiceLineDTO[]; paid_on?: string; method?: string; }
 export interface PTMMeetingDTO { id: string; date: string; time: string; teacher: string; subject: string; child: string; mode: string; status: 'confirmed' | 'pending'; }
 
+export interface ChildBusStopDTO {
+  id: string;
+  name: string;
+  seq?: number;
+  lat?: number | null;
+  lng?: number | null;
+}
+
 export interface ChildBusPositionDTO {
   student_id: string;
   student_name: string;
   admission_no: string;
-  bus_id: string;
-  bus_no: string;
+  bus_id?: string | null;
+  bus_no?: string | null;
   route_name: string | null;
   status: 'idle' | 'delayed' | 'at_stop' | 'on_route';
+  tracking_status?: 'LIVE' | 'DELAYED' | 'OFFLINE' | null;
+  motion?: 'moving' | 'stopped' | null;
+  assignment?: 'assigned' | 'pending' | 'none' | 'opted_out' | null;
+  grade?: string | null;
+  section?: string | null;
+  driver?: string | null;
+  driver_phone?: string | null;
+  boarding_state?: string | null;
+  eta_next_stop_min?: number | null;
+  current_stop_index?: number | null;
+  current_stop_name?: string | null;
+  passed_stop_count?: number | null;
+  total_stops?: number | null;
   lat: number | null;
   lng: number | null;
   speed_kmh: number | null;
   next_stop_name: string | null;
   last_ping_at: string | null;
+  student_stop_id?: string | null;
+  student_stop_name?: string | null;
+  student_stop_lat?: number | null;
+  student_stop_lng?: number | null;
+  distance_to_student_stop_m?: number | null;
+  route_stops?: ChildBusStopDTO[] | null;
 }
 
 export interface AttendanceDayDTO { d: number; kind: AttendanceDay['kind']; }
@@ -219,4 +246,15 @@ export interface AttendanceRecordDTO {
   marked_by_role?: string | null;
 }
 
-export interface LeaveRequestDTO { id: string; child_id: string; type?: 'casual' | 'sick' | 'earned' | 'medical' | 'maternity' | 'emergency' | 'other'; from_date: string; to_date: string; reason: string; note: string; status: 'pending' | 'approved' | 'rejected'; }
+export interface LeaveRequestDTO {
+  id: string;
+  child_id?: string | null;
+  type?: 'casual' | 'sick' | 'earned' | 'medical' | 'maternity' | 'emergency' | 'other';
+  from_date: string;
+  to_date: string;
+  reason?: string | null;
+  note?: string | null;
+  decided_note?: string | null;
+  status: 'pending' | 'approved' | 'rejected' | string;
+  attachment_urls?: string | string[] | null;
+}

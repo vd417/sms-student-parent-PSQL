@@ -1,1 +1,9 @@
-// Reserved for global test setup. Intentionally minimal for pure-logic tests.
+// Reserved for global test setup.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
+
+jest.mock('@react-native-community/netinfo', () => ({
+  addEventListener: jest.fn(() => jest.fn()),
+  fetch: jest.fn(async () => ({ isConnected: true, isInternetReachable: true })),
+}));

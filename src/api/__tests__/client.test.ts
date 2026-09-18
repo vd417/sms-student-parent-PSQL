@@ -6,6 +6,7 @@ import {
   setSessionExpiredHandler,
 } from '@/api/client';
 import { ApiError } from '@/services/errors';
+import { setNetworkSnapshotForTests } from '@/api/network';
 
 const okJson = (body: unknown) => ({ ok: true, status: 200, json: async () => body }) as Response;
 const errJson = (status: number, body: unknown) =>
@@ -16,6 +17,7 @@ afterEach(() => {
   setRefreshHandler(null);
   setSessionExpiredHandler(null);
   resetFetchGate();
+  setNetworkSnapshotForTests({ online: true, status: 'online' });
   jest.restoreAllMocks();
 });
 
@@ -78,4 +80,65 @@ it('fires session-expired when refresh fails', async () => {
   setSessionExpiredHandler(onExpired);
   await expect(apiFetch('/x')).rejects.toBeInstanceOf(ApiError);
   expect(onExpired).toHaveBeenCalledTimes(1);
+});
+
+it('does not logout when refresh fails due to network', async () => {
+  jest.spyOn(global, 'fetch').mockResolvedValue(errJson(401, {}));
+  setRefreshHandler(async () => {
+    throw new ApiError('Network error: /auth/refresh', 0, undefined, undefined, 'CONNECTION_ERROR');
+  });
+  const onExpired = jest.fn();
+  setSessionExpiredHandler(onExpired);
+  await expect(apiFetch('/x')).rejects.toMatchObject({ kind: 'CONNECTION_ERROR' });
+  expect(onExpired).not.toHaveBeenCalled();
+});
+
+it('does not logout when refresh fails with HTTP 502', async () => {
+  jest.spyOn(global, 'fetch').mockResolvedValue(errJson(401, {}));
+  setRefreshHandler(async () => {
+    throw new ApiError('bad gateway', 502);
+  });
+  const onExpired = jest.fn();
+  setSessionExpiredHandler(onExpired);
+  await expect(apiFetch('/x')).rejects.toMatchObject({ status: 502 });
+  expect(onExpired).not.toHaveBeenCalled();
+});
+
+it('does not logout when refresh throws a non-auth parse error', async () => {
+  jest.spyOn(global, 'fetch').mockResolvedValue(errJson(401, {}));
+  setRefreshHandler(async () => {
+    throw new Error('expected an enveloped { data } response');
+  });
+  const onExpired = jest.fn();
+  setSessionExpiredHandler(onExpired);
+  await expect(apiFetch('/x')).rejects.toThrow('expected an enveloped { data } response');
+  expect(onExpired).not.toHaveBeenCalled();
+});
+
+it('does not logout on HTTP 500', async () => {
+  jest.spyOn(global, 'fetch').mockResolvedValue(errJson(500, { message: 'nope' }));
+  const onExpired = jest.fn();
+  setSessionExpiredHandler(onExpired);
+  await expect(apiFetch('/x')).rejects.toMatchObject({ status: 500, kind: 'SERVER_ERROR' });
+  expect(onExpired).not.toHaveBeenCalled();
+});
+
+it('does not logout on HTTP 503', async () => {
+  jest.spyOn(global, 'fetch').mockResolvedValue(errJson(503, {}));
+  const onExpired = jest.fn();
+  setSessionExpiredHandler(onExpired);
+  await expect(apiFetch('/x')).rejects.toMatchObject({ status: 503 });
+  expect(onExpired).not.toHaveBeenCalled();
+});
+
+it('blocks writes while offline and does not logout', async () => {
+  setNetworkSnapshotForTests({ online: false, status: 'offline' });
+  const fetchMock = jest.spyOn(global, 'fetch');
+  const onExpired = jest.fn();
+  setSessionExpiredHandler(onExpired);
+  await expect(apiFetch('/fees', { method: 'POST', body: '{}' })).rejects.toMatchObject({
+    kind: 'NETWORK_OFFLINE',
+  });
+  expect(fetchMock).not.toHaveBeenCalled();
+  expect(onExpired).not.toHaveBeenCalled();
 });

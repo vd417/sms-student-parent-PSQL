@@ -4,11 +4,27 @@ import { useChildren } from '@/hooks/useParent';
 import { useSelectedChild } from '@/providers/ChildProvider';
 import { colors, fontFamily, hueColor, radius } from '@/theme';
 
-export function KidSwitcher() {
+export const ALL_CHILDREN_ID = 'all';
+
+type Props = {
+  includeAll?: boolean;
+  selectedId?: string;
+  onSelect?: (id: string) => void;
+};
+
+export function KidSwitcher({ includeAll, selectedId, onSelect }: Props = {}) {
   const { data: children } = useChildren();
   const { childId, setChildId } = useSelectedChild();
 
   if (!children?.length) return null;
+
+  const current = selectedId ?? childId;
+  const showAll = Boolean(includeAll && children.length > 1);
+
+  const pick = (id: string) => {
+    if (onSelect) onSelect(id);
+    if (id !== ALL_CHILDREN_ID) setChildId(id);
+  };
 
   return (
     <ScrollView
@@ -16,12 +32,34 @@ export function KidSwitcher() {
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.row}
     >
+      {showAll ? (
+        <Pressable
+          onPress={() => pick(ALL_CHILDREN_ID)}
+          style={({ pressed }) => [
+            styles.chip,
+            current === ALL_CHILDREN_ID ? styles.chipOn : styles.chipOff,
+            pressed && { opacity: 0.85 },
+          ]}
+        >
+          <View style={[styles.avatar, { backgroundColor: colors.primarySoft }]}>
+            <Ionicons name="people" size={14} color={colors.primary} />
+          </View>
+          <View>
+            <Text style={[styles.name, { color: current === ALL_CHILDREN_ID ? colors.white : colors.ink }]}>
+              All
+            </Text>
+            <Text style={[styles.grade, { color: current === ALL_CHILDREN_ID ? colors.white : colors.ink }]}>
+              {children.length} kids
+            </Text>
+          </View>
+        </Pressable>
+      ) : null}
       {children.map((c) => {
-        const on = c.id === childId;
+        const on = c.id === current;
         return (
           <Pressable
             key={c.id}
-            onPress={() => setChildId(c.id)}
+            onPress={() => pick(c.id)}
             style={({ pressed }) => [
               styles.chip,
               on ? styles.chipOn : styles.chipOff,
@@ -47,9 +85,11 @@ export function KidSwitcher() {
           </Pressable>
         );
       })}
-      <View style={styles.addChip}>
-        <Ionicons name="add" size={18} color={colors.inkMuted} />
-      </View>
+      {includeAll ? null : (
+        <View style={styles.addChip}>
+          <Ionicons name="add" size={18} color={colors.inkMuted} />
+        </View>
+      )}
     </ScrollView>
   );
 }

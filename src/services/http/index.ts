@@ -2,6 +2,7 @@ import type { Role } from '@/models';
 import type { DailyAttendanceStatus } from '@/models';
 import type { PasswordResetSent, Services } from '@/services/types';
 import { apiFetch, setAuthToken } from '@/api/client';
+import { isConfirmedAuthFailure, isTransientFailure } from '@/api/errorKind';
 import { classifyIdentifier, normalizeLoginIdentifier } from '@/services/auth/identifier';
 import { tokenStore } from '@/services/auth/tokenStore';
 import { ApiError } from '@/services/errors';
@@ -10,7 +11,8 @@ import {
   assertChatMessageAllowed,
 } from '@/lib/chatModeration';
 import { minutesFromMidnight } from '@/lib/nextPeriod';
-import { deriveTodayAttendance } from '@/lib/todayAttendance';
+import { resolveTodayAttendance } from '@/lib/todayAttendance';
+import { leaveBelongsToChild } from '@/lib/leaveHistory';
 import type {
   SessionDTO, SessionUserDTO, StudentDTO, SubjectDTO,
   HomeworkDTO, ExamPaperDTO, GradeDTO, AnnouncementDTO, NotificationDTO, ChatThreadDTO, ChatMessageDTO,
@@ -20,8 +22,9 @@ import type {
 import {
   appRoleFromMe, rolesFromAccessToken, schoolFromMe, toStudent, toSubject,
   toHomework, toExam, toGrade, toAnnouncement, toNotice, toInboxNotice, toChatThread, toChatMessage, toTeacher,
-  toParent, toChild, toFee, toPTM, toTransport, toAttendanceFromRecords, toLeaveRequest,
+  toParent, toChild, toFee, toPTM, toTransport, mergeAttendanceCalendar, toLeaveRequest,
   toTimetableBlock, weekdayShort, compareTimetableBlocks, subjectShortCode, toAchievement, initialsFrom,
+  noticeSortMs,
 } from './mappers';
 import { clearSisStudentCache, loadMyStudent } from './sisStudent';
 import { ensurePaintableSchoolMark } from './schoolMark';
@@ -43,7 +46,9 @@ function toAppSettings(d: AppSettingsDTO) {
 async function emptyOnError<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await fn();
-  } catch {
+  } catch (err) {
+    // Do not replace cached/real data with empty fallbacks on outages.
+    if (isTransientFailure(err) || isConfirmedAuthFailure(err)) throw err;
     return fallback;
   }
 }
@@ -321,11 +326,19 @@ export const httpServices: Services = {
           : [];
       const notes =
         noteRes.status === 'fulfilled' && Array.isArray(noteRes.value)
-          ? noteRes.value.map(toNotice)
+          ? noteRes.value.map((row) => ({
+              item: toNotice(row),
+              at: noticeSortMs(row.time),
+            }))
           : [];
       if (annRes.status === 'rejected' && noteRes.status === 'rejected') throw annRes.reason;
       const seen = new Set(anns.map((a) => a.id));
-      return [...notes.filter((n) => !seen.has(n.id)), ...anns];
+      return [
+        ...notes.filter((n) => n.item.unread !== false && !seen.has(n.item.id)),
+        ...anns.map((item) => ({ item, at: noticeSortMs(item.when) })),
+      ]
+        .sort((a, b) => b.at - a.at)
+        .map((row) => row.item);
     },
   },
   notifications: {
@@ -407,7 +420,10 @@ export const httpServices: Services = {
       const nowMin = minutesFromMidnight(new Date());
       const [blocks, dailyAttn, periodRows] = await Promise.all([
         emptyOnError(() => loadTimetableBlocks(id), []),
-        loadDailyAttendance(id).catch(() => null),
+        loadDailyAttendance(id).catch((err) => {
+          if (isTransientFailure(err) || isConfirmedAuthFailure(err)) throw err;
+          return null;
+        }),
         emptyOnError(
           () =>
             getJson<AttendanceRecordDTO[]>(
@@ -433,7 +449,7 @@ export const httpServices: Services = {
         classes,
         meals: { breakfast: '', lunch: '' },
         pickup: '—',
-        todayAttn: dailyAttn ?? deriveTodayAttendance(classes.map((c) => c.attn)),
+        todayAttn: resolveTodayAttendance(classes.map((c) => c.attn), dailyAttn),
       };
     },
   },
@@ -467,14 +483,36 @@ export const httpServices: Services = {
     setStatus: (id, status) => patch<PTMMeetingDTO>(`/ptm/${id}`, { status }).then(toPTM),
   },
   transport: {
-    // Endpoint is scoped to the caller's own account, not childId — it returns every
-    // linked child's bus. Pick the row matching the selected child; fall back to the
-    // first row for a single-child (student) login.
-    forChild: (childId) =>
+    // Endpoint is scoped to the caller. Parents get every linked child; a student login is
+    // pinned to that one roster row. Never invent a sibling by falling back to rows[0]
+    // when a specific child id was requested.
+    list: () =>
       getJson<ChildBusPositionDTO[]>('/me/children/bus')
-        .then((rows) => rows.find((r) => r.student_id === childId) ?? rows[0] ?? null)
-        .then((row) => (row ? toTransport(row) : null))
-        .catch(() => null),
+        .then((rows) => rows.map(toTransport))
+        .catch((err) => {
+          if (isTransientFailure(err) || isConfirmedAuthFailure(err)) throw err;
+          return [];
+        }),
+    forChild: async (childId) => {
+      try {
+        const rows = await getJson<ChildBusPositionDTO[]>('/me/children/bus');
+        if (childId) {
+          const match = rows.find((r) => r.student_id === childId);
+          return match ? toTransport(match) : null;
+        }
+        try {
+          const me = await loadMyStudent();
+          const own = rows.find((r) => r.student_id === me.id);
+          if (own) return toTransport(own);
+        } catch {
+          /* parent login has no /students/me roster row */
+        }
+        return rows[0] ? toTransport(rows[0]) : null;
+      } catch (err) {
+        if (isTransientFailure(err) || isConfirmedAuthFailure(err)) throw err;
+        return null;
+      }
+    },
   },
   attendance: {
     today: async (childId) => {
@@ -486,10 +524,23 @@ export const httpServices: Services = {
       const now = new Date();
       const from = localDateLabel(new Date(now.getFullYear(), now.getMonth(), 1));
       const to = localDateLabel(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-      const rows = await getJson<AttendanceRecordDTO[]>(
-        `/students/${encodeURIComponent(id)}/attendance?from=${from}&to=${to}`,
-      );
-      return toAttendanceFromRecords(rows);
+      const [dailyRows, periodRows] = await Promise.all([
+        emptyOnError(
+          () =>
+            getJson<AttendanceRecordDTO[]>(
+              `/students/${encodeURIComponent(id)}/attendance?from=${from}&to=${to}`,
+            ),
+          [],
+        ),
+        emptyOnError(
+          () =>
+            getJson<AttendanceRecordDTO[]>(
+              `/students/${encodeURIComponent(id)}/attendance/periods?from=${from}&to=${to}`,
+            ),
+          [],
+        ),
+      ]);
+      return mergeAttendanceCalendar(dailyRows, periodRows);
     },
     periods: async (childId, from, to) => {
       const id = childId || (await loadMyStudent()).id;
@@ -536,12 +587,18 @@ export const httpServices: Services = {
     list: async (childId) => {
       const id = childId || (await loadMyStudent()).id;
       const rows = await getJson<LeaveRequestDTO[]>(`/leave?student_id=${encodeURIComponent(id)}`);
-      return rows.map(toLeaveRequest);
+      const mapped = (Array.isArray(rows) ? rows : []).map(toLeaveRequest);
+      return mapped.filter((row) => leaveBelongsToChild(row.childId, id));
     },
     submit: (req) =>
       post<LeaveRequestDTO>('/leave', {
         type: leaveTypeFromReason(req.reason),
-        child_id: req.childId, from_date: req.from, to_date: req.to, reason: req.reason, note: req.note,
+        child_id: req.childId,
+        from_date: req.from,
+        to_date: req.to,
+        reason: req.reason,
+        note: req.note,
+        ...(req.attachmentUrls?.length ? { attachment_urls: req.attachmentUrls } : {}),
       }).then(toLeaveRequest),
   },
 };

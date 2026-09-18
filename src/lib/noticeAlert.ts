@@ -31,8 +31,15 @@ export const DEFAULT_NOTICE_PREFS: NoticePrefs = {
   schoolNotices: true,
 };
 
-export function shouldToastNotice(prefs: NoticePrefs, n: NoticeAlert): boolean {
+export function shouldToastNotice(
+  prefs: NoticePrefs,
+  n: NoticeAlert,
+  currentRoute?: string,
+): boolean {
   if (!prefs.inAppToasts) return false;
-  if (n.tone.trim().toLowerCase() === 'chat') return prefs.chatAlerts;
+  const chat = n.tone.trim().toLowerCase() === 'chat';
+  // Live thread already shows the message — a toast on top of the composer looks like a second popup.
+  if (chat && currentRoute === 'ChatThread') return false;
+  if (chat) return prefs.chatAlerts;
   return prefs.schoolNotices;
 }

@@ -2,11 +2,12 @@ import { createContext, ReactNode, useContext, useEffect, useState } from 'react
 import { useQueryClient } from '@tanstack/react-query';
 import { API_BASE_URL, DATA_SOURCE } from '@/api/config';
 import { getAuthToken } from '@/api/client';
+import { getNetworkSnapshot, subscribeNetwork } from '@/api/network';
 import { tokenStore } from '@/services/auth/tokenStore';
 import { useAuth } from '@/providers/AuthProvider';
 import { liveEventQueryKeys, liveEventType, liveHubUrl } from '@/lib/liveEvents';
 
-type LiveStatus = { connected: boolean };
+type LiveStatus = { connected: boolean; lastEventAt: number | null };
 
 type LiveConnection = {
   on: (event: string, cb: (payload: unknown) => void) => void;
@@ -17,7 +18,7 @@ type LiveConnection = {
   off: (event: string) => void;
 };
 
-const LiveContext = createContext<LiveStatus>({ connected: false });
+const LiveContext = createContext<LiveStatus>({ connected: false, lastEventAt: null });
 
 export function useLive(): LiveStatus {
   return useContext(LiveContext);
@@ -27,9 +28,13 @@ export function LiveProvider({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const qc = useQueryClient();
   const [connected, setConnected] = useState(false);
+  const [lastEventAt, setLastEventAt] = useState<number | null>(null);
+  const [online, setOnline] = useState(getNetworkSnapshot().online);
+
+  useEffect(() => subscribeNetwork((snap) => setOnline(snap.online)), []);
 
   useEffect(() => {
-    if (status !== 'authenticated' || DATA_SOURCE !== 'http' || !API_BASE_URL) {
+    if (status !== 'authenticated' || DATA_SOURCE !== 'http' || !API_BASE_URL || !online) {
       setConnected(false);
       return;
     }
@@ -39,7 +44,6 @@ export function LiveProvider({ children }: { children: ReactNode }) {
 
     void (async () => {
       try {
-        // Load after login so a SignalR/Metro failure cannot blank Welcome/Login.
         const signalR = await import('@microsoft/signalr');
         if (cancelled) return;
         const conn: LiveConnection = new signalR.HubConnectionBuilder()
@@ -53,6 +57,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
           .build();
 
         conn.on('live_event', (payload: unknown) => {
+          setLastEventAt(Date.now());
           const type = liveEventType(payload);
           for (const queryKey of liveEventQueryKeys(type)) {
             void qc.invalidateQueries({ queryKey });
@@ -62,7 +67,12 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         conn.onclose(() => setConnected(false));
         connection = conn;
         await conn.start();
-        if (!cancelled) setConnected(true);
+        if (cancelled) {
+          conn.off('live_event');
+          void conn.stop();
+          return;
+        }
+        setConnected(true);
       } catch {
         if (!cancelled) setConnected(false);
       }
@@ -76,7 +86,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
         void connection.stop();
       }
     };
-  }, [status, qc]);
+  }, [status, qc, online]);
 
-  return <LiveContext.Provider value={{ connected }}>{children}</LiveContext.Provider>;
+  return <LiveContext.Provider value={{ connected, lastEventAt }}>{children}</LiveContext.Provider>;
 }

@@ -67,8 +67,8 @@ export function ParentClassScreen() {
   const timetableQ = useTimetable(childId);
   const homeworkQ = useHomework(childId);
 
-  const isLoading = childrenQ.isLoading || subjectsQ.isLoading;
-  const isError = childrenQ.isError;
+  const isLoading = (childrenQ.isLoading && childrenQ.data === undefined) || (subjectsQ.isLoading && subjectsQ.data === undefined);
+  const isError = childrenQ.isError && childrenQ.data === undefined;
   const onRefresh = () => {
     childrenQ.refetch();
     subjectsQ.refetch();

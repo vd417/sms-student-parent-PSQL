@@ -69,7 +69,10 @@ export function ptmMock(opts: Opts = {}): PTMService {
 }
 
 export function transportMock(opts: Opts = {}): TransportService {
-  return { forChild: (_childId) => withLatency(() => db.transport!, opts) };
+  return {
+    list: () => withLatency(() => (db.transport ? [db.transport] : []), opts),
+    forChild: (_childId) => withLatency(() => db.transport!, opts),
+  };
 }
 
 const MOCK_PERIOD_SUBJECTS = ['Music', 'Maths'];

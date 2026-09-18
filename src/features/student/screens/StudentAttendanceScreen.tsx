@@ -3,13 +3,14 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Card, ErrorState, Loading, ScreenHeader } from '@/components/ui';
+import { Card, ErrorState, Loading, ScreenHeader, LastUpdated } from '@/components/ui';
 import { useStudentProfile } from '@/hooks/useStudent';
 import { useSubjects } from '@/hooks/useSubjects';
 import { useAttendanceSummary, usePeriodAttendance } from '@/hooks/useAttendance';
 import { attendanceBySubject } from '@/lib/attendanceBySubject';
 import { normalizeSubjectName } from '@/lib/belongsToSubject';
 import { rangeForPreset, type AttendancePreset } from '@/lib/attendanceRange';
+import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
 import { colors, fontFamily, radius } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -37,8 +38,6 @@ export function StudentAttendanceScreen() {
   const summaryQ = useAttendanceSummary(undefined, from, to);
   const periodQ = usePeriodAttendance(undefined, from, to);
 
-  const isLoading = meQ.isLoading || summaryQ.isLoading || periodQ.isLoading;
-  const isError = meQ.isError || summaryQ.isError || periodQ.isError;
   const onRefresh = () => {
     meQ.refetch();
     subjectsQ.refetch();
@@ -46,7 +45,7 @@ export function StudentAttendanceScreen() {
     periodQ.refetch();
   };
 
-  if (isLoading) {
+  if (isInitialLoad(meQ) && isInitialLoad(summaryQ)) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScreenHeader title="Attendance" onBack={() => nav.goBack()} />
@@ -54,7 +53,7 @@ export function StudentAttendanceScreen() {
       </SafeAreaView>
     );
   }
-  if (isError) {
+  if (isBlockingError(meQ) && isBlockingError(summaryQ)) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScreenHeader title="Attendance" onBack={() => nav.goBack()} />
@@ -73,6 +72,7 @@ export function StudentAttendanceScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScreenHeader kicker={classLabel || undefined} title="Attendance" onBack={() => nav.goBack()} />
+      <LastUpdated at={summaryQ.dataUpdatedAt ?? periodQ.dataUpdatedAt} />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 24, paddingHorizontal: 18 }}
         refreshControl={<RefreshControl refreshing={periodQ.isRefetching} onRefresh={onRefresh} />}
