@@ -31,6 +31,7 @@ export const qk = {
   ptm: ['parent', 'ptm'] as const,
   transport: (id: string) => ['parent', 'transport', id] as const,
   transportList: () => ['parent', 'transport'] as const,
+  routeGeometry: (routeId: string) => ['transport', 'routeGeometry', routeId] as const,
   attendance: (id: string) => ['parent', 'attendance', id] as const,
   leave: (id: string) => ['parent', 'leave', id] as const,
 };
