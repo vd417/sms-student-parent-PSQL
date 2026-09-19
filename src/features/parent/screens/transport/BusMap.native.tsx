@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
 import { GOOGLE_MAP_ID } from '@/api/config';
-import { colors } from '@/theme';
+import { decodePolyline } from '@/lib/decodePolyline';
+import { colors, fontFamily, radius } from '@/theme';
 import type { BusMapProps } from './BusMap.types';
+
+function RouteUnavailableBadge() {
+  return (
+    <View style={styles.unavailableBadge} pointerEvents="none">
+      <Text style={styles.unavailableTxt}>Route unavailable</Text>
+    </View>
+  );
+}
 
 export type { BusMapProps } from './BusMap.types';
 
@@ -26,6 +35,7 @@ export function BusMap({
   follow = false,
   myLat = null,
   myLng = null,
+  routeGeometry,
   onPress,
   onRecenterReady,
 }: BusMapProps) {
@@ -73,7 +83,13 @@ export function BusMap({
     latitudeDelta: 0.04,
     longitudeDelta: 0.04,
   };
+  // Legacy straight-line-through-stops fallback; kept unused (never rendered) to avoid
+  // silently drawing an inaccurate line when road geometry is unavailable/errored.
   const routeCoords = stops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
+  const roadPath =
+    routeGeometry?.status === 'available' && routeGeometry.geometry
+      ? decodePolyline(routeGeometry.geometry)
+      : null;
 
   return (
     <View style={styles.map}>
@@ -90,8 +106,8 @@ export function BusMap({
         showsUserLocation
         pointerEvents={interactive ? 'auto' : 'none'}
       >
-        {routeCoords.length > 1 ? (
-          <Polyline coordinates={routeCoords} strokeColor={colors.primary} strokeWidth={4} />
+        {roadPath && roadPath.length > 1 ? (
+          <Polyline coordinates={roadPath} strokeColor={colors.primary} strokeWidth={4} />
         ) : null}
         {stops.map((s) =>
           s.yours ? null : (
@@ -126,6 +142,7 @@ export function BusMap({
           />
         ) : null}
       </MapView>
+      {routeGeometry?.status === 'unavailable' ? <RouteUnavailableBadge /> : null}
       {!interactive && onPress ? (
         <Pressable
           onPress={onPress}
@@ -138,4 +155,16 @@ export function BusMap({
   );
 }
 
-const styles = StyleSheet.create({ map: { flex: 1 } });
+const styles = StyleSheet.create({
+  map: { flex: 1 },
+  unavailableBadge: {
+    position: 'absolute',
+    left: 10,
+    top: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.72)',
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  unavailableTxt: { fontFamily: fontFamily.bold, fontSize: 11, color: colors.white },
+});

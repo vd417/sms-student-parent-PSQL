@@ -205,6 +205,7 @@ export interface ChildBusPositionDTO {
   admission_no: string;
   bus_id?: string | null;
   bus_no?: string | null;
+  route_id?: string | null;
   route_name: string | null;
   status: 'idle' | 'delayed' | 'at_stop' | 'on_route';
   tracking_status?: 'LIVE' | 'DELAYED' | 'OFFLINE' | null;

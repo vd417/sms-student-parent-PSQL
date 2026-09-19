@@ -255,6 +255,7 @@ export interface Transport {
   section: string | null;
   busId: string | null;
   busNo: string;
+  routeId: string | null;
   routeName: string | null;
   status: TransportStatus;
   trackingStatus: TransportTrackingStatus;

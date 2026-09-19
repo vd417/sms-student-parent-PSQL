@@ -571,6 +571,7 @@ export const toTransport = (d: ChildBusPositionDTO): Transport => {
     section: d.section ?? null,
     busId: d.bus_id ?? null,
     busNo: d.bus_no ?? '',
+    routeId: d.route_id ?? null,
     routeName: d.route_name,
     status,
     trackingStatus: tracking,

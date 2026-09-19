@@ -8,6 +8,7 @@ import type { PillTone } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
 import { KidSwitcher, ALL_CHILDREN_ID } from '@/features/parent/components/KidSwitcher';
 import { useChildren } from '@/hooks/useParent';
+import { useRouteGeometry } from '@/hooks/useRouteGeometry';
 import { useChildrenTransport } from '@/hooks/useTransport';
 import { useTransportFleetPush } from '@/hooks/useTransportFleet';
 import { useMyLocation } from '@/hooks/useMyLocation';
@@ -28,6 +29,7 @@ import {
 } from '@/lib/busTracking';
 import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
 import type { Transport, TransportTrackingStatus } from '@/models';
+import type { RouteGeometryDTO } from '@/services/http/routeGeometry';
 import { colors, fontFamily, radius } from '@/theme';
 import { BusMap } from './transport/BusMap';
 
@@ -237,6 +239,21 @@ function ChildTrack({
   const [mapOpen, setMapOpen] = useState(false);
   const fullRecenterRef = useRef<(() => void) | null>(null);
   const { point: me, ready: locReady } = useMyLocation(!empty);
+  const routeGeometryQ = useRouteGeometry(tr.routeId);
+  // A failed geometry fetch must render identically to the backend's own `unavailable`
+  // status — never as a silent blank/loading state indistinguishable from "not loaded yet".
+  const routeGeometry: RouteGeometryDTO | undefined = routeGeometryQ.isError
+    ? {
+        routeId: tr.routeId ?? '',
+        status: 'unavailable',
+        format: null,
+        geometry: null,
+        distanceMeters: null,
+        durationSeconds: null,
+        stopSequenceHash: '',
+        generatedAt: null,
+      }
+    : routeGeometryQ.data;
 
   const youToBus = formatStopDistance(metersBetween(me ?? { lat: null, lng: null }, { lat: tr.lat, lng: tr.lng }));
   const youToStop = formatStopDistance(
@@ -253,6 +270,7 @@ function ChildTrack({
     stops: mapStops,
     myLat: me?.lat ?? null,
     myLng: me?.lng ?? null,
+    routeGeometry,
   };
 
   if (empty) {

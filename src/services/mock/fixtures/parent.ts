@@ -157,6 +157,7 @@ export const transport: Transport = {
   section: 'A',
   busId: 'bus-12',
   busNo: '12',
+  routeId: 'route-7',
   routeName: 'Route 7',
   status: 'on_route',
   trackingStatus: 'LIVE',

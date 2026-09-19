@@ -1,3 +1,5 @@
+import type { RouteGeometryDTO } from '@/services/http/routeGeometry';
+
 export type BusMapStop = {
   id: string;
   name: string;
@@ -21,6 +23,8 @@ export type BusMapProps = {
   follow?: boolean;
   myLat?: number | null;
   myLng?: number | null;
+  /** Road-following geometry for the assigned route; `unavailable` (or omitted) renders no line + a badge, never the old straight-line fallback. */
+  routeGeometry?: RouteGeometryDTO;
   onPress?: () => void;
   onRecenterReady?: (recenter: () => void) => void;
 };

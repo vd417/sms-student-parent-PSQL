@@ -20,6 +20,7 @@ const base: Transport = {
   section: 'A',
   busId: 'bus-12',
   busNo: '12',
+  routeId: 'route-62',
   routeName: 'Sector 62',
   status: 'on_route',
   trackingStatus: 'LIVE',
