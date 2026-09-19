@@ -7,9 +7,42 @@ import type {
   TransportService,
 } from '@/services/types';
 import type { PeriodAttendanceEntry } from '@/models';
+import type { RouteGeometryDTO } from '@/services/http/routeGeometry';
 import { db } from './db';
 import { withLatency } from './latency';
 import { attendanceFor } from './fixtures/parent';
+
+// A short, real, standard-precision (polyline5) encoded polyline — Google's own canonical
+// sample, tracing a handful of points near San Francisco. The absolute coordinates don't
+// need to match db.transport's mock lat/lng; this only needs to be a valid, decodable
+// road-following line so mock/demo mode exercises the same rendering path as production.
+const MOCK_ENCODED_POLYLINE = '_p~iF~ps|U_ulLnnqC_mqNvxq`@';
+
+/** Route-7 (db.transport's mock route id) geometry, matched by route id; anything else is unavailable. */
+function mockRouteGeometry(routeId: string): RouteGeometryDTO {
+  if (routeId !== db.transport?.routeId) {
+    return {
+      routeId,
+      status: 'unavailable',
+      format: null,
+      geometry: null,
+      distanceMeters: null,
+      durationSeconds: null,
+      stopSequenceHash: '',
+      generatedAt: null,
+    };
+  }
+  return {
+    routeId,
+    status: 'available',
+    format: 'polyline5',
+    geometry: MOCK_ENCODED_POLYLINE,
+    distanceMeters: 4200,
+    durationSeconds: 900,
+    stopSequenceHash: 'mock-hash-1',
+    generatedAt: new Date().toISOString(),
+  };
+}
 
 interface Opts {
   ms?: number;
@@ -72,6 +105,7 @@ export function transportMock(opts: Opts = {}): TransportService {
   return {
     list: () => withLatency(() => (db.transport ? [db.transport] : []), opts),
     forChild: (_childId) => withLatency(() => db.transport!, opts),
+    routeGeometry: (routeId) => withLatency(() => mockRouteGeometry(routeId), opts),
   };
 }
 

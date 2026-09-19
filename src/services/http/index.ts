@@ -28,6 +28,7 @@ import {
 } from './mappers';
 import { clearSisStudentCache, loadMyStudent } from './sisStudent';
 import { ensurePaintableSchoolMark } from './schoolMark';
+import { getRouteGeometry } from './routeGeometry';
 
 const getJson = <T>(path: string) => apiFetch<T>(path);
 const post = <T>(path: string, body: unknown) =>
@@ -513,6 +514,7 @@ export const httpServices: Services = {
         return null;
       }
     },
+    routeGeometry: (routeId) => getRouteGeometry(routeId),
   },
   attendance: {
     today: async (childId) => {

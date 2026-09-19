@@ -4,6 +4,7 @@ import MapView, { Marker, Polyline, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 're
 import { GOOGLE_MAP_ID } from '@/api/config';
 import { decodePolyline } from '@/lib/decodePolyline';
 import { colors, fontFamily, radius } from '@/theme';
+import { showRouteUnavailableBadge, usableRouteGeometry } from './BusMap.types';
 import type { BusMapProps } from './BusMap.types';
 
 function RouteUnavailableBadge() {
@@ -86,10 +87,8 @@ export function BusMap({
   // Legacy straight-line-through-stops fallback; kept unused (never rendered) to avoid
   // silently drawing an inaccurate line when road geometry is unavailable/errored.
   const routeCoords = stops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
-  const roadPath =
-    routeGeometry?.status === 'available' && routeGeometry.geometry
-      ? decodePolyline(routeGeometry.geometry)
-      : null;
+  const usableGeometry = usableRouteGeometry(routeGeometry);
+  const roadPath = usableGeometry ? decodePolyline(usableGeometry.geometry as string) : null;
 
   return (
     <View style={styles.map}>
@@ -142,7 +141,7 @@ export function BusMap({
           />
         ) : null}
       </MapView>
-      {routeGeometry?.status === 'unavailable' ? <RouteUnavailableBadge /> : null}
+      {showRouteUnavailableBadge(routeGeometry) ? <RouteUnavailableBadge /> : null}
       {!interactive && onPress ? (
         <Pressable
           onPress={onPress}

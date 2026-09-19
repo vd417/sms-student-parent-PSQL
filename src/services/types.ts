@@ -29,6 +29,7 @@ import type {
   TodayBlock,
   Transport,
 } from '@/models';
+import type { RouteGeometryDTO } from '@/services/http/routeGeometry';
 
 export interface PasswordResetSent {
   channel: 'sms' | 'email';
@@ -142,6 +143,8 @@ export interface TransportService {
   list(): Promise<Transport[]>;
   /** Null when the backend has no transport detail for this child yet (no live endpoint). */
   forChild(childId: string): Promise<Transport | null>;
+  /** Road-following geometry for the assigned route (bus map polyline). */
+  routeGeometry(routeId: string): Promise<RouteGeometryDTO>;
 }
 
 export interface AttendanceService {

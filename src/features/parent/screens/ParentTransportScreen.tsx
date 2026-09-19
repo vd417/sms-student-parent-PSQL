@@ -59,6 +59,21 @@ function connectionLabel(online: boolean, live: boolean, fleet: boolean, trackin
   return null;
 }
 
+/** Shared "unavailable" geometry DTO — used both for a failed fetch and for a tracked
+ * bus with no route id to fetch geometry for, so both render identically (badge, no line). */
+function unavailableRouteGeometryDTO(routeId: string | null | undefined): RouteGeometryDTO {
+  return {
+    routeId: routeId ?? '',
+    status: 'unavailable',
+    format: null,
+    geometry: null,
+    distanceMeters: null,
+    durationSeconds: null,
+    stopSequenceHash: '',
+    generatedAt: null,
+  };
+}
+
 export function ParentTransportScreen() {
   const nav = useNavigation<Nav>();
   const { role } = useAuth();
@@ -242,18 +257,14 @@ function ChildTrack({
   const routeGeometryQ = useRouteGeometry(tr.routeId);
   // A failed geometry fetch must render identically to the backend's own `unavailable`
   // status — never as a silent blank/loading state indistinguishable from "not loaded yet".
+  // Likewise, an actively-tracked bus (hasMap) with no route id at all has nothing to ever
+  // fetch (the query is disabled), so it must be forced to the same `unavailable` state
+  // rather than left `undefined` — which would be indistinguishable from "still loading".
+  // A child with no bus/tracking data at all (hasMap false) stays `undefined`, exactly as
+  // before this feature existed — no badge for a bus that simply isn't active right now.
   const routeGeometry: RouteGeometryDTO | undefined = routeGeometryQ.isError
-    ? {
-        routeId: tr.routeId ?? '',
-        status: 'unavailable',
-        format: null,
-        geometry: null,
-        distanceMeters: null,
-        durationSeconds: null,
-        stopSequenceHash: '',
-        generatedAt: null,
-      }
-    : routeGeometryQ.data;
+    ? unavailableRouteGeometryDTO(tr.routeId)
+    : (routeGeometryQ.data ?? (hasMap && !tr.routeId ? unavailableRouteGeometryDTO(tr.routeId) : undefined));
 
   const youToBus = formatStopDistance(metersBetween(me ?? { lat: null, lng: null }, { lat: tr.lat, lng: tr.lng }));
   const youToStop = formatStopDistance(

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GOOGLE_MAPS_API_KEY } from '@/api/config';
-import { decodePolyline } from '@/lib/decodePolyline';
 import { colors, fontFamily, radius } from '@/theme';
+import { showRouteUnavailableBadge, usableRouteGeometry } from './BusMap.types';
 import type { BusMapProps } from './BusMap.types';
 
 export type { BusMapProps } from './BusMap.types';
@@ -51,13 +51,12 @@ export function BusMap({
     // Legacy straight-line-through-stops fallback; kept unused (never rendered) to avoid
     // silently drawing an inaccurate line when road geometry is unavailable/errored.
     const legacyPathPts = stops.map((s) => `${s.lat},${s.lng}`);
-    const roadPath =
-      routeGeometry?.status === 'available' && routeGeometry.geometry
-        ? decodePolyline(routeGeometry.geometry)
-        : null;
-    if (roadPath && roadPath.length > 1) {
-      const pathPts = roadPath.map((p) => `${p.latitude},${p.longitude}`);
-      params.append('path', `color:0x2563EB99|weight:4|${pathPts.join('|')}`);
+    const usableGeometry = usableRouteGeometry(routeGeometry);
+    if (usableGeometry) {
+      // Pass the raw encoded polyline straight through via Static Maps' `enc:` prefix —
+      // expanding it into a literal point list can blow past Google's 16384-char URL
+      // limit on real (multi-hundred-point) routes and fail the entire map image.
+      params.append('path', `color:0x2563EB99|weight:4|enc:${usableGeometry.geometry}`);
     }
     if (lat != null && lng != null) {
       params.append('markers', `color:${busColor(trackingStatus)}|label:B|${lat},${lng}`);
@@ -100,7 +99,7 @@ export function BusMap({
         accessibilityLabel={`Map showing bus #${busNo}, your location, and the assigned stop`}
         onError={() => setFailed(true)}
       />
-      {routeGeometry?.status === 'unavailable' ? <RouteUnavailableBadge /> : null}
+      {showRouteUnavailableBadge(routeGeometry) ? <RouteUnavailableBadge /> : null}
     </View>
   );
   if (!onPress) return map;
