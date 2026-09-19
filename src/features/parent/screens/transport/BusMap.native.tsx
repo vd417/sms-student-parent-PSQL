@@ -23,6 +23,9 @@ export function BusMap({
   studentStop,
   stops = [],
   interactive = true,
+  follow = false,
+  myLat = null,
+  myLng = null,
   onPress,
   onRecenterReady,
 }: BusMapProps) {
@@ -32,8 +35,9 @@ export function BusMap({
     for (const s of stops) pts.push({ latitude: s.lat, longitude: s.lng });
     if (studentStop) pts.push({ latitude: studentStop.lat, longitude: studentStop.lng });
     if (lat != null && lng != null) pts.push({ latitude: lat, longitude: lng });
+    if (myLat != null && myLng != null) pts.push({ latitude: myLat, longitude: myLng });
     return pts;
-  }, [stops, studentStop, lat, lng]);
+  }, [stops, studentStop, lat, lng, myLat, myLng]);
 
   const center = coords[0];
   const fit = () => {
@@ -52,6 +56,14 @@ export function BusMap({
     const t = setTimeout(fit, 250);
     return () => clearTimeout(t);
   }, [coords.length]);
+
+  useEffect(() => {
+    if (!follow || !interactive || lat == null || lng == null || !mapRef.current) return;
+    mapRef.current.animateToRegion(
+      { latitude: lat, longitude: lng, latitudeDelta: 0.02, longitudeDelta: 0.02 },
+      500,
+    );
+  }, [follow, interactive, lat, lng]);
 
   if (!center) return null;
 
@@ -75,6 +87,7 @@ export function BusMap({
         zoomEnabled={interactive}
         rotateEnabled={false}
         pitchEnabled={false}
+        showsUserLocation
         pointerEvents={interactive ? 'auto' : 'none'}
       >
         {routeCoords.length > 1 ? (
@@ -95,6 +108,13 @@ export function BusMap({
             coordinate={{ latitude: studentStop.lat, longitude: studentStop.lng }}
             title={studentStop.name}
             pinColor="#2563EB"
+          />
+        ) : null}
+        {myLat != null && myLng != null ? (
+          <Marker
+            coordinate={{ latitude: myLat, longitude: myLng }}
+            title="You"
+            pinColor="#7C3AED"
           />
         ) : null}
         {lat != null && lng != null ? (

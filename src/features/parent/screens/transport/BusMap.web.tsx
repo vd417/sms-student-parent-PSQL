@@ -20,11 +20,13 @@ export function BusMap({
   studentStop,
   stops = [],
   fullscreen = false,
+  myLat = null,
+  myLng = null,
   onPress,
 }: BusMapProps) {
   const [failed, setFailed] = useState(false);
-  const centerLat = lat ?? studentStop?.lat ?? stops[0]?.lat;
-  const centerLng = lng ?? studentStop?.lng ?? stops[0]?.lng;
+  const centerLat = lat ?? studentStop?.lat ?? myLat ?? stops[0]?.lat;
+  const centerLng = lng ?? studentStop?.lng ?? myLng ?? stops[0]?.lng;
 
   const uri = useMemo(() => {
     if (!GOOGLE_MAPS_API_KEY || centerLat == null || centerLng == null) return '';
@@ -33,6 +35,7 @@ export function BusMap({
       zoom: lat != null && studentStop ? '14' : '15',
       size: fullscreen ? '640x640' : '640x420',
       scale: '2',
+      maptype: 'roadmap',
       key: GOOGLE_MAPS_API_KEY,
     });
     const pathPts = stops.map((s) => `${s.lat},${s.lng}`);
@@ -47,8 +50,16 @@ export function BusMap({
       params.append('markers', `color:${stop.passed ? '0x22C55E' : '0x94A3B8'}|size:tiny|${stop.lat},${stop.lng}`);
     }
     if (studentStop) params.append('markers', `color:blue|label:S|${studentStop.lat},${studentStop.lng}`);
+    if (myLat != null && myLng != null) {
+      params.append('markers', `color:0x7C3AED|label:Y|${myLat},${myLng}`);
+    }
+    const visible: string[] = [];
+    if (lat != null && lng != null) visible.push(`${lat},${lng}`);
+    if (studentStop) visible.push(`${studentStop.lat},${studentStop.lng}`);
+    if (myLat != null && myLng != null) visible.push(`${myLat},${myLng}`);
+    if (visible.length > 1) params.append('visible', visible.join('|'));
     return `https://maps.googleapis.com/maps/api/staticmap?${params.toString()}`;
-  }, [centerLat, centerLng, lat, lng, busNo, trackingStatus, studentStop, stops, fullscreen]);
+  }, [centerLat, centerLng, lat, lng, busNo, trackingStatus, studentStop, stops, fullscreen, myLat, myLng]);
 
   if (!uri || failed) {
     const fallback = (
@@ -68,7 +79,7 @@ export function BusMap({
     <Image
       source={{ uri }}
       style={styles.map}
-      accessibilityLabel={`Map showing bus #${busNo}, the route, and the assigned stop`}
+      accessibilityLabel={`Map showing bus #${busNo}, your location, and the assigned stop`}
       onError={() => setFailed(true)}
     />
   );

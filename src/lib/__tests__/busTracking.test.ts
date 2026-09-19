@@ -3,6 +3,7 @@ import {
   assignedStopLabel,
   assignmentMessage,
   boardingLabel,
+  routeDestinationName,
   classLabel,
   parseBusPositionPush,
   stopProgressKind,
@@ -70,6 +71,19 @@ describe('classLabel / assignment / boarding', () => {
   it('labels the assigned stop for the logged-in audience', () => {
     expect(assignedStopLabel('parent')).toBe("Child's stop");
     expect(assignedStopLabel('student')).toBe('Your stop');
+  });
+
+  it('uses the last route stop as the bus destination', () => {
+    expect(
+      routeDestinationName({
+        ...base,
+        routeStops: [
+          { id: '1', name: 'Gate', seq: 1, lat: 1, lng: 1 },
+          { id: '2', name: 'School campus', seq: 2, lat: 2, lng: 2 },
+        ],
+      }),
+    ).toBe('School campus');
+    expect(routeDestinationName({ ...base, routeStops: [], nextStopName: 'Depot' })).toBe('Depot');
   });
 
   it('labels boarding from staff trip states', () => {

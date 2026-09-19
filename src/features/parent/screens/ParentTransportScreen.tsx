@@ -10,16 +10,18 @@ import { KidSwitcher, ALL_CHILDREN_ID } from '@/features/parent/components/KidSw
 import { useChildren } from '@/hooks/useParent';
 import { useChildrenTransport } from '@/hooks/useTransport';
 import { useTransportFleetPush } from '@/hooks/useTransportFleet';
+import { useMyLocation } from '@/hooks/useMyLocation';
 import { useNetwork } from '@/hooks/useNetwork';
 import { useAuth } from '@/providers/AuthProvider';
 import { useSelectedChild } from '@/providers/ChildProvider';
 import { useLive } from '@/providers/LiveProvider';
-import { formatStopDistance } from '@/lib/busStopDistance';
+import { busToStopMeters, formatStopDistance, metersBetween } from '@/lib/busStopDistance';
 import {
   assignedStopLabel,
   assignmentMessage,
   boardingLabel,
   classLabel,
+  routeDestinationName,
   stopProgressKind,
   trackingLabel,
   uniqueBusIds,
@@ -222,12 +224,24 @@ function ChildTrack({
       passed: stopProgressKind(i, tr.currentStopIndex) === 'passed',
     }));
   const hasMap = (tr.lat != null && tr.lng != null) || studentStop != null || mapStops.length > 0;
-  const distance = formatStopDistance(tr.distanceToStudentStopM);
+  const distance = formatStopDistance(
+    busToStopMeters(tr.distanceToStudentStopM, { lat: tr.lat, lng: tr.lng }, {
+      lat: tr.studentStopLat,
+      lng: tr.studentStopLng,
+    }),
+  );
+  const destination = routeDestinationName(tr);
   const boarded = boardingLabel(tr.boardingState);
   const statusText = reconnect
     ?? (tr.trackingStatus === 'OFFLINE' && seen ? `OFFLINE · last location ${seen}` : trackingLabel(tr.trackingStatus, tr.motion));
   const [mapOpen, setMapOpen] = useState(false);
   const fullRecenterRef = useRef<(() => void) | null>(null);
+  const { point: me, ready: locReady } = useMyLocation(!empty);
+
+  const youToBus = formatStopDistance(metersBetween(me ?? { lat: null, lng: null }, { lat: tr.lat, lng: tr.lng }));
+  const youToStop = formatStopDistance(
+    metersBetween(me ?? { lat: null, lng: null }, { lat: tr.studentStopLat, lng: tr.studentStopLng }),
+  );
 
   const mapProps = {
     lat: tr.lat,
@@ -237,6 +251,8 @@ function ChildTrack({
     motion: tr.motion,
     studentStop,
     stops: mapStops,
+    myLat: me?.lat ?? null,
+    myLng: me?.lng ?? null,
   };
 
   if (empty) {
@@ -281,13 +297,14 @@ function ChildTrack({
           </Pressable>
           <View style={styles.legend}>
             <LegendDot color="#DC2626" label="Bus" />
+            <LegendDot color="#7C3AED" label="You" />
             <LegendDot color="#94A3B8" label="Stop" />
             <LegendDot color="#2563EB" label={stopTitle} />
             <LegendDot color="#22C55E" label="Passed" />
           </View>
           <Pressable onPress={() => recenterRef.current?.()} style={styles.recenterBtn}>
             <Ionicons name="locate-outline" size={16} color={colors.primary} />
-            <Text style={styles.recenterTxt}>Recenter bus</Text>
+            <Text style={styles.recenterTxt}>Recenter map</Text>
           </Pressable>
         </View>
       ) : (
@@ -329,7 +346,8 @@ function ChildTrack({
               <Text style={styles.infoLabel}>{stopTitle}</Text>
               <View style={{ alignItems: 'flex-end', flex: 1, marginLeft: 12 }}>
                 <Text style={styles.infoValue}>★ {tr.studentStopName}</Text>
-                {distance ? <Text style={styles.seenAt}>{distance}</Text> : null}
+                {distance ? <Text style={styles.seenAt}>Bus · {distance}</Text> : null}
+                {youToStop ? <Text style={styles.seenAt}>You · {youToStop}</Text> : null}
               </View>
             </View>
           ) : (
@@ -338,6 +356,14 @@ function ChildTrack({
               <Text style={styles.infoValue}>Assigned stop information unavailable.</Text>
             </View>
           )}
+          {youToBus ? (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>You → bus</Text>
+              <Text style={styles.infoValue}>{youToBus}</Text>
+            </View>
+          ) : locReady && !me ? (
+            <Text style={styles.idleNote}>Allow location to see your distance to the bus and stop.</Text>
+          ) : null}
 
           {tr.trackingStatus === 'OFFLINE' && tr.status === 'idle' ? (
             <Text style={styles.idleNote}>
@@ -350,6 +376,12 @@ function ChildTrack({
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Next stop</Text>
                   <Text style={styles.infoValue}>{tr.nextStopName}</Text>
+                </View>
+              ) : null}
+              {destination && destination !== tr.nextStopName ? (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Destination</Text>
+                  <Text style={styles.infoValue}>{destination}</Text>
                 </View>
               ) : null}
               {tr.etaNextStopMin != null && tr.trackingStatus === 'LIVE' ? (
@@ -442,9 +474,34 @@ function ChildTrack({
                 fullRecenterRef.current = fn;
               }}
             />
+            <View style={styles.fullHud} pointerEvents="none">
+              <Text style={styles.fullHudLive}>{statusText}</Text>
+              {tr.lat != null && tr.lng != null ? (
+                <Text style={styles.fullHudLine}>
+                  Bus now
+                  {tr.speedKmh != null ? ` · ${Math.round(tr.speedKmh)} km/h` : ''}
+                </Text>
+              ) : (
+                <Text style={styles.fullHudLine}>Waiting for live location…</Text>
+              )}
+              {youToBus ? <Text style={styles.fullHudLine}>You → bus · {youToBus}</Text> : null}
+              {youToStop ? <Text style={styles.fullHudLine}>You → stop · {youToStop}</Text> : null}
+              {studentStop ? (
+                <Text style={styles.fullHudLine}>
+                  {stopTitle} · {studentStop.name}
+                  {distance ? ` · ${distance}` : ''}
+                </Text>
+              ) : null}
+              {destination ? <Text style={styles.fullHudLine}>Destination · {destination}</Text> : null}
+              {locReady && !me ? (
+                <Text style={styles.fullHudMeta}>Allow location to show you on the map</Text>
+              ) : null}
+              {seen ? <Text style={styles.fullHudMeta}>Updated {seen}</Text> : null}
+            </View>
           </View>
           <View style={[styles.legend, styles.fullLegend]}>
             <LegendDot color="#DC2626" label="Bus" />
+            <LegendDot color="#7C3AED" label="You" />
             <LegendDot color="#94A3B8" label="Stop" />
             <LegendDot color="#2563EB" label={stopTitle} />
             <LegendDot color="#22C55E" label="Passed" />
@@ -481,7 +538,21 @@ const styles = StyleSheet.create({
   },
   expandTxt: { fontFamily: fontFamily.bold, fontSize: 11, color: colors.white },
   fullSafe: { flex: 1, backgroundColor: colors.paper },
-  fullMap: { flex: 1, backgroundColor: colors.primarySoft },
+  fullMap: { flex: 1, backgroundColor: colors.primarySoft, position: 'relative' },
+  fullHud: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    top: 12,
+    backgroundColor: 'rgba(15, 23, 42, 0.82)',
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 2,
+  },
+  fullHudLive: { fontFamily: fontFamily.extraBold, fontSize: 13, color: colors.white },
+  fullHudLine: { fontFamily: fontFamily.semiBold, fontSize: 12, color: colors.white },
+  fullHudMeta: { fontFamily: fontFamily.medium, fontSize: 11, color: 'rgba(255,255,255,0.72)', marginTop: 2 },
   fullLegend: { paddingHorizontal: 18, paddingBottom: 12 },
   fullRecenter: {
     width: 40,

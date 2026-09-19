@@ -43,6 +43,18 @@ export function assignedStopLabel(audience: 'parent' | 'student'): string {
   return audience === 'student' ? 'Your stop' : "Child's stop";
 }
 
+/** Last stop on the route, else the live next stop / route name. */
+export function routeDestinationName(
+  tr: Pick<Transport, 'routeStops' | 'nextStopName' | 'routeName'>,
+): string | null {
+  const last = tr.routeStops.length ? (tr.routeStops[tr.routeStops.length - 1]?.name ?? '').trim() : '';
+  if (last) return last;
+  const next = (tr.nextStopName ?? '').trim();
+  if (next) return next;
+  const route = (tr.routeName ?? '').trim();
+  return route || null;
+}
+
 export function assignmentMessage(assignment: TransportAssignment): string {
   if (assignment === 'opted_out') return 'School transport not enabled.';
   if (assignment === 'pending') return 'No active bus is currently assigned.';

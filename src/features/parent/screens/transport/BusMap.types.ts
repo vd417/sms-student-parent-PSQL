@@ -17,6 +17,10 @@ export type BusMapProps = {
   stops?: BusMapStop[];
   interactive?: boolean;
   fullscreen?: boolean;
+  /** Keep the camera on the moving bus (full-screen live view). */
+  follow?: boolean;
+  myLat?: number | null;
+  myLng?: number | null;
   onPress?: () => void;
   onRecenterReady?: (recenter: () => void) => void;
 };
