@@ -1,8 +1,8 @@
 import { composerBottomPad, isChatThreadRoute, keyboardLiftPadding } from '../keyboardLift';
 
 describe('keyboardLiftPadding', () => {
-  it('does not double-lift Android after window resize', () => {
-    expect(keyboardLiftPadding('android', 320)).toBe(0);
+  it('lifts Android by the keyboard height (edge-to-edge does not auto-resize)', () => {
+    expect(keyboardLiftPadding('android', 320)).toBe(320);
   });
 
   it('lifts iOS and web by the keyboard height', () => {
@@ -28,13 +28,13 @@ describe('composerBottomPad', () => {
     ).toBe(0);
   });
 
-  it('keeps Android composer above 3-button nav while the keyboard is open and the tab bar is hidden', () => {
+  it('does not add a second gap on top of keyboard lift on Android', () => {
     expect(
       composerBottomPad({ keyboardOpen: true, safeBottom: 48, tabBarConsumesInset: false, os: 'android' }),
-    ).toBe(48);
+    ).toBe(0);
   });
 
-  it('does not add a second iOS gap on top of keyboard lift', () => {
+  it('does not add a second gap on top of keyboard lift on iOS', () => {
     expect(
       composerBottomPad({ keyboardOpen: true, safeBottom: 34, tabBarConsumesInset: false, os: 'ios' }),
     ).toBe(0);

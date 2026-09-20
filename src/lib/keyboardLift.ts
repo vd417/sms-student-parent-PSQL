@@ -1,8 +1,10 @@
-/** Android already resizes the window; extra keyboard padding becomes a second overlay. */
-export function keyboardLiftPadding(os: string, keyboardHeight: number): number {
-  if (keyboardHeight <= 0) return 0;
-  if (os === 'android') return 0;
-  return keyboardHeight;
+/**
+ * With edgeToEdgeEnabled (Android 15 / SDK 54+), the window no longer
+ * auto-resizes for windowSoftInputMode="adjustResize", so Android needs the
+ * same manual keyboard-height lift as iOS/web.
+ */
+export function keyboardLiftPadding(_os: string, keyboardHeight: number): number {
+  return Math.max(0, keyboardHeight);
 }
 
 type ComposerPadInput = {
@@ -15,17 +17,18 @@ type ComposerPadInput = {
 /**
  * Bottom inset for the chat composer.
  * The tab bar already owns the system-nav inset while it is visible.
- * iOS keyboard lift owns the inset while typing. Never add a fixed extra gap.
+ * The keyboard-height lift owns the inset while typing (all platforms, since
+ * Android no longer auto-resizes with edgeToEdgeEnabled). Never add a fixed
+ * extra gap on top of that lift.
  */
 export function composerBottomPad({
   keyboardOpen,
   safeBottom,
   tabBarConsumesInset,
-  os,
 }: ComposerPadInput): number {
   const inset = Math.max(0, safeBottom);
   if (tabBarConsumesInset) return 0;
-  if (keyboardOpen && os === 'ios') return 0;
+  if (keyboardOpen) return 0;
   return inset;
 }
 

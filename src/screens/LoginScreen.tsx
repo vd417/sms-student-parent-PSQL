@@ -1,8 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,6 +16,7 @@ import { Button, Loading } from '@/components/ui';
 import { colors, fontFamily, primaryGradient, radius, shadow, spacing } from '@/theme';
 import type { Role } from '@/models';
 import { useAuth } from '@/providers/AuthProvider';
+import { useKeyboardLift } from '@/hooks/useKeyboardLift';
 import type { AuthStackParamList } from '@/navigation/types';
 import { isStrongPassword, PASSWORD_RULE_TEXT } from '@/services/auth/password';
 import { isEmailOrPhone, normalizeLoginIdentifier } from '@/services/auth/identifier';
@@ -52,6 +51,7 @@ function isValidLoginIdentifier(value: string, role: Role): boolean {
 
 export function LoginScreen() {
   const nav = useNavigation<Nav>();
+  const { lift } = useKeyboardLift();
   const { signIn, requestPasswordReset, resetPassword } = useAuth();
   const [role, setRole] = useState<Role>('student');
 
@@ -232,10 +232,7 @@ export function LoginScreen() {
       style={styles.root}
     >
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <KeyboardAvoidingView
-          style={styles.flow}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+        <View style={[styles.flow, { paddingBottom: lift }]}>
           <Pressable
             onPress={step === 'sign-in' ? () => nav.goBack() : backToSignIn}
             hitSlop={12}
@@ -442,7 +439,7 @@ export function LoginScreen() {
               )}
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </SafeAreaView>
     </LinearGradient>
   );

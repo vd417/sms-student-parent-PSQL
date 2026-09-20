@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ErrorState, IconButton, Loading, Empty, ScreenHeader } from '@/components/ui';
@@ -8,14 +9,14 @@ import { useDirectory } from '@/hooks/useDirectory';
 import { useOpenThread } from '@/hooks/useMessaging';
 import { useTimetable } from '@/hooks/useStudent';
 import { useSubjects } from '@/hooks/useSubjects';
-import { useToast } from '@/providers/ToastProvider';
 import { compareTimetableBlocks, subjectShortCode } from '@/services/http/mappers';
 import { colors, fontFamily, hueColor, radius, spacing, typography } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] as const;
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
 function startOfWeek(date: Date): Date {
   const d = new Date(date);
@@ -26,18 +27,99 @@ function startOfWeek(date: Date): Date {
   return d;
 }
 
+function isSameDate(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function dayKeyFor(date: Date): (typeof DAYS)[number] {
+  const abbr = WEEKDAY_SHORT[date.getDay()];
+  return (DAYS as readonly string[]).includes(abbr) ? (abbr as (typeof DAYS)[number]) : 'Mon';
+}
+
+function MonthPicker({ selected, onPick }: { selected: Date; onPick: (d: Date) => void }) {
+  const [monthCursor, setMonthCursor] = useState(() => new Date(selected.getFullYear(), selected.getMonth(), 1));
+  const year = monthCursor.getFullYear();
+  const mo = monthCursor.getMonth();
+  const daysInMonth = new Date(year, mo + 1, 0).getDate();
+  const leadingBlanks = new Date(year, mo, 1).getDay();
+  const cells: Array<{ day: number; date: Date } | null> = [
+    ...Array.from({ length: leadingBlanks }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => ({ day: i + 1, date: new Date(year, mo, i + 1) })),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <View>
+      <View style={styles.monthNavRow}>
+        <Pressable
+          onPress={() => setMonthCursor(new Date(year, mo - 1, 1))}
+          hitSlop={8}
+          style={styles.monthNavBtn}
+        >
+          <Ionicons name="chevron-back" size={16} color={colors.ink} />
+        </Pressable>
+        <Text style={styles.monthNavLabel}>
+          {monthCursor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+        </Text>
+        <Pressable
+          onPress={() => setMonthCursor(new Date(year, mo + 1, 1))}
+          hitSlop={8}
+          style={styles.monthNavBtn}
+        >
+          <Ionicons name="chevron-forward" size={16} color={colors.ink} />
+        </Pressable>
+      </View>
+      <View style={styles.gridWeekRow}>
+        {WEEKDAY_SHORT.map((w) => (
+          <Text key={w} style={styles.gridWeekLabel}>
+            {w[0]}
+          </Text>
+        ))}
+      </View>
+      <View style={styles.gridWrap}>
+        {cells.map((cell, i) => {
+          if (!cell) return <View key={i} style={styles.gridCell} />;
+          const isNonSchoolDay = cell.date.getDay() === 0;
+          const isSelected = isSameDate(cell.date, selected);
+          return (
+            <Pressable
+              key={i}
+              style={styles.gridCell}
+              disabled={isNonSchoolDay}
+              onPress={() => onPick(cell.date)}
+            >
+              <View
+                style={[
+                  styles.gridCellInner,
+                  isSelected && { backgroundColor: colors.primary },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.gridCellDay,
+                    isNonSchoolDay && { color: colors.inkMuted, opacity: 0.4 },
+                    isSelected && { color: colors.white },
+                  ]}
+                >
+                  {cell.day}
+                </Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export function ScheduleScreen() {
-  const toast = useToast();
   const nav = useNavigation<Nav>();
   const teachersQ = useDirectory();
   const openThread = useOpenThread('student');
-  const weekStart = startOfWeek(new Date());
-  const todayKey = DAYS.includes(
-    ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date().getDay()] as (typeof DAYS)[number],
-  )
-    ? (['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date().getDay()] as (typeof DAYS)[number])
-    : 'Mon';
-  const [day, setDay] = useState<(typeof DAYS)[number]>(todayKey);
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const weekStart = startOfWeek(selectedDate);
+  const day = dayKeyFor(selectedDate);
 
   const timetableQ = useTimetable();
   const subjectsQ = useSubjects();
@@ -106,7 +188,7 @@ export function ScheduleScreen() {
       <ScreenHeader
         kicker={monthLabel}
         title="Timetable"
-        right={<IconButton icon="calendar-outline" onPress={() => toast('Coming soon')} />}
+        right={<IconButton icon="calendar-outline" onPress={() => setPickerOpen(true)} />}
       />
       <ScrollView
         contentContainerStyle={styles.content}
@@ -116,11 +198,12 @@ export function ScheduleScreen() {
 
         <View style={styles.daysRow}>
           {DAYS.map((d, i) => {
-            const on = day === d;
+            const cellDate = new Date(weekStart.getTime() + i * 86400000);
+            const on = isSameDate(cellDate, selectedDate);
             return (
               <Pressable
                 key={d}
-                onPress={() => setDay(d)}
+                onPress={() => setSelectedDate(cellDate)}
                 style={({ pressed }) => [
                   styles.dayCell,
                   on ? styles.dayOn : styles.dayOff,
@@ -131,12 +214,31 @@ export function ScheduleScreen() {
                   {d}
                 </Text>
                 <Text style={[styles.dayDate, { color: on ? colors.white : colors.ink }]}>
-                  {new Date(weekStart.getTime() + i * 86400000).getDate()}
+                  {cellDate.getDate()}
                 </Text>
               </Pressable>
             );
           })}
         </View>
+
+        <Modal
+          visible={pickerOpen}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPickerOpen(false)}
+        >
+          <Pressable style={styles.modalBackdrop} onPress={() => setPickerOpen(false)}>
+            <Pressable style={styles.modalCard} onPress={() => {}}>
+              <MonthPicker
+                selected={selectedDate}
+                onPick={(d) => {
+                  setSelectedDate(d);
+                  setPickerOpen(false);
+                }}
+              />
+            </Pressable>
+          </Pressable>
+        </Modal>
 
         <Text style={[typography.eyebrow, { marginBottom: 10 }]}>
           {day} · {blocks.length} {blocks.length === 1 ? 'period' : 'periods'}
@@ -238,6 +340,52 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   dayDate: { fontFamily: fontFamily.extraBold, fontSize: 20, marginTop: 2 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15,27,61,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    padding: 16,
+  },
+  monthNavRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  monthNavBtn: { padding: 6 },
+  monthNavLabel: { fontFamily: fontFamily.bold, fontSize: 13, color: colors.ink },
+  gridWeekRow: { flexDirection: 'row', marginBottom: 4 },
+  gridWeekLabel: {
+    flex: 1,
+    textAlign: 'center',
+    fontFamily: fontFamily.bold,
+    fontSize: 11,
+    color: colors.inkMuted,
+  },
+  gridWrap: { flexDirection: 'row', flexWrap: 'wrap' },
+  gridCell: {
+    width: `${100 / 7}%`,
+    aspectRatio: 1,
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridCellInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridCellDay: { fontFamily: fontFamily.bold, fontSize: 13, color: colors.ink },
   blockRow: { flexDirection: 'row', gap: 10 },
   timeCol: { width: 58, alignItems: 'flex-end', paddingTop: 4 },
   time: {

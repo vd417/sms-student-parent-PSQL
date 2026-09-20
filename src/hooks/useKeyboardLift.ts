@@ -1,7 +1,8 @@
 import { useContext, useEffect, useState } from 'react';
-import { Keyboard, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { runOnJS, useAnimatedKeyboard, useAnimatedReaction } from 'react-native-reanimated';
 import { composerBottomPad, keyboardLiftPadding } from '@/lib/keyboardLift';
 
 type VisualViewportLike = {
@@ -21,16 +22,17 @@ export function useKeyboardLift() {
   const tabBarHeight = useContext(BottomTabBarHeightContext);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  useEffect(() => {
-    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const show = Keyboard.addListener(showEvt, (e) => setKeyboardHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener(hideEvt, () => setKeyboardHeight(0));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
+  // Reanimated's keyboard tracker reads WindowInsets/keyboard-animation
+  // callbacks directly. The legacy RN `Keyboard` module instead infers height
+  // from the decorView resizing, which stays ~0 on Android once
+  // edgeToEdgeEnabled stops the window from resizing for the keyboard.
+  const keyboard = useAnimatedKeyboard();
+  useAnimatedReaction(
+    () => keyboard.height.value,
+    (h, prev) => {
+      if (h !== prev) runOnJS(setKeyboardHeight)(h);
+    },
+  );
 
   useEffect(() => {
     const vv = webViewport();
