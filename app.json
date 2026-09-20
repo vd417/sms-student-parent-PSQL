@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "School Desk · Student",
-    "slug": "sms-student",
+    "slug": "student-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -17,22 +17,52 @@
     },
     "android": {
       "package": "com.schooldesk.student",
+      "usesCleartextTraffic": true,
+      "softwareKeyboardLayoutMode": "resize",
+      "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "backgroundColor": "#0C4A6E"
-      }
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCLBnzIqfPTAoo_HnCVMP_nnd57nOMU7GY"
+        }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
       "output": "single"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Let School Desk access your photos so you can share an image in chat."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
-        "projectId": "789277f1-7308-4b88-8b93-12fed225b44e"
-      }
+        "projectId": "834d3f50-6b19-4ed3-8b6a-050fae93c858"
+      },
+      "dataSource": "http",
+      "apiBaseUrl": "http://localhost:5162/v1",
+      "googleMapsApiKey": "AIzaSyCLBnzIqfPTAoo_HnCVMP_nnd57nOMU7GY",
+      "googleMapId": "aab697c91ef02136bf693efd"
     },
-    "owner": "catre"
+    "owner": "vaibhavdds-team"
   }
 }

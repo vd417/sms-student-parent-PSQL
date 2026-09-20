@@ -1,33 +1,36 @@
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { LoginScreen } from '@/screens/LoginScreen';
-import { ScheduleScreen } from '@/screens/ScheduleScreen';
-import { HomeworkDetailScreen } from '@/screens/HomeworkDetailScreen';
-import { SubjectDetailScreen } from '@/screens/SubjectDetailScreen';
-import { GradesScreen } from '@/screens/GradesScreen';
-import { ChatThreadScreen } from '@/screens/ChatThreadScreen';
-import { AnnouncementsScreen } from '@/screens/AnnouncementsScreen';
-import { TabNavigator } from './TabNavigator';
-import type { RootStackParamList } from './types';
-
-const Stack = createNativeStackNavigator<RootStackParamList>();
+import { View, StyleSheet } from 'react-native';
+import { useAuth } from '@/providers/AuthProvider';
+import { Loading } from '@/components/ui/Loading';
+import { OfflineBanner } from '@/components/ui/OfflineBanner';
+import { NoticeWatcher } from '@/hooks/useNotifications';
+import { navigationRef } from './navigationRef';
+import { AuthNavigator } from './AuthNavigator';
+import { StudentNavigator } from './StudentNavigator';
+import { ParentNavigator } from './ParentNavigator';
 
 export function RootNavigator() {
+  const { status, role } = useAuth();
+  const authed = status === 'authenticated';
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName="Login"
-        screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
-      >
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Main" component={TabNavigator} />
-        <Stack.Screen name="Schedule" component={ScheduleScreen} />
-        <Stack.Screen name="HomeworkDetail" component={HomeworkDetailScreen} />
-        <Stack.Screen name="SubjectDetail" component={SubjectDetailScreen} />
-        <Stack.Screen name="Grades" component={GradesScreen} />
-        <Stack.Screen name="ChatThread" component={ChatThreadScreen} />
-        <Stack.Screen name="Announcements" component={AnnouncementsScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <View style={styles.root}>
+      {authed ? <OfflineBanner /> : null}
+      <NavigationContainer ref={navigationRef}>
+        {authed ? <NoticeWatcher /> : null}
+        {status === 'restoring' ? (
+          <Loading />
+        ) : status === 'unauthenticated' ? (
+          <AuthNavigator />
+        ) : role === 'parent' ? (
+          <ParentNavigator />
+        ) : (
+          <StudentNavigator />
+        )}
+      </NavigationContainer>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});

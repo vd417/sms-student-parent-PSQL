@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { colors, fontFamily, radius } from '@/theme';
+import { colors, fontFamily, radius, useBrandColors } from '@/theme';
 
 export type PillTone =
   | 'primary'
@@ -17,18 +17,9 @@ type Props = {
   style?: ViewStyle;
 };
 
-const TONES: Record<PillTone, { bg: string; fg: string }> = {
-  primary: { bg: colors.primarySoft, fg: colors.primary },
-  primary_solid: { bg: colors.primary, fg: colors.white },
-  present: { bg: colors.presentSoft, fg: colors.present },
-  absent: { bg: colors.absentSoft, fg: colors.absent },
-  late: { bg: colors.lateSoft, fg: colors.late },
-  teal: { bg: colors.tealTint, fg: colors.teal },
-  neutral: { bg: colors.ruleSoft, fg: colors.ink3 },
-};
-
 export function Pill({ children, tone = 'neutral', style }: Props) {
-  const t = TONES[tone];
+  useBrandColors();
+  const t = toneStyle(tone);
   return (
     <View style={[styles.root, { backgroundColor: t.bg }, style]}>
       <Text style={[styles.txt, { color: t.fg }]} numberOfLines={1}>
@@ -36,6 +27,25 @@ export function Pill({ children, tone = 'neutral', style }: Props) {
       </Text>
     </View>
   );
+}
+
+function toneStyle(tone: PillTone): { bg: string; fg: string } {
+  switch (tone) {
+    case 'primary':
+      return { bg: colors.primarySoft, fg: colors.primary };
+    case 'primary_solid':
+      return { bg: colors.primary, fg: colors.white };
+    case 'present':
+      return { bg: colors.presentSoft, fg: colors.present };
+    case 'absent':
+      return { bg: colors.absentSoft, fg: colors.absent };
+    case 'late':
+      return { bg: colors.lateSoft, fg: colors.late };
+    case 'teal':
+      return { bg: colors.tealTint, fg: colors.teal };
+    default:
+      return { bg: colors.ruleSoft, fg: colors.ink3 };
+  }
 }
 
 const styles = StyleSheet.create({

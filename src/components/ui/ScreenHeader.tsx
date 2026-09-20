@@ -1,34 +1,61 @@
 import { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { colors, fontFamily, spacing, typography } from '@/theme';
+import { SchoolBadge } from './SchoolBadge';
 
 type Props = {
-  title: string;
+  title?: string;
   kicker?: string;
   onBack?: () => void;
   right?: ReactNode;
+  brand?: boolean;
+  /** Force the back button on/off. Default: only when the screen can go back. */
+  showBack?: boolean;
 };
 
-export function ScreenHeader({ title, kicker, onBack, right }: Props) {
+export function ScreenHeader({ title, kicker, onBack, right, brand, showBack }: Props) {
+  const nav = useNavigation();
+  const state = nav.getState();
+  const parentIsTab = nav.getParent()?.getState()?.type === 'tab';
+  const atTabRoot = state?.type === 'tab' || (parentIsTab && (state?.index ?? 0) === 0);
+  const canGoBack = !atTabRoot && nav.canGoBack();
+  const showBackButton = showBack ?? (onBack != null || canGoBack);
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+    if (nav.canGoBack()) nav.goBack();
+  };
+
   return (
     <View style={styles.root}>
       <View style={styles.row}>
-        {onBack ? (
+        {showBackButton ? (
           <Pressable
-            onPress={onBack}
-            style={({ pressed }) => [styles.back, pressed && { opacity: 0.7 }]}
+            onPress={handleBack}
+            hitSlop={8}
+            style={({ pressed }) => [styles.round, pressed && { opacity: 0.7 }]}
           >
             <Ionicons name="chevron-back" size={20} color={colors.ink} />
           </Pressable>
-        ) : (
-          <View style={{ width: 40 }} />
-        )}
+        ) : null}
         <View style={styles.center}>
-          {kicker ? <Text style={typography.eyebrow}>{kicker}</Text> : null}
-          <Text style={[typography.h1, styles.title]} numberOfLines={1}>
-            {title}
-          </Text>
+          {brand ? (
+            <SchoolBadge />
+          ) : (
+            <>
+              {kicker ? <Text style={typography.eyebrow}>{kicker}</Text> : null}
+              {title ? (
+                <Text style={[typography.h1, styles.title]} numberOfLines={1}>
+                  {title}
+                </Text>
+              ) : null}
+            </>
+          )}
         </View>
         <View style={styles.right}>{right}</View>
       </View>
@@ -47,7 +74,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.m,
   },
-  back: {
+  round: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -62,5 +89,11 @@ const styles = StyleSheet.create({
     fontFamily: fontFamily.extraBold,
     marginTop: 2,
   },
-  right: { minWidth: 40, alignItems: 'flex-end' },
+  right: {
+    minWidth: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
 });

@@ -15,7 +15,27 @@
       "Bash(npx eas-cli@latest whoami)",
       "Bash(./node_modules/.bin/eas whoami *)",
       "Bash(./node_modules/.bin/eas init *)",
-      "Bash(./node_modules/.bin/eas build *)"
+      "Bash(./node_modules/.bin/eas build *)",
+      "Read(//d/SMS/**)",
+      "Read(//d/SMS/sms-project/**)",
+      "Bash(dotnet --list-sdks)",
+      "Bash(git --version)",
+      "Bash(docker --version)",
+      "PowerShell(\\(Get-Content \"D:/SMS/sms-project/sms-student/docs/superpowers/plans/2026-05-30-student-parent-modules-plan.md\" | Measure-Object -Line\\).Lines)",
+      "Bash(node -e \"console.log\\(require\\('@tanstack/react-query/package.json'\\).version\\)\")",
+      "Bash(node -e \"console.log\\(require\\('jest/package.json'\\).version\\)\")",
+      "Bash(node -e \"console.log\\(require\\('jest-expo/package.json'\\).version\\)\")",
+      "Bash(node -e \"console.log\\('rq', require\\('@tanstack/react-query/package.json'\\).version\\)\")",
+      "Bash(node -e \"console.log\\(require\\('expo/package.json'\\).version\\)\")",
+      "Bash(break)",
+      "Bash(node -e \"try{require.resolve\\('playwright'\\);console.log\\('playwright OK'\\)}catch{console.log\\('no playwright'\\)}\")",
+      "Bash(node -e \"try{require.resolve\\('puppeteer'\\);console.log\\('puppeteer OK'\\)}catch{console.log\\('no puppeteer'\\)}\")",
+      "Bash(npx --no-install playwright --version)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"http://localhost:8081/index.bundle?platform=web&dev=true\" --max-time 90)",
+      "Bash(echo \"EXIT $?\")",
+      "Bash(curl -s -o /dev/null -w \"bundle HTTP %{http_code}\\\\n\" \"http://localhost:8081/index.bundle?platform=web&dev=true\" --max-time 90)"
     ]
   }
 }

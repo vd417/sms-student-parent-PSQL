@@ -9,3 +9,5 @@ ios/
 android/
 .DS_Store
 .design-pkg/
+.worktrees/
+.superpowers/
