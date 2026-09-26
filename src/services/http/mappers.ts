@@ -559,7 +559,14 @@ export const toFee = (d: FeeInvoiceDTO): Fee => ({
   paidOn: d.paid_on,
   method: d.method,
 });
-export const toPTM = (d: PTMMeetingDTO): PTMMeeting => ({ id: d.id, date: d.date, time: d.time, teacher: d.teacher, subj: d.subject, child: d.child, mode: d.mode, status: d.status });
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// The API sends PTM dates as YYYY-MM-DD; the screen shows "May 3, 2026". Built by hand so it
+// doesn't depend on the device's Intl locale data.
+export const ptmDateLabel = (date: string): string => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  return m ? `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}` : date;
+};
+export const toPTM = (d: PTMMeetingDTO): PTMMeeting => ({ id: d.id, date: ptmDateLabel(d.date), time: d.time, teacher: d.teacher, subj: d.subject, child: d.child, mode: d.mode, status: d.status });
 export const toTransport = (d: ChildBusPositionDTO): Transport => {
   const status = d.status;
   const tracking = d.tracking_status ?? trackingFromLegacy(status);
