@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx}\"",
     "test": "jest",
+    "contract-check": "jest --config scripts/contract-check/jest.config.js --runInBand",
     "prepare": "husky"
   },
   "dependencies": {
