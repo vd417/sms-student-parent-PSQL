@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-26
 **Repos:** `sms-student-parent-app` (this repo, remote `vd417/sms-student-parent-PSQL`), `sms-api` (branch `postgres-migration`)
-**Status:** Draft for review
+**Status:** Approved 2026-09-26 (with clarifications below)
 
 ## Goal
 
@@ -24,6 +24,18 @@ against the existing `sms_dev` database.
 - A backend PTM feature is built, because the app already ships a PTM screen.
 - Peers, meals, pickup, parent relation and a calendar screen stay out of scope; they keep their
   current hidden/blank behaviour.
+
+**Clarifications from review (binding)**
+
+- Scope is strictly proving the existing apps work against `sms-api` + PostgreSQL.
+- PTM gets only the minimum API and database support the existing app contract needs
+  (`GET /v1/ptm`, `PATCH /v1/ptm/{id}`). No staff create endpoint and no wider PTM feature; test
+  rows are inserted into `sms_dev` with SQL.
+- Every "known fix" in section 2 is first verified against the current code and `sms_dev` data.
+  A fix is made only if verification confirms the problem; otherwise it is dropped and noted.
+- The contract check runs against the real API and real PostgreSQL data only; no mocks and no
+  fabricated responses.
+- Nothing is pushed until the user explicitly approves.
 
 ## Current state (from exploration)
 
@@ -84,7 +96,12 @@ from Swagger (rewrites a working mapping layer and does not verify real response
   `PATCH /ptm/{id}`. It never calls any payment endpoint.
 - Output: a pass/warn/fail table; exit code 1 if anything fails.
 
-### 2. Known fixes
+### 2. Known fixes (verify first)
+
+Each item below is a hypothesis. Before changing anything, confirm it against the current code
+(and, where relevant, a real response from `sms_dev`). Confirmed items are fixed; unconfirmed
+items are dropped and recorded in the check's results.
+
 
 - **App — health:** `pingHealth()` in `src/api/client.ts` calls `{origin}/health/ready`.
 - **App — fees:** remove the parent path to `POST fees/invoices/{id}/pay`; fee payment goes only
@@ -109,14 +126,13 @@ from Swagger (rewrites a working mapping layer and does not verify real response
     `status text not null default 'pending'` (`pending` | `confirmed`), `created_at timestamptz`;
   - an index on `(tenant_id, student_id, meeting_date)`;
   - an RLS policy and grants to `sms_app`, matching `07_rls_policies.sql` / `99_app_role_grants.sql`;
-  - list, get, create and set-status functions following `17_comms_procs.sql`.
+  - list and set-status functions following `17_comms_procs.sql`.
 - **Endpoints** (`PtmController`, prefix `v1/ptm`):
   - `GET /v1/ptm` (policy `student.parent`): a parent gets meetings for all linked children
     (`ParentStudentLinks`); a student gets their own. Response items are
     `{id, date, time, teacher, subject, child, mode, status}`, exactly the app's `PTMMeetingDTO`.
   - `PATCH /v1/ptm/{id}` `{status}` (policy `student.parent`): parent only; the meeting's student
     must be linked to the caller (`IsLinkedToCallerAsync`), otherwise 404. Returns the updated item.
-  - `POST /v1/ptm` (policy `staff`): creates a meeting so schools have a way to add them.
 - Register the controller in `Swagger/ApiAudienceMap.cs` for the student audience.
 - Tests follow the existing backend test projects (service unit tests plus a link-check test).
 
