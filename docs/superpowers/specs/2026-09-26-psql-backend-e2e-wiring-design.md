@@ -77,7 +77,8 @@ from Swagger (rewrites a working mapping layer and does not verify real response
 
 ### 1. Contract check script — `scripts/contract-check/` (app repo)
 
-- Node + TypeScript, run with `npm run contract-check` (via `tsx`).
+- A Jest suite with its own config (so it can import the app's real mappers), run with
+  `npm run contract-check`; it is not part of `npm test`.
 - Config from `scripts/contract-check/.env` (git-ignored; a committed `.env.example` lists the keys):
   `API_BASE_URL`, `STUDENT_IDENTIFIER`, `STUDENT_PASSWORD`, `PARENT_IDENTIFIER`, `PARENT_PASSWORD`.
 - Flow per role: `POST /auth/login` → `GET /auth/me` → discover ids (own student id,
@@ -87,7 +88,7 @@ from Swagger (rewrites a working mapping layer and does not verify real response
   (git-ignored) and pass it through the matching mapper from `src/services/http/mappers.ts`.
 - Result per call:
   - **FAIL:** non-2xx status, or the mapper throws, or a field the app treats as required is
-    missing or of the wrong type (checked with small zod schemas per DTO in the script).
+    missing or of the wrong type (required keys are parsed from the app's own `dtos.ts` interfaces).
   - **WARN:** an empty list where the seed data should have rows.
   - **PASS:** otherwise.
 - SignalR: connect to `/hubs/live` and `/hubs/transport-fleet` with the parent token, invoke
@@ -126,7 +127,8 @@ items are dropped and recorded in the check's results.
     `status text not null default 'pending'` (`pending` | `confirmed`), `created_at timestamptz`;
   - an index on `(tenant_id, student_id, meeting_date)`;
   - an RLS policy and grants to `sms_app`, matching `07_rls_policies.sql` / `99_app_role_grants.sql`;
-  - list and set-status functions following `17_comms_procs.sql`.
+  - list, get and set-status as inline Dapper queries, following the Complaints code in
+    `CommsRepository`.
 - **Endpoints** (`PtmController`, prefix `v1/ptm`):
   - `GET /v1/ptm` (policy `student.parent`): a parent gets meetings for all linked children
     (`ParentStudentLinks`); a student gets their own. Response items are
