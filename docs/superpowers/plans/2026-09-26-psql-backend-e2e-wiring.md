@@ -1267,3 +1267,117 @@ Report:
 - `git log --oneline` of `feat/psql-e2e-wiring` in both repos.
 
 Remind the user that nothing has been pushed, and wait for them to approve before pushing.
+
+---
+
+## Addendum (2026-09-27): staff PTM (spec addendum "PTM for staff")
+
+These tasks run after Task 5 and before Task 7. Task 7's final verification also covers them:
+the teacher app runs `npm test`, the admin runs `npx vitest run`, and the click-through includes
+creating a meeting in each app and confirming it in the parent app.
+
+### Task 8: Backend staff PTM endpoints (`sms-api`)
+
+**Files:**
+- Modify: `src/Sms.Modules.Comms/Ptm.cs` (response gains `StudentName`, `TeacherId`; staff list with filters; insert, update, delete)
+- Modify: `src/Sms.Application/Services/Comms/PtmService.cs` (role-aware list; `CreateAsync`, `UpdateAsync`, `DeleteAsync`)
+- Modify: `src/Sms.Api/Controllers/PtmController.cs`
+- Modify: `src/Sms.Api/Swagger/ApiAudienceMap.cs` (`v1/ptm` → `[Student, Teacher, SchoolAdmin]`)
+- Test: `tests/Sms.Tests.Integration/Comms/PtmStaffTests.cs`
+
+**Interfaces:**
+- `PtmMeetingResponse(Guid Id, string Date, string Time, string Teacher, string? Subject, Guid Child, string Mode, string Status, string StudentName, Guid? TeacherId)`. Keep the first eight params in order, because `PtmTests` asserts them.
+- `CreatePtmRequest(Guid? StudentId, Guid? TeacherId, string? Subject, string? Date, string? Time, string? Mode)`
+- `UpdatePtmRequest(string? Subject, string? Date, string? Time, string? Mode, string? Status)`. The parent path only reads `Status`; the staff path ignores `Status`.
+- Controller:
+  - Class-level policy becomes plain `[Authorize]`; role checks move into the service.
+  - `GET ptm` takes `[FromQuery] status, from, to, teacher_id, student_id`.
+  - `POST ptm` returns 201 (the service returns `Ok(item, 201)`).
+  - `PATCH ptm/{id}` takes `UpdatePtmRequest`.
+  - `DELETE ptm/{id}` returns 204.
+- Caller classification in `PtmService`:
+  1. manager: `RoleChecks.IsManagerTier(caller)`
+  2. teacher: role `Policies.Teacher` (`school.teacher`), with a teacher row from `TeacherIdForUserAsync(userId)` (`src/Sms.Modules.Academics/Data/AcademicsRepositories.cs:68`; inject its repository)
+  3. parent or student: `AppLoginRole.IsParent` / `IsStudent`
+  4. anyone else: 403 `forbidden`
+
+  A teacher login with no teacher row also gets 403 `forbidden` ("no teacher profile").
+- Validation:
+  - `Date` is `yyyy-MM-dd` (`DateOnly.TryParseExact`) and `Time` is `HH:mm` (`TimeOnly.TryParseExact`).
+  - `Mode` is non-empty and at most 120 characters; `Subject` at most 120.
+  - Failures return 422 `validation_failed` with a message naming the field.
+- The student and teacher must exist in the caller's tenant; otherwise 404 `not_found`.
+- A teacher's `teacher_id` is always forced to their own. An admin must supply `teacher_id` (else 422).
+- On the staff update path, changing `Date` or `Time` sets `Status` to `pending`.
+
+- [ ] **Step 1: Write the failing tests** in `PtmStaffTests.cs`, copying the seed and JWT helpers from `PtmTests.cs`. Seed:
+  - two teachers, each with a login user (role `school.teacher`) linked the way `TeacherIdForUserAsync` expects (read its SQL first);
+  - one admin user (role `school.admin`);
+  - two students;
+  - one parent linked to student 1.
+
+  Tests:
+  1. `Teacher_creates_meeting_for_self`: POST `{student_id: s1, subject: "Maths", date: "2026-10-10", time: "10:30", mode: "Video call"}` as teacher 1 → 201; `teacher_id` = teacher 1, `status` "pending", `student_name` = student 1's name.
+  2. `Teacher_cannot_create_for_other_teacher`: teacher 1 sends `teacher_id` = teacher 2 → 201, and the stored `teacher_id` is teacher 1.
+  3. `Admin_must_name_teacher`: admin without `teacher_id` → 422 `validation_failed`; with `teacher_id` = teacher 2 → 201.
+  4. `Create_rejects_bad_date_and_unknown_student`: `date: "10/10/2026"` → 422; an unknown `student_id` → 404.
+  5. `Teacher_lists_only_own_meetings`: create one meeting per teacher; GET as teacher 1 returns only theirs.
+  6. `Admin_lists_all_and_filters_by_teacher`: GET as admin returns both; `?teacher_id=` returns one.
+  7. `Teacher_reschedule_resets_status`: the parent confirms (PATCH `{status: "confirmed"}`), then teacher 1 PATCHes `{time: "11:00"}` → status "pending".
+  8. `Teacher_cannot_edit_or_delete_other_teachers_meeting`: 404 for both.
+  9. `Admin_deletes_meeting`: DELETE → 204; a later GET as admin doesn't include it.
+  10. `Parent_cannot_create_or_delete`: POST → 403 and DELETE → 403.
+  11. `Parent_list_still_has_original_keys`: GET as the parent has `id, date, time, teacher, subject, child, mode, status`.
+- [ ] **Step 2: RED:** `dotnet test tests/Sms.Tests.Integration --filter "FullyQualifiedName~PtmStaffTests"`
+- [ ] **Step 3: Implement** the repository, service and controller changes above. SQL is parameterised only, and every statement filters by tenant.
+- [ ] **Step 4: GREEN:** run the `PtmStaffTests` and `PtmTests` filters (the existing 6 still pass), then the `Swagger` filter, then `dotnet build` (0 warnings).
+- [ ] **Step 5: Commit** by explicit paths: `feat(comms): staff PTM — teachers and admins create, edit and cancel meetings`
+
+### Task 9: Teacher app PTM screens (`sms-teacher-app`, branch `feat/ptm` from `main`)
+
+**Files (read the named patterns first):**
+- Modify: `src/data/domain/index.ts`. Add `PtmMeeting { id; date; time; teacher; teacherId: string | null; subject: string | null; studentId; studentName; mode; status: 'pending' | 'confirmed' }` and `NewPtmInput { studentId; subject?; date; time; mode }`.
+- Modify: `src/data/http/mappers.ts`. Add a `ptmMeetingSchema` zod DTO (snake_case keys from Task 8; `subject` and `teacher_id` nullable), `toPtmMeeting` and `fromNewPtm`. Model: `leaveResponseSchema`, `toLeaveRequest`, `fromNewLeave`.
+- Create: `src/data/http/ptm.repo.ts`, exporting `httpPtm(http)` with `list()` → `GET /ptm`, `create(input)` → `POST /ptm`, and `remove(id)` → `DELETE /ptm/{id}`. Model: `leave.repo.ts`, and `remove` in `exams.repo.ts`.
+- Modify: `src/data/repositories/types.ts` (a `PtmRepository` interface plus a field on the repositories type) and `src/data/repositories/factory.ts` (wire `httpPtm`).
+- Modify: `src/lib/queryClient.ts`. Add the key `ptm: (tenantId) => ['ptm', tenantId]`.
+- Create: `src/features/ptm/hooks.ts`, with `usePtmMeetings()`, `useCreatePtm()` (invalidates on success) and `useDeletePtm()`. Model: `src/features/assignments/hooks.ts`, without optimistic insert.
+- Create: `src/screens/PtmScreen.tsx`. A list sorted by date and time, showing the student name, subject, date, time, mode and a pending/confirmed pill. Cancel confirms first, then calls `useDeletePtm`. There's an empty state and a "New meeting" button. Model: `LeaveScreen`.
+- Create: `src/screens/PtmNewScreen.tsx`. A react-hook-form + zod form:
+  - class picker from `useClasses()`, then student picker from `useStudentsByClass(classId)`;
+  - subject, a date and time from `@react-native-community/datetimepicker` sent as `yyyy-MM-dd` / `HH:mm`, and mode text;
+  - submit calls `useCreatePtm`, then goes back.
+
+  Model: `AssignmentNewScreen`.
+- Modify: `src/navigation/MainTabNavigator.tsx` (register both screens in `HomeStack`), `src/navigation/types.ts` (params) and `src/screens/MoreScreen.tsx` (a "PTM" tile).
+- Tests:
+  - `src/data/http/__tests__/ptm.repo.test.ts` (model: `assignments.repo.test.ts`): records the URL, method and body for list, create and remove, and maps a snake_case envelope to the domain type.
+  - `src/data/http/__tests__/mappers.test.ts`: a `toPtmMeeting` case with `subject: null`.
+
+- [ ] **Step 1:** `git switch -c feat/ptm`. The repo is on `main`; another session's untracked plan file is there, so leave it alone.
+- [ ] **Step 2:** Write the repo and mapper tests; RED: `npx jest src/data/http/__tests__/ptm.repo.test.ts`
+- [ ] **Step 3:** Implement the data layer; GREEN.
+- [ ] **Step 4:** Implement the hooks, screens and navigation. Run `npx tsc --noEmit` (no new errors in touched files) and `npm test`.
+- [ ] **Step 5:** Commit by explicit paths: `feat(ptm): teacher PTM list and create screens`
+
+### Task 10: SMS admin PTM page (`sms-admin`, branch `feat/ptm` from `main`)
+
+**Files (read the named patterns first):**
+- Create: `src/api/ptm.ts`, with `listPtm(filters)` → `GET /ptm` (`request`; the response has no cursor), `createPtm(input)` → `POST /ptm`, and `deletePtm(id)` → `DELETE /ptm/{id}`. Map with `snakeToCamel` / `camelToSnake`. Model: `src/api/complaints.ts`, and `src/api/calendarEvents.ts` for delete.
+- Create: `src/api/hooks/usePtm.ts` (`usePtm(filters)`, `useCreatePtm`, `useDeletePtm`), plus a tenant-scoped key in `src/api/queryKeys.ts`. Model: `src/api/hooks/useComplaints.ts`.
+- Create: `src/screens/school/ptm.tsx`, exporting `ptmScreens = { 'school.ptm': PtmScreen }`:
+  - filters: status (all/pending/confirmed), teacher (`useTeachers()`), and from/to dates;
+  - a table: date, time, student, teacher, subject, mode, status pill, delete (with confirmation);
+  - a "Schedule meeting" modal: student picker (`useStudents({ q })`), teacher picker, date, time, mode, subject.
+
+  Model the page on `src/screens/school/calendar.tsx`, and the form on the Complaints create form in `operations.tsx`.
+- Modify: `src/screens/registry.tsx` (spread `ptmScreens`), `src/router.tsx` (a `VIEWS['school.ptm']` entry) and `src/components/shell/Sidebar.tsx` (a `{ label: 'PTM', view: 'school.ptm', icon: 'users' }` item next to Calendar in the Academic group).
+- Tests:
+  - `src/api/ptm.test.ts` (model: `calendarEvents.test.ts`): for list with filters, create and delete, assert the URL, method, body and `Authorization` / `X-Tenant-Id` headers.
+  - `src/screens/school/ptm.test.tsx`: renders rows from mocked hooks, and a submitted modal calls create with the entered values.
+
+- [ ] **Step 1:** `git switch -c feat/ptm` (the repo is on `main` and clean).
+- [ ] **Step 2:** Write `ptm.test.ts`; RED: `npx vitest run src/api/ptm.test.ts`
+- [ ] **Step 3:** Implement the API module and hooks; GREEN.
+- [ ] **Step 4:** Implement the page, registry, router and sidebar entry, and the page test. Run `npx tsc --noEmit` and `npx vitest run`.
+- [ ] **Step 5:** Commit by explicit paths: `feat(ptm): admin PTM page — list, filter, schedule, delete`
