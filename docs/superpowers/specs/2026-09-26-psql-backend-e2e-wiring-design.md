@@ -159,3 +159,41 @@ items are dropped and recorded in the check's results.
 
 Peers/classmates, meals, pickup, parent relation, a calendar screen, the Google Maps key committed
 in `app.json` (flagged separately), and updating the stale `sms-api/docs/api/student-api.md`.
+
+## Addendum (2026-09-27): PTM for staff (teacher app + SMS admin)
+
+**Decision (user):** PTM is created by staff and confirmed by parents across three apps. This
+supersedes the "no create endpoint" clarification above for PTM only. Everything else in this spec
+stays as it was.
+
+### Backend (`sms-api`), extending `PtmController` / `PtmService` / `PtmRepository`
+| Route | Caller | Behaviour |
+|---|---|---|
+| `GET /v1/ptm` | teacher | meetings whose `TeacherId` is the caller's teacher row (`TeacherIdForUserAsync`); filters `status`, `from`, `to` |
+| `GET /v1/ptm` | manager tier (`RoleChecks.IsManagerTier`) | every meeting in the school; also `teacher_id`, `student_id` |
+| `GET /v1/ptm` | student / parent | unchanged |
+| `POST /v1/ptm` | teacher, manager tier | `{student_id, teacher_id?, subject?, date, time, mode}`; a teacher's `teacher_id` is forced to their own; an admin must give one; the student must exist in the school; `201` with the item, status `pending` |
+| `PATCH /v1/ptm/{id}` | teacher (own meeting), manager tier | any of `subject, date, time, mode`; changing `date` or `time` resets status to `pending` |
+| `PATCH /v1/ptm/{id}` | parent | unchanged (status only) |
+| `DELETE /v1/ptm/{id}` | teacher (own meeting), manager tier | `204` |
+
+- Items gain `student_name` and `teacher_id`. Existing keys are unchanged, so the parent app is unaffected.
+- Errors:
+  - `validation_failed` (422): bad date or time, empty mode, missing `student_id`, or an admin without `teacher_id`
+  - `not_found` (404): the meeting, student or teacher isn't in the school, or it's a teacher's non-own meeting
+  - `forbidden` (403): any other role
+- No schema change; `dbo.PtmMeetings` from migration 0005 already has every column.
+
+### Teacher app (`sms-teacher-app`, branch `feat/ptm`)
+- A PTM tile on `MoreScreen` opens `PtmScreen` (the teacher's meetings, status pill, cancel) and `PtmNewScreen`
+  (class picker → student picker → subject, date, time, mode).
+- Built with the existing layers: domain type, zod DTO and mapper in `mappers.ts`, `ptm.repo.ts`, repo
+  interface and factory, hooks in `features/ptm/hooks.ts`, and tenant-scoped query keys. Modelled on Leave and Assignments.
+
+### SMS admin (`sms-admin`, branch `feat/ptm`)
+- A `school.ptm` page in the Academic nav group: a table with status, teacher and date filters, a create
+  modal (student picker, teacher picker, date, time, mode, subject), and delete.
+- Built as `src/api/ptm.ts`, `src/api/hooks/usePtm.ts`, `src/screens/school/ptm.tsx`, plus the registry, router and
+  sidebar entries. Modelled on the Calendar page and the Complaints API module. Tests use Vitest.
+
+**Out of scope:** parent slot booking, notifications or reminders, and the `ptm` calendar event type (unchanged).
