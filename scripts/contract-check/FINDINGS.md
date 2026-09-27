@@ -34,3 +34,12 @@ Environment notes (not code defects):
 - With `CONTRACT_WRITES=1`: **PASS 59, WARN 4, FAIL 1**. `notifications/read` passes for both roles.
 - The remaining FAIL is #1 (`/ptm`, HTTP 500): migration 0005 is not yet applied to sms_dev, because it needs the schema-owner connection.
 - The remaining WARNs are empty fee invoices and one child's grades; `sms_dev` has no such rows.
+
+## Final run (2026-09-27): all green
+
+- Migration 0005 is applied to sms_dev (as `postgres`). Two tagged meetings were added for the E2E parent's children
+  (ids `e2e00000-…-00a1` / `…-00a2`; `sms_dev/e2e-cleanup.sql` removes them).
+- API from sms-api `4ae5a2d`.
+- `CONTRACT_WRITES=1 npm run contract-check`: **PASS 61, WARN 4, FAIL 0**.
+- `/ptm?scope=family` and `PATCH /ptm/{id}` both PASS. Finding #1 is closed.
+- The remaining WARNs are empty fee invoices and one child's grades; `sms_dev` has no such rows.
