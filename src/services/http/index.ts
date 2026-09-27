@@ -480,7 +480,7 @@ export const httpServices: Services = {
       }).then((data) => ({ status: data.status })),
   },
   ptm: {
-    list: () => getJson<PTMMeetingDTO[]>('/ptm').then((a) => a.map(toPTM)),
+    list: () => getJson<PTMMeetingDTO[]>('/ptm?scope=family').then((a) => a.map(toPTM)),
     setStatus: (id, status) => patch<PTMMeetingDTO>(`/ptm/${id}`, { status }).then(toPTM),
   },
   transport: {

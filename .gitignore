@@ -11,3 +11,6 @@ android/
 .design-pkg/
 .worktrees/
 .superpowers/
+
+# contract-check raw responses (real school data)
+scripts/contract-check/out/
