@@ -26,3 +26,11 @@ succeeded.
 Environment notes (not code defects):
 - The API listens on 5262 (user-secret), but the app, teacher app and admin default to 5162.
 - `sms_dev` has no student or parent logins; the SQL Server logins were not migrated.
+
+## Re-run after fixes (2026-09-27)
+
+- sms-api now includes `6914d49` (announcements audience fix) and `af6dc6f` (staff PTM).
+- Read-only run: **PASS 57, WARN 4, FAIL 1**. Announcements (#2) now PASS for both roles.
+- With `CONTRACT_WRITES=1`: **PASS 59, WARN 4, FAIL 1**. `notifications/read` passes for both roles.
+- The remaining FAIL is #1 (`/ptm`, HTTP 500): migration 0005 is not yet applied to sms_dev, because it needs the schema-owner connection.
+- The remaining WARNs are empty fee invoices and one child's grades; `sms_dev` has no such rows.
