@@ -100,7 +100,7 @@ export function ParentPTMScreen() {
                 </View>
                 <Text style={styles.cardTeacher}>{m.teacher}</Text>
                 <Text style={styles.cardSubj}>
-                  {m.subj} · for {kidName(m.child)}
+                  {m.subj ? `${m.subj} · ` : ''}for {kidName(m.child)}
                 </Text>
                 <View style={styles.mode}>
                   <Ionicons

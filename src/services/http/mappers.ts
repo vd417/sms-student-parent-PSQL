@@ -566,7 +566,7 @@ export const ptmDateLabel = (date: string): string => {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
   return m ? `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}` : date;
 };
-export const toPTM = (d: PTMMeetingDTO): PTMMeeting => ({ id: d.id, date: ptmDateLabel(d.date), time: d.time, teacher: d.teacher, subj: d.subject, child: d.child, mode: d.mode, status: d.status });
+export const toPTM = (d: PTMMeetingDTO): PTMMeeting => ({ id: d.id, date: ptmDateLabel(d.date), time: d.time, teacher: d.teacher, subj: d.subject ?? '', child: d.child, mode: d.mode, status: d.status });
 export const toTransport = (d: ChildBusPositionDTO): Transport => {
   const status = d.status;
   const tracking = d.tracking_status ?? trackingFromLegacy(status);

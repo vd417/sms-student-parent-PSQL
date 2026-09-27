@@ -46,7 +46,7 @@ npm run ios        # or: android / web
 
 5. Note: `eas.json`'s `preview` profile bakes in `http://192.168.0.103:5162/v1`; update it to the current `http://<ip>:<port>/v1` before an EAS preview build.
 
-6. Live contract check: copy `scripts/contract-check/.env.example` to `.env`, fill in a student and a parent login and `API_BASE_URL`, then `npm run contract-check` (add `CONTRACT_WRITES=1` for the write probes). Results and triage are in `scripts/contract-check/FINDINGS.md`.
+6. Live contract check: copy `scripts/contract-check/.env.example` to `.env`, fill in a student and a parent login and `API_BASE_URL`, then `npm run contract-check` (add `CONTRACT_WRITES=1` for the write probes). Results and triage are in `scripts/contract-check/FINDINGS.md`. Note: `CONTRACT_WRITES=1` marks every notification of both test accounts as read, and this can't be undone.
 
 ## Theme
 

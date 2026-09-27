@@ -123,7 +123,7 @@ describe('live contract: sms-api + sms_dev', () => {
     await probe(ctx, 'auth-me', '/auth/me', { kind: 'object', dto: 'SessionUserDTO' });
     const kids: Row[] | undefined = await probe(ctx, 'children', '/parents/me/children', { kind: 'list', dto: 'StudentDTO', map: toChild });
     for (const [i, kid] of (kids ?? []).entries()) await perStudent(ctx, kid.id, `child${i + 1}-`);
-    const ptm: Row[] | undefined = await probe(ctx, 'ptm', '/ptm', { kind: 'list', dto: 'PTMMeetingDTO', map: toPTM });
+    const ptm: Row[] | undefined = await probe(ctx, 'ptm', '/ptm?scope=family', { kind: 'list', dto: 'PTMMeetingDTO', map: toPTM });
     if (WRITES && ptm?.[0]) {
       // Re-send the current status: exercises the write path without changing data.
       await probe(ctx, 'ptm-set-status', `/ptm/${ptm[0].id}`, { kind: 'object', dto: 'PTMMeetingDTO', map: toPTM },

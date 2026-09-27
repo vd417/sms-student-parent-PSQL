@@ -189,7 +189,7 @@ export interface ChildTodayDTO { classes: ChildClassDTO[]; meals: { breakfast: s
 // no fee structure) has no lines: an empty/absent array here is real, not a bug.
 export interface FeeInvoiceLineDTO { head_id?: string | null; head_name: string; amount: number; description?: string | null; }
 export interface FeeInvoiceDTO { id: string; period: string; due_date: string; amount: number; status: 'due' | 'partial' | 'paid'; paid_amount?: number; lines?: FeeInvoiceLineDTO[]; paid_on?: string; method?: string; }
-export interface PTMMeetingDTO { id: string; date: string; time: string; teacher: string; subject: string; child: string; mode: string; status: 'confirmed' | 'pending'; }
+export interface PTMMeetingDTO { id: string; date: string; time: string; teacher: string; subject: string | null; child: string; mode: string; status: 'confirmed' | 'pending'; }
 
 export interface ChildBusStopDTO {
   id: string;

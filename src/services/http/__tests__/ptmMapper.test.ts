@@ -21,4 +21,16 @@ describe('toPTM', () => {
       child: 's1', mode: 'Video call', status: 'pending',
     });
   });
+
+  it('maps a null subject to an empty string', () => {
+    expect(
+      toPTM({
+        id: 'm2', date: '2026-10-03', time: '15:00', teacher: 'Ms. A. Krishnan', subject: null,
+        child: 's1', mode: 'Video call', status: 'pending',
+      }),
+    ).toEqual({
+      id: 'm2', date: 'Oct 3, 2026', time: '15:00', teacher: 'Ms. A. Krishnan', subj: '',
+      child: 's1', mode: 'Video call', status: 'pending',
+    });
+  });
 });
