@@ -171,7 +171,7 @@ export function ParentHomeScreen() {
 
         {/* Today snapshot hero */}
         <View style={{ paddingHorizontal: 18 }}>
-          <View style={[styles.hero, { backgroundColor: hueColor(child.hue) }]}>
+          <View style={[styles.hero, { backgroundColor: colors.primary }]}>
             <View style={styles.brandRow}>
               <SchoolBadge light />
             </View>
