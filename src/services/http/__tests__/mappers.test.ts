@@ -494,10 +494,14 @@ describe('http mappers → domain', () => {
       sent_at: '2026-09-18T04:30:00',
       is_mine: true,
     };
-    const expected = new Date('2026-09-18T04:30:00Z').toLocaleTimeString(undefined, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
+    const dt = new Date('2026-09-18T04:30:00Z');
+    const time = dt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    // Production prepends the date for any message not from today (mappers.ts sameDay check),
+    // so build the expected string the same way to keep this UTC-parsing test date-stable.
+    const expected =
+      dt.toDateString() === new Date().toDateString()
+        ? time
+        : `${dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${time}`;
     expect(toChatMessage(d).time).toBe(expected);
   });
 
