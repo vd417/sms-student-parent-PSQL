@@ -82,6 +82,11 @@ export interface NotificationsService {
   markRead(): Promise<void>;
 }
 
+export interface DevicesService {
+  /** Idempotent upsert of this device's Expo push token for the signed-in user. */
+  register(input: { expoPushToken: string; platform: 'ios' | 'android' }): Promise<void>;
+}
+
 export interface AppSettings {
   chatAlerts: boolean;
   schoolNotices: boolean;
@@ -173,6 +178,7 @@ export interface Services {
   grades: GradesService;
   announcements: AnnouncementsService;
   notifications: NotificationsService;
+  devices: DevicesService;
   settings: SettingsService;
   messaging: MessagingService;
   directory: DirectoryService;

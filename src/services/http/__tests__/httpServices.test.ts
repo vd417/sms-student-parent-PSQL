@@ -31,6 +31,17 @@ describe('httpServices', () => {
     }
   });
 
+  it('devices.register POSTs /me/devices with a snake_case body', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce(undefined as any);
+    await httpServices.devices.register({ expoPushToken: 'ExponentPushToken[x]', platform: 'ios' });
+    expect(spy.mock.calls[0][0]).toBe('/me/devices');
+    expect(JSON.parse(spy.mock.calls[0][1].body as string)).toEqual({
+      expo_push_token: 'ExponentPushToken[x]',
+      platform: 'ios',
+    });
+    spy.mockRestore();
+  });
+
   it('student.getProfile resolves via /students/me and maps the DTO', async () => {
     const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce({
       id: 'sis-1', admission_no: 'WBA-2024-1042', name: 'Maya Patel', initials: 'MP',

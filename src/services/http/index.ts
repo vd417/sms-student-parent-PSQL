@@ -351,6 +351,11 @@ export const httpServices: Services = {
       await post<unknown>('/notifications/read', {});
     },
   },
+  devices: {
+    register: async ({ expoPushToken, platform }) => {
+      await post('/me/devices', { expo_push_token: expoPushToken, platform });
+    },
+  },
   settings: {
     get: async () => toAppSettings(await getJson<AppSettingsDTO>('/me/settings')),
     update: async (input) => {
