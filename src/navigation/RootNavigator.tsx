@@ -4,6 +4,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { Loading } from '@/components/ui/Loading';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { NoticeWatcher } from '@/hooks/useNotifications';
+import { PushNotifications } from '@/components/PushNotifications';
 import { navigationRef } from './navigationRef';
 import { AuthNavigator } from './AuthNavigator';
 import { StudentNavigator } from './StudentNavigator';
@@ -17,6 +18,7 @@ export function RootNavigator() {
       {authed ? <OfflineBanner /> : null}
       <NavigationContainer ref={navigationRef}>
         {authed ? <NoticeWatcher /> : null}
+        {authed ? <PushNotifications /> : null}
         {status === 'restoring' ? (
           <Loading />
         ) : status === 'unauthenticated' ? (
