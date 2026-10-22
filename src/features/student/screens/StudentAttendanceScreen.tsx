@@ -4,9 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Card, ErrorState, Loading, ScreenHeader, LastUpdated } from '@/components/ui';
+import { AttendanceMonthCard } from '@/features/attendance/AttendanceMonthCard';
 import { useStudentProfile } from '@/hooks/useStudent';
 import { useSubjects } from '@/hooks/useSubjects';
-import { useAttendanceSummary, usePeriodAttendance } from '@/hooks/useAttendance';
+import { useAttendance, useAttendanceSummary, usePeriodAttendance } from '@/hooks/useAttendance';
 import { attendanceBySubject } from '@/lib/attendanceBySubject';
 import { normalizeSubjectName } from '@/lib/belongsToSubject';
 import { rangeForPreset, type AttendancePreset } from '@/lib/attendanceRange';
@@ -33,16 +34,22 @@ export function StudentAttendanceScreen() {
   const nav = useNavigation<Nav>();
   const meQ = useStudentProfile();
   const subjectsQ = useSubjects();
+  const now = new Date();
   const [preset, setPreset] = useState<AttendancePreset>('month');
-  const { from, to } = rangeForPreset(preset, new Date());
+  const { from, to } = rangeForPreset(preset, now);
+  const monthRange = rangeForPreset('month', now);
+  const attnQ = useAttendance();
   const summaryQ = useAttendanceSummary(undefined, from, to);
   const periodQ = usePeriodAttendance(undefined, from, to);
+  const monthPeriodsQ = usePeriodAttendance(undefined, monthRange.from, monthRange.to);
 
   const onRefresh = () => {
     meQ.refetch();
     subjectsQ.refetch();
+    attnQ.refetch();
     summaryQ.refetch();
     periodQ.refetch();
+    monthPeriodsQ.refetch();
   };
 
   if (isInitialLoad(meQ) && isInitialLoad(summaryQ)) {
@@ -90,6 +97,15 @@ export function StudentAttendanceScreen() {
             <Text style={styles.meta}>Marked periods: {summary?.totalMarkedPeriods ?? 0}</Text>
           </View>
         </Card>
+
+        <View style={{ marginBottom: 14 }}>
+          <AttendanceMonthCard
+            now={now}
+            days={attnQ.data?.days ?? []}
+            periods={monthPeriodsQ.data ?? []}
+            audience="student"
+          />
+        </View>
 
         <Text style={styles.eyebrow}>By subject</Text>
         <View style={styles.presetRow}>

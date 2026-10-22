@@ -15,7 +15,7 @@ import {
 import { BookMeetingBanner } from '@/features/inbox/BookMeetingBanner';
 import { useMappedTeachers } from '@/hooks/useMappedTeachers';
 import { useOpenThread, useThreads } from '@/hooks/useMessaging';
-import { samePerson, teacherCardLine } from '@/lib/classTeachers';
+import { samePerson, teacherCardLine, teacherRoleLine } from '@/lib/classTeachers';
 import { useChildren } from '@/hooks/useParent';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueColor, hueForName, radius, spacing } from '@/theme';
@@ -40,11 +40,15 @@ export function ParentChatScreen() {
   const [query, setQuery] = useState('');
   const threadsQ = useThreads('parent', inboxFocused);
   const childrenQ = useChildren();
-  const { teachers: mappedTeachers, teachersQ } = useMappedTeachers();
+  const { teachers: mappedTeachers, teachersQ, identity } = useMappedTeachers();
   const openThread = useOpenThread('parent');
 
-  const isLoading = (threadsQ.isLoading && threadsQ.data === undefined) || (childrenQ.isLoading && childrenQ.data === undefined);
-  const isError = threadsQ.isError && threadsQ.data === undefined;
+  const isLoading =
+    (threadsQ.isLoading && threadsQ.data === undefined) ||
+    (childrenQ.isLoading && childrenQ.data === undefined);
+  const isError =
+    (threadsQ.isError && threadsQ.data === undefined) ||
+    (childrenQ.isError && childrenQ.data === undefined);
   const onRefresh = () => {
     threadsQ.refetch();
     childrenQ.refetch();
@@ -53,7 +57,7 @@ export function ParentChatScreen() {
 
   const openTeacher = (t: Teacher) => {
     openThread.mutate(
-      { name: t.name, role: teacherCardLine(t) },
+      { name: t.name, role: teacherCardLine(t, identity) },
       {
         onSuccess: (th) => nav.navigate('ChatThread', { id: th.id, name: th.name, role: th.role }),
         onError: () => toast('Could not open conversation. Try again.'),
@@ -79,18 +83,17 @@ export function ParentChatScreen() {
   }
 
   const q = query.trim().toLowerCase();
-  const threads = threadsQ.data!.filter(
+  const threads = (threadsQ.data ?? []).filter(
     (t) => !q || t.name.toLowerCase().includes(q) || t.role.toLowerCase().includes(q),
   );
-  const children = childrenQ.data!;
+  const children = childrenQ.data ?? [];
   const kidFor = (id?: string | null) => (id ? children.find((c) => c.id === id) : undefined);
 
   const directory = teachersQ.data ?? [];
   const teacherFor = (name: string) => directory.find((teacher) => samePerson(teacher.name, name));
-  const activeThreadNames = new Set(threadsQ.data!.map((t) => t.name.trim().toLowerCase()));
-  const teachers = mappedTeachers
-    .filter((t) => !activeThreadNames.has(t.name.trim().toLowerCase()))
-    .filter((t) => !q || t.name.toLowerCase().includes(q) || teacherCardLine(t).toLowerCase().includes(q));
+  const teachers = mappedTeachers.filter(
+    (t) => !q || t.name.toLowerCase().includes(q) || teacherCardLine(t, identity).toLowerCase().includes(q),
+  );
   const noResults = q !== '' && threads.length === 0 && teachers.length === 0;
 
   return (
@@ -151,7 +154,7 @@ export function ParentChatScreen() {
                     </View>
                     <View style={styles.metaRow}>
                       <Text style={styles.role}>
-                        {teacherFor(t.name) ? teacherCardLine(teacherFor(t.name) as Teacher) : t.role}
+                        {teacherFor(t.name) ? teacherRoleLine(teacherFor(t.name) as Teacher, identity) : t.role}
                       </Text>
                       {kid ? (
                         <>
@@ -194,7 +197,7 @@ export function ParentChatScreen() {
                   <Avatar initials={t.initials} size={44} hue={hueForName(t.name)} photoUri={t.photoUrl} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.name}>{t.name}</Text>
-                    <Text style={styles.role}>{teacherCardLine(t)}</Text>
+                    <Text style={styles.role}>{teacherRoleLine(t, identity)}</Text>
                   </View>
                 </Pressable>
               ))

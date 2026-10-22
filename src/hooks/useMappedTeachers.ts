@@ -7,7 +7,16 @@ import { useChildren } from './useParent';
 import { useDirectory } from './useDirectory';
 import { qk } from './keys';
 
-/** Class teacher plus teachers on this class timetable. Not the whole staff list. */
+/** A subject title copied into the teacher field is not a person's name. */
+function teacherName(name?: string, subject?: string): string {
+  const teacher = (name ?? '').trim();
+  const title = (subject ?? '').trim();
+  if (!teacher) return '';
+  if (title && teacher.toLowerCase() === title.toLowerCase()) return '';
+  return teacher;
+}
+
+/** This class's teachers, plus the principal, admin, and vice principal. */
 export function useMappedTeachers() {
   const { role } = useAuth();
   const isParent = role === 'parent';
@@ -37,17 +46,24 @@ export function useMappedTeachers() {
     grade: isParent ? undefined : profile?.grade,
     section: isParent ? undefined : profile?.section,
   };
-  const teachers = teachersForClass(
-    teachersQ.data ?? [],
-    identity,
-    [
-      ...(timetableQ.data ?? []).map((block) => ({ id: block.teacherId, name: block.teacher })),
-      ...(subjectsQ.data ?? []).map((subject) => ({ name: subject.teacher })),
-    ],
-  );
+  const slots = [
+    ...(timetableQ.data ?? [])
+      .filter((block) => block.kind !== 'break')
+      .map((block) => ({
+        id: block.teacherId,
+        name: teacherName(block.teacher, block.label),
+        subject: block.label,
+      })),
+    ...(subjectsQ.data ?? []).map((subject) => ({
+      name: teacherName(subject.teacher, subject.name),
+      subject: subject.name,
+    })),
+  ];
+  const teachers = teachersForClass(teachersQ.data ?? [], identity, slots);
   return {
     teachers,
     teachersQ,
+    identity,
     classLabel: classLabels(identity)[0] ?? '',
   };
 }

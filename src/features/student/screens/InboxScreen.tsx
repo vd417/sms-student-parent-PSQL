@@ -4,10 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Avatar, Empty, ErrorState, Loading, ScreenHeader, SearchField } from '@/components/ui';
-import { BookMeetingBanner } from '@/features/inbox/BookMeetingBanner';
 import { useMappedTeachers } from '@/hooks/useMappedTeachers';
 import { useOpenThread, useThreads } from '@/hooks/useMessaging';
-import { samePerson, teacherCardLine } from '@/lib/classTeachers';
+import { samePerson, teacherCardLine, teacherRoleLine } from '@/lib/classTeachers';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueForName, radius, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
@@ -29,7 +28,7 @@ export function InboxScreen() {
   const inboxFocused = useIsFocused();
   const [query, setQuery] = useState('');
   const threadsQ = useThreads('student', inboxFocused);
-  const { teachers: mappedTeachers, teachersQ } = useMappedTeachers();
+  const { teachers: mappedTeachers, teachersQ, identity } = useMappedTeachers();
   const openThread = useOpenThread('student');
   const toast = useToast();
 
@@ -42,7 +41,7 @@ export function InboxScreen() {
 
   const openTeacher = (t: Teacher) => {
     openThread.mutate(
-      { name: t.name, role: teacherCardLine(t) },
+      { name: t.name, role: teacherCardLine(t, identity) },
       {
         onSuccess: (th) => nav.navigate('ChatThread', { id: th.id, name: th.name, role: th.role }),
         onError: () => toast('Could not open conversation. Try again.'),
@@ -73,10 +72,9 @@ export function InboxScreen() {
   );
   const directory = teachersQ.data ?? [];
   const teacherFor = (name: string) => directory.find((teacher) => samePerson(teacher.name, name));
-  const activeThreadNames = new Set((threadsQ.data ?? []).map((t) => t.name.trim().toLowerCase()));
-  const teachers = mappedTeachers
-    .filter((t) => !activeThreadNames.has(t.name.trim().toLowerCase()))
-    .filter((t) => !q || t.name.toLowerCase().includes(q) || teacherCardLine(t).toLowerCase().includes(q));
+  const teachers = mappedTeachers.filter(
+    (t) => !q || t.name.toLowerCase().includes(q) || teacherCardLine(t, identity).toLowerCase().includes(q),
+  );
   const noResults = q !== '' && threads.length === 0 && teachers.length === 0;
 
   return (
@@ -123,7 +121,9 @@ export function InboxScreen() {
                   <Text style={styles.name}>{t.name}</Text>
                   <Text style={styles.when}>{t.when}</Text>
                 </View>
-                <Text style={styles.meta}>{teacherFor(t.name) ? teacherCardLine(teacherFor(t.name) as Teacher) : t.role}</Text>
+                <Text style={styles.meta}>
+                  {teacherFor(t.name) ? teacherRoleLine(teacherFor(t.name) as Teacher, identity) : t.role}
+                </Text>
                 <Text style={[styles.last, t.unread > 0 && styles.lastUnread]} numberOfLines={1}>
                   {t.last || 'No messages yet'}
                 </Text>
@@ -132,10 +132,7 @@ export function InboxScreen() {
           ))}
         </View>
 
-        <View style={{ marginTop: threads.length ? 18 : 0 }}>
-          <BookMeetingBanner onPress={() => nav.navigate('PTM')} />
-        </View>
-        <Text style={styles.eyebrow}>Teachers for this class</Text>
+        <Text style={[styles.eyebrow, threads.length > 0 && { marginTop: 18 }]}>Teachers for this class</Text>
         <View style={{ gap: 8 }}>
           {teachers.length === 0 ? (
             <Empty message="No teachers are mapped to this class." />
@@ -149,7 +146,7 @@ export function InboxScreen() {
                 <Avatar initials={t.initials} size={44} hue={hueForName(t.name)} photoUri={t.photoUrl} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.name}>{t.name}</Text>
-                  <Text style={styles.meta}>{teacherCardLine(t)}</Text>
+                  <Text style={styles.meta}>{teacherRoleLine(t, identity)}</Text>
                 </View>
               </Pressable>
             ))

@@ -3,17 +3,16 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Card, Empty, ErrorState, IconButton, Loading, Pill, ScreenHeader } from '@/components/ui';
+import { Card, Empty, ErrorState, IconButton, Loading, ScreenHeader } from '@/components/ui';
+import { AttendanceMonthCard } from '@/features/attendance/AttendanceMonthCard';
 import { useAttendance, usePeriodAttendance, useAttendanceSummary } from '@/hooks/useAttendance';
 import { useLeave } from '@/hooks/useLeave';
 import { useChildren } from '@/hooks/useParent';
 import { useSelectedChild } from '@/providers/ChildProvider';
 import { useToast } from '@/providers/ToastProvider';
-import { attendanceBySubject, attendancePillTone, periodsForDate } from '@/lib/attendanceBySubject';
+import { attendanceBySubject } from '@/lib/attendanceBySubject';
 import { attendanceMonthCells } from '@/services/http/mappers';
-import { monthDayKey, rangeForPreset, type AttendancePreset } from '@/lib/attendanceRange';
-import { deriveTodayAttendance } from '@/lib/todayAttendance';
-import type { AttendanceKind } from '@/models';
+import { rangeForPreset, type AttendancePreset } from '@/lib/attendanceRange';
 import { colors, fontFamily, radius } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
 
@@ -26,14 +25,6 @@ const PRESETS: { key: AttendancePreset; label: string }[] = [
   { key: 'overall', label: 'Overall' },
 ];
 
-const TONES: Record<AttendanceKind, { bg: string; fg: string; border?: string }> = {
-  present: { bg: colors.present, fg: colors.white },
-  absent: { bg: colors.absent, fg: colors.white },
-  late: { bg: colors.late, fg: colors.white },
-  off: { bg: colors.ruleSoft, fg: colors.inkSoft },
-  future: { bg: colors.white, fg: colors.inkSoft, border: colors.rule },
-};
-
 export function ParentAttendanceScreen() {
   const nav = useNavigation<Nav>();
   const toast = useToast();
@@ -41,7 +32,6 @@ export function ParentAttendanceScreen() {
   const now = new Date();
   const attnQ = useAttendance(childId);
   const [preset, setPreset] = useState<AttendancePreset>('month');
-  const [selectedDay, setSelectedDay] = useState(now.getDate());
   const { from, to } = rangeForPreset(preset, now);
   const monthRange = rangeForPreset('month', now);
   const periodQ = usePeriodAttendance(childId, from, to);
@@ -64,8 +54,6 @@ export function ParentAttendanceScreen() {
   };
 
   const child = childrenQ.data?.find((c) => c.id === childId);
-  const monthTitle = now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-  const leadingDays = (new Date(now.getFullYear(), now.getMonth(), 1).getDay() + 6) % 7;
 
   if (isLoading) {
     return (
@@ -109,16 +97,6 @@ export function ParentAttendanceScreen() {
     late: summary?.latePeriods ?? days.filter((d) => d.kind === 'late').length,
     leave: summary?.leavePeriods ?? leaveQ.data?.length ?? 0,
   };
-  const selectedKey = monthDayKey(now.getFullYear(), now.getMonth(), selectedDay);
-  const dayPeriods = periodsForDate(monthPeriodsQ.data ?? [], selectedKey);
-  const dayRoll = deriveTodayAttendance(dayPeriods.map((p) => p.status));
-  const selectedKind = cells.find((c) => c.d === selectedDay)?.kind;
-  const needsAttention = dayRoll === 'absent' || (dayRoll == null && selectedKind === 'absent');
-  const allPresent = dayRoll === 'present' || (dayRoll == null && selectedKind === 'present');
-  const selectedLabel = new Date(now.getFullYear(), now.getMonth(), selectedDay).toLocaleDateString(
-    undefined,
-    { weekday: 'short', day: 'numeric', month: 'short' },
-  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -155,130 +133,12 @@ export function ParentAttendanceScreen() {
               Marked periods: {summary?.totalMarkedPeriods ?? 0}
             </Text>
           </Card>
-          <Card style={{ padding: 16 }}>
-            <Text style={styles.monthTitle}>{monthTitle}</Text>
-            <View style={styles.weekRow}>
-              {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((x, i) => (
-                <Text key={i} style={styles.weekLabel}>
-                  {x}
-                </Text>
-              ))}
-            </View>
-            <View style={styles.grid}>
-              {Array.from({ length: leadingDays }, (_, i) => (
-                <View key={`b${i}`} style={styles.cell} />
-              ))}
-              {cells.map(({ d, kind }) => {
-                const t = TONES[kind];
-                const selected = d === selectedDay;
-                return (
-                  <Pressable key={d} onPress={() => setSelectedDay(d)} style={styles.cell}>
-                    <View
-                      style={[
-                        styles.dayCell,
-                        {
-                          backgroundColor: t.bg,
-                          borderWidth: selected ? 2 : t.border ? 1 : 0,
-                          borderColor: selected ? colors.ink : t.border,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.dayTxt, { color: t.fg }]}>{d}</Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <View style={styles.legend}>
-              {(
-                [
-                  ['present', 'All present'],
-                  ['absent', 'Missed class'],
-                  ['late', 'Late'],
-                  ['off', 'Off'],
-                ] as [AttendanceKind, string][]
-              ).map(([k, l]) => (
-                <View key={k} style={styles.legendItem}>
-                  <View
-                    style={[
-                      styles.legendDot,
-                      {
-                        backgroundColor: TONES[k].bg,
-                        borderWidth: TONES[k].border ? 1 : 0,
-                        borderColor: TONES[k].border,
-                      },
-                    ]}
-                  />
-                  <Text style={styles.legendTxt}>{l}</Text>
-                </View>
-              ))}
-            </View>
-            {needsAttention ? (
-              <View style={styles.attention}>
-                <Text style={styles.attentionTitle}>Needs attention</Text>
-                <Text style={styles.attentionBody}>
-                  Missed a class on {selectedLabel}. Please check with your child.
-                </Text>
-              </View>
-            ) : allPresent ? (
-              <View style={styles.allPresentBanner}>
-                <Text style={styles.allPresentTitle}>All classes present</Text>
-                <Text style={styles.allPresentBody}>{selectedLabel}</Text>
-              </View>
-            ) : null}
-            <Text style={[styles.eyebrow, { marginTop: 16, marginBottom: 8 }]}>
-              {selectedLabel} · periods
-            </Text>
-            {dayPeriods.length === 0 ? (
-              <Text style={styles.flagReason}>No period marks this day.</Text>
-            ) : (
-              dayPeriods.map((row) => {
-                const tone = attendancePillTone(row.status);
-                return (
-                  <View key={row.id} style={[styles.flagRow, { marginBottom: 8 }]}>
-                    <View
-                      style={[
-                        styles.flagIcon,
-                        {
-                          backgroundColor:
-                            tone === 'absent'
-                              ? colors.absentSoft
-                              : tone === 'present'
-                                ? colors.presentSoft
-                                : tone === 'late'
-                                  ? colors.lateSoft
-                                  : colors.primarySoft,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.flagIconTxt,
-                          {
-                            color:
-                              tone === 'absent'
-                                ? colors.absent
-                                : tone === 'present'
-                                  ? colors.present
-                                  : tone === 'late'
-                                    ? colors.late
-                                    : colors.primary,
-                          },
-                        ]}
-                      >
-                        P{row.period}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.flagDate}>{row.subject}</Text>
-                      <Text style={styles.flagReason}>Period {row.period}</Text>
-                    </View>
-                    <Pill tone={tone}>{row.status}</Pill>
-                  </View>
-                );
-              })
-            )}
-          </Card>
+          <AttendanceMonthCard
+            now={now}
+            days={days}
+            periods={monthPeriodsQ.data ?? []}
+            audience="parent"
+          />
         </View>
 
         <Text style={[styles.eyebrow, { paddingHorizontal: 18, marginBottom: 8 }]}>
@@ -402,19 +262,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
     marginBottom: 14,
   },
-  weekRow: { flexDirection: 'row', marginBottom: 6 },
-  weekLabel: {
-    flex: 1,
-    textAlign: 'center',
-    fontFamily: fontFamily.bold,
-    fontSize: 9,
-    color: colors.inkMuted,
-    textTransform: 'uppercase',
-  },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  cell: { width: `${100 / 7}%`, aspectRatio: 1, padding: 2 },
-  dayCell: { flex: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  dayTxt: { fontFamily: fontFamily.bold, fontSize: 11 },
   presetRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   presetChip: {
     paddingHorizontal: 14,
@@ -425,26 +272,6 @@ const styles = StyleSheet.create({
   presetChipActive: { backgroundColor: colors.ink },
   presetLabel: { fontFamily: fontFamily.semiBold, fontSize: 13, color: colors.inkMuted },
   presetLabelActive: { color: colors.paper },
-  legend: { flexDirection: 'row', gap: 12, marginTop: 14, flexWrap: 'wrap' },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 10, height: 10, borderRadius: 3 },
-  legendTxt: { fontFamily: fontFamily.semiBold, fontSize: 11, color: colors.inkMuted },
-  attention: {
-    marginTop: 14,
-    padding: 12,
-    borderRadius: radius.md,
-    backgroundColor: colors.absentSoft,
-  },
-  attentionTitle: { fontFamily: fontFamily.extraBold, fontSize: 13, color: colors.absent },
-  attentionBody: { fontFamily: fontFamily.medium, fontSize: 12, color: colors.absent, marginTop: 2 },
-  allPresentBanner: {
-    marginTop: 14,
-    padding: 12,
-    borderRadius: radius.md,
-    backgroundColor: colors.presentSoft,
-  },
-  allPresentTitle: { fontFamily: fontFamily.extraBold, fontSize: 13, color: colors.present },
-  allPresentBody: { fontFamily: fontFamily.medium, fontSize: 12, color: colors.present, marginTop: 2 },
   eyebrow: {
     fontFamily: fontFamily.bold,
     fontSize: 11,

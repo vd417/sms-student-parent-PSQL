@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Empty, ErrorState, Loading, Pill, ScreenHeader } from '@/components/ui';
+import { SubjectCard } from '@/components/cards/SubjectCard';
 import { KidSwitcher } from '@/features/parent/components/KidSwitcher';
 import { useExams } from '@/hooks/useGrades';
 import { useHomework } from '@/hooks/useHomework';
@@ -18,7 +19,7 @@ import { colors, fontFamily, radius, spacing } from '@/theme';
 import type { ParentStackParamList, RootStackParamList } from '@/navigation/types';
 
 type HubNav = NativeStackNavigationProp<RootStackParamList & ParentStackParamList>;
-type Step = 'class' | 'menu' | 'tests' | 'homework';
+type Step = 'class' | 'subjects' | 'tests' | 'homework';
 
 const ACTIONS = [
   { key: 'attendance', label: 'Attendance', icon: 'checkmark-circle' as const, color: colors.present },
@@ -103,15 +104,17 @@ export function ClassHubScreen({ audience }: { audience: 'student' | 'parent' })
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScreenHeader
         kicker={step === 'class' ? undefined : className}
-        title={step === 'tests' ? 'Tests' : step === 'homework' ? 'Homework' : step === 'menu' ? className : 'Class'}
+        title={
+          step === 'tests' ? 'Tests' : step === 'homework' ? 'Homework' : step === 'subjects' ? 'My subjects' : 'Class'
+        }
         showBack={step !== 'class'}
         onBack={
           step === 'class'
             ? undefined
-            : () => setStep(step === 'menu' ? 'class' : 'menu')
+            : () => setStep(step === 'subjects' ? 'class' : 'subjects')
         }
       />
-      {isParent && step === 'class' ? <KidSwitcher /> : null}
+      {isParent && (step === 'class' || step === 'subjects') ? <KidSwitcher /> : null}
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -130,7 +133,7 @@ export function ClassHubScreen({ audience }: { audience: 'student' | 'parent' })
       >
         {step === 'class' ? (
           <Pressable
-            onPress={() => setStep('menu')}
+            onPress={() => setStep('subjects')}
             style={({ pressed }) => [styles.classCard, pressed && { opacity: 0.9 }]}
           >
             <View style={styles.classIcon}>
@@ -139,25 +142,52 @@ export function ClassHubScreen({ audience }: { audience: 'student' | 'parent' })
             <View style={{ flex: 1 }}>
               <Text style={styles.classKicker}>{isParent ? child?.name || 'Child' : 'My class'}</Text>
               <Text style={styles.className}>{className}</Text>
-              <Text style={styles.classMeta}>Attendance, grades, tests, homework, timetable</Text>
+              <Text style={styles.classMeta}>My subjects</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.inkMuted} />
           </Pressable>
         ) : null}
 
-        {step === 'menu' ? (
-          <View style={styles.grid}>
-            {ACTIONS.map((action) => (
-              <Pressable
-                key={action.key}
-                onPress={() => openAction(action.key)}
-                style={({ pressed }) => [styles.action, pressed && { opacity: 0.88 }]}
-              >
-                <Ionicons name={action.icon} size={26} color={action.color} />
-                <Text style={styles.actionLabel}>{action.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+        {step === 'subjects' ? (
+          <>
+            {subjectsQ.isLoading && subjectsQ.data === undefined ? (
+              <Loading />
+            ) : subjects.length === 0 ? (
+              <Empty message="No subjects for this class yet." />
+            ) : (
+              <View style={styles.subjectGrid}>
+                {subjects.map((subject, index) => (
+                  <View
+                    key={subject.id}
+                    style={[styles.subjectCell, index % 2 === 0 ? { paddingRight: 6 } : { paddingLeft: 6 }]}
+                  >
+                    <SubjectCard
+                      subject={subject}
+                      onPress={() =>
+                        nav.navigate(
+                          'SubjectDetail',
+                          studentId ? { id: subject.id, studentId } : { id: subject.id },
+                        )
+                      }
+                    />
+                  </View>
+                ))}
+              </View>
+            )}
+            <Text style={styles.sectionLabel}>Also in this class</Text>
+            <View style={styles.grid}>
+              {ACTIONS.map((action) => (
+                <Pressable
+                  key={action.key}
+                  onPress={() => openAction(action.key)}
+                  style={({ pressed }) => [styles.action, pressed && { opacity: 0.88 }]}
+                >
+                  <Ionicons name={action.icon} size={26} color={action.color} />
+                  <Text style={styles.actionLabel}>{action.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
         ) : null}
 
         {step === 'tests' ? (
@@ -239,6 +269,22 @@ const styles = StyleSheet.create({
   classKicker: { fontFamily: fontFamily.semiBold, fontSize: 12, color: colors.inkMuted },
   className: { fontFamily: fontFamily.extraBold, fontSize: 20, color: colors.ink, marginTop: 2 },
   classMeta: { fontFamily: fontFamily.medium, fontSize: 12, color: colors.inkMuted, marginTop: 4 },
+  subjectGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -6,
+    marginBottom: 8,
+  },
+  subjectCell: { width: '50%', paddingVertical: 6 },
+  sectionLabel: {
+    fontFamily: fontFamily.bold,
+    fontSize: 12,
+    color: colors.inkMuted,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    marginTop: 16,
+    marginBottom: 10,
+  },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   action: {
     width: '31%',

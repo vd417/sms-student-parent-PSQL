@@ -232,11 +232,12 @@ function ChildTrack({
       : null;
   const mapStops = tr.routeStops
     .filter((s) => s.lat != null && s.lng != null)
-    .map((s, i) => ({
+    .    map((s, i) => ({
       id: s.id,
       name: s.name,
       lat: s.lat as number,
       lng: s.lng as number,
+      order: s.seq || i + 1,
       yours: Boolean(tr.studentStopId && s.id === tr.studentStopId),
       passed: stopProgressKind(i, tr.currentStopIndex) === 'passed',
     }));
@@ -277,6 +278,7 @@ function ChildTrack({
     busNo: tr.busNo,
     trackingStatus: tr.trackingStatus,
     motion: tr.motion,
+    speedKmh: tr.speedKmh,
     studentStop,
     stops: mapStops,
     myLat: me?.lat ?? null,
@@ -325,11 +327,11 @@ function ChildTrack({
             </View>
           </Pressable>
           <View style={styles.legend}>
-            <LegendDot color="#DC2626" label="Bus" />
+            <LegendDot color="#FFC107" label="Bus" />
             <LegendDot color="#7C3AED" label="You" />
-            <LegendDot color="#94A3B8" label="Stop" />
+            <LegendDot color="#4361EE" label="Stop" />
             <LegendDot color="#2563EB" label={stopTitle} />
-            <LegendDot color="#22C55E" label="Passed" />
+            <LegendDot color="#16A34A" label="Passed" />
           </View>
           <Pressable onPress={() => recenterRef.current?.()} style={styles.recenterBtn}>
             <Ionicons name="locate-outline" size={16} color={colors.primary} />
@@ -394,7 +396,7 @@ function ChildTrack({
             <Text style={styles.idleNote}>Allow location to see your distance to the bus and stop.</Text>
           ) : null}
 
-          {tr.trackingStatus === 'OFFLINE' && tr.status === 'idle' ? (
+          {tr.trackingStatus === 'OFFLINE' && tr.status === 'idle' && tr.lat == null ? (
             <Text style={styles.idleNote}>
               This bus hasn&apos;t started today&apos;s trip yet. You&apos;ll get a notice when it starts,
               and again when it is 1 km from your stop.
@@ -529,11 +531,11 @@ function ChildTrack({
             </View>
           </View>
           <View style={[styles.legend, styles.fullLegend]}>
-            <LegendDot color="#DC2626" label="Bus" />
+            <LegendDot color="#FFC107" label="Bus" />
             <LegendDot color="#7C3AED" label="You" />
-            <LegendDot color="#94A3B8" label="Stop" />
+            <LegendDot color="#4361EE" label="Stop" />
             <LegendDot color="#2563EB" label={stopTitle} />
-            <LegendDot color="#22C55E" label="Passed" />
+            <LegendDot color="#16A34A" label="Passed" />
           </View>
         </SafeAreaView>
       </Modal>

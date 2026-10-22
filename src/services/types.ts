@@ -153,7 +153,7 @@ export interface TransportService {
 }
 
 export interface AttendanceService {
-  month(childId: string): Promise<{ days: AttendanceDay[]; flags: AttendanceFlag[] }>;
+  month(childId?: string): Promise<{ days: AttendanceDay[]; flags: AttendanceFlag[] }>;
   today(childId?: string): Promise<DailyAttendanceStatus>;
   periods(childId?: string, from?: string, to?: string): Promise<PeriodAttendanceEntry[]>;
   /** Official period-based aggregate from SaaS (same for CRM / Teacher / Student / Parent). */

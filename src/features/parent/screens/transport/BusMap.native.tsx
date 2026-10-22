@@ -4,8 +4,8 @@ import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { GOOGLE_MAP_ID } from '@/api/config';
 import { decodePolyline } from '@/lib/decodePolyline';
 import { colors, fontFamily, radius } from '@/theme';
-import { showRouteUnavailableBadge, usableRouteGeometry } from './BusMap.types';
-import type { BusMapProps } from './BusMap.types';
+import { liveBusCoordinate, showRouteUnavailableBadge, usableRouteGeometry } from './BusMap.types';
+import type { BusMapProps, BusMapStop } from './BusMap.types';
 
 function RouteUnavailableBadge() {
   return (
@@ -17,19 +17,36 @@ function RouteUnavailableBadge() {
 
 export type { BusMapProps } from './BusMap.types';
 
-function busPinColor(status?: BusMapProps['trackingStatus'], motion?: BusMapProps['motion']) {
-  if (status === 'OFFLINE') return '#64748B';
-  if (status === 'DELAYED') return '#D97706';
-  if (motion === 'stopped') return '#0F766E';
-  return '#DC2626';
+const ROUTE = '#4361EE';
+
+function busStatusColor(speedKmh?: number | null, motion?: BusMapProps['motion']) {
+  if (typeof speedKmh === 'number' && speedKmh > 3) return '#16a34a';
+  if (motion === 'moving') return '#16a34a';
+  return '#64748b';
+}
+
+function StopPin({ stop, index }: { stop: BusMapStop; index: number }) {
+  const yours = Boolean(stop.yours);
+  const passed = Boolean(stop.passed);
+  return (
+    <View
+      collapsable={false}
+      style={[
+        styles.stopPin,
+        { borderColor: passed ? '#16a34a' : yours ? '#1D4ED8' : ROUTE, backgroundColor: yours ? '#2563EB' : '#fff' },
+      ]}
+    >
+      <Text style={[styles.stopPinText, yours && { color: '#fff' }]}>{stop.order ?? index + 1}</Text>
+    </View>
+  );
 }
 
 export function BusMap({
   lat,
   lng,
   busNo,
-  trackingStatus,
   motion,
+  speedKmh,
   studentStop,
   stops = [],
   interactive = true,
@@ -41,14 +58,30 @@ export function BusMap({
   onRecenterReady,
 }: BusMapProps) {
   const mapRef = useRef<MapView | null>(null);
+  const usableGeometry = usableRouteGeometry(routeGeometry);
+  const roadPath = useMemo(() => {
+    const decoded = usableGeometry ? decodePolyline(usableGeometry.geometry as string) : [];
+    if (decoded.length > 1) return decoded;
+    return stops
+      .filter((stop) => Number.isFinite(stop.lat) && Number.isFinite(stop.lng))
+      .map((stop) => ({ latitude: stop.lat, longitude: stop.lng }));
+  }, [usableGeometry, stops]);
+  const live = liveBusCoordinate(lat, lng);
+  const you = liveBusCoordinate(myLat, myLng);
   const coords = useMemo(() => {
-    const pts: { latitude: number; longitude: number }[] = [];
-    for (const s of stops) pts.push({ latitude: s.lat, longitude: s.lng });
-    if (studentStop) pts.push({ latitude: studentStop.lat, longitude: studentStop.lng });
-    if (lat != null && lng != null) pts.push({ latitude: lat, longitude: lng });
-    if (myLat != null && myLng != null) pts.push({ latitude: myLat, longitude: myLng });
+    const pts: { latitude: number; longitude: number }[] = [...roadPath];
+    for (const s of stops) {
+      if (Number.isFinite(s.lat) && Number.isFinite(s.lng)) pts.push({ latitude: s.lat, longitude: s.lng });
+    }
+    if (studentStop && Number.isFinite(studentStop.lat) && Number.isFinite(studentStop.lng)) {
+      pts.push({ latitude: studentStop.lat, longitude: studentStop.lng });
+    }
+    const bus = liveBusCoordinate(lat, lng);
+    const me = liveBusCoordinate(myLat, myLng);
+    if (bus) pts.push(bus);
+    if (me) pts.push(me);
     return pts;
-  }, [stops, studentStop, lat, lng, myLat, myLng]);
+  }, [roadPath, stops, studentStop, lat, lng, myLat, myLng]);
 
   const center = coords[0];
   const fit = () => {
@@ -84,11 +117,7 @@ export function BusMap({
     latitudeDelta: 0.04,
     longitudeDelta: 0.04,
   };
-  // Legacy straight-line-through-stops fallback; kept unused (never rendered) to avoid
-  // silently drawing an inaccurate line when road geometry is unavailable/errored.
-  const routeCoords = stops.map((s) => ({ latitude: s.lat, longitude: s.lng }));
-  const usableGeometry = usableRouteGeometry(routeGeometry);
-  const roadPath = usableGeometry ? decodePolyline(usableGeometry.geometry as string) : null;
+  const speedLabel = typeof speedKmh === 'number' ? `${busNo} · ${Math.round(speedKmh)} km/h` : busNo;
 
   return (
     <View style={styles.map}>
@@ -106,40 +135,49 @@ export function BusMap({
         showsUserLocation
         pointerEvents={interactive ? 'auto' : 'none'}
       >
-        {roadPath && roadPath.length > 1 ? (
-          <Polyline coordinates={roadPath} strokeColor={colors.primary} strokeWidth={4} />
+        {roadPath.length > 1 ? (
+          <>
+            <Polyline coordinates={roadPath} strokeColor="#ffffff" strokeWidth={8} zIndex={1} />
+            <Polyline coordinates={roadPath} strokeColor={ROUTE} strokeWidth={5} zIndex={2} />
+          </>
         ) : null}
-        {stops.map((s) =>
-          s.yours ? null : (
+        {stops.map((s, index) =>
+          Number.isFinite(s.lat) && Number.isFinite(s.lng) ? (
             <Marker
               key={s.id}
               coordinate={{ latitude: s.lat, longitude: s.lng }}
               title={s.name}
-              pinColor={s.passed ? '#22C55E' : '#94A3B8'}
-            />
-          ),
+              anchor={{ x: 0.5, y: 0.5 }}
+              zIndex={s.yours ? 4 : 3}
+            >
+              <StopPin stop={s} index={index} />
+            </Marker>
+          ) : null,
         )}
-        {studentStop ? (
+        {studentStop && !stops.some((s) => s.yours || s.id === studentStop.id) ? (
           <Marker
             coordinate={{ latitude: studentStop.lat, longitude: studentStop.lng }}
             title={studentStop.name}
-            pinColor="#2563EB"
-          />
+            anchor={{ x: 0.5, y: 0.5 }}
+            zIndex={4}
+          >
+            <StopPin stop={{ ...studentStop, yours: true }} index={stops.length} />
+          </Marker>
         ) : null}
-        {myLat != null && myLng != null ? (
-          <Marker
-            coordinate={{ latitude: myLat, longitude: myLng }}
-            title="You"
-            pinColor="#7C3AED"
-          />
+        {you ? (
+          <Marker coordinate={you} title="You" pinColor="#7C3AED" zIndex={5} />
         ) : null}
-        {lat != null && lng != null ? (
-          <Marker
-            coordinate={{ latitude: lat, longitude: lng }}
-            title={`Bus #${busNo}`}
-            description={trackingStatus ?? ''}
-            pinColor={busPinColor(trackingStatus, motion)}
-          />
+        {live ? (
+          <Marker coordinate={live} title={`Bus #${busNo}`} description={speedLabel} anchor={{ x: 0.5, y: 0.5 }} zIndex={10}>
+            <View collapsable={false} style={styles.busRow}>
+              <View style={styles.busBody} />
+              <View style={[styles.busLabel, { backgroundColor: busStatusColor(speedKmh, motion) }]}>
+                <Text style={styles.busLabelText} numberOfLines={1}>
+                  {speedLabel}
+                </Text>
+              </View>
+            </View>
+          </Marker>
         ) : null}
       </MapView>
       {showRouteUnavailableBadge(routeGeometry) ? <RouteUnavailableBadge /> : null}
@@ -167,4 +205,24 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   unavailableTxt: { fontFamily: fontFamily.bold, fontSize: 11, color: colors.white },
+  stopPin: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopPinText: { fontFamily: fontFamily.bold, fontSize: 10, color: colors.ink },
+  busRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  busBody: {
+    width: 22,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: '#FFC107',
+    borderWidth: 1,
+    borderColor: '#1f2937',
+  },
+  busLabel: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, maxWidth: 140 },
+  busLabelText: { fontFamily: fontFamily.bold, fontSize: 11, color: '#fff' },
 });

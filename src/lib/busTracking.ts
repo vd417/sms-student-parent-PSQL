@@ -95,6 +95,15 @@ export type BusPositionPush = {
   eta_next_stop_min?: number | null;
 };
 
+function asCoord(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
 export function parseBusPositionPush(payload: unknown): BusPositionPush | null {
   if (!payload || typeof payload !== 'object') return null;
   const row = payload as Record<string, unknown>;
@@ -110,9 +119,9 @@ export function parseBusPositionPush(payload: unknown): BusPositionPush | null {
     null;
   return {
     bus_id: busId.trim(),
-    lat: typeof row.lat === 'number' ? row.lat : null,
-    lng: typeof row.lng === 'number' ? row.lng : null,
-    speed_kmh: typeof row.speed_kmh === 'number' ? row.speed_kmh : typeof row.speedKmh === 'number' ? row.speedKmh : null,
+    lat: asCoord(row.lat ?? row.latitude),
+    lng: asCoord(row.lng ?? row.longitude),
+    speed_kmh: asCoord(row.speed_kmh ?? row.speedKmh),
     next_stop_name:
       typeof row.next_stop_name === 'string'
         ? row.next_stop_name
@@ -120,19 +129,83 @@ export function parseBusPositionPush(payload: unknown): BusPositionPush | null {
           ? row.nextStopName
           : null,
     last_ping_at: last,
+    status: typeof row.status === 'string' ? row.status : null,
     tracking_status: typeof tracking === 'string' ? tracking : null,
     motion: typeof motion === 'string' ? motion : null,
-    eta_next_stop_min:
-      typeof row.eta_next_stop_min === 'number'
-        ? row.eta_next_stop_min
-        : typeof row.etaNextStopMin === 'number'
-          ? row.etaNextStopMin
-          : null,
+    eta_next_stop_min: asCoord(row.eta_next_stop_min ?? row.etaNextStopMin),
   };
+}
+
+const LIVE_MS = 60_000;
+const DELAYED_MS = 5 * 60_000;
+
+/** Match the teacher app: a GPS point from the last minute is LIVE, even if the list payload still says OFFLINE. */
+export function presentTransport(row: Transport, now = Date.now()): Transport {
+  if (row.lat == null || row.lng == null || !Number.isFinite(row.lat) || !Number.isFinite(row.lng)) return row;
+  const ping = row.lastPingAt ? Date.parse(row.lastPingAt) : NaN;
+  if (!Number.isFinite(ping)) return row;
+  const age = now - ping;
+  const moving = typeof row.speedKmh === 'number' && row.speedKmh > 3;
+  const motion: TransportMotion = moving ? 'moving' : (row.motion ?? 'stopped');
+  const fresh = age <= LIVE_MS || (age < 0 && age > -12 * 60 * 60_000);
+  if (fresh) {
+    return {
+      ...row,
+      trackingStatus: 'LIVE',
+      motion,
+      status: motion === 'stopped' ? 'at_stop' : 'on_route',
+    };
+  }
+  if (age <= DELAYED_MS && row.trackingStatus === 'OFFLINE') {
+    return { ...row, trackingStatus: 'DELAYED', motion, status: 'delayed' };
+  }
+  return row;
+}
+
+/** A later list refresh must not wipe a live GPS point that just arrived on the socket. */
+export function mergeTransportRows(prev: Transport[] | undefined, next: Transport[], now = Date.now()): Transport[] {
+  return next.map((row) => {
+    const old = prev?.find(
+      (item) =>
+        item.studentId === row.studentId ||
+        (Boolean(item.busId) && item.busId?.trim().toLowerCase() === row.busId?.trim().toLowerCase()),
+    );
+    if (!old || old.lat == null || old.lng == null) return presentTransport(row, now);
+    const oldPing = old.lastPingAt ? Date.parse(old.lastPingAt) : NaN;
+    const newPing = row.lastPingAt ? Date.parse(row.lastPingAt) : NaN;
+    const oldFresh = Number.isFinite(oldPing) && now - oldPing <= DELAYED_MS;
+    const incomingMissing = row.lat == null || row.lng == null;
+    const oldNewer = Number.isFinite(oldPing) && (!Number.isFinite(newPing) || oldPing > newPing);
+    const merged =
+      oldFresh && (incomingMissing || oldNewer)
+        ? {
+            ...row,
+            lat: old.lat,
+            lng: old.lng,
+            speedKmh: old.speedKmh ?? row.speedKmh,
+            lastPingAt: old.lastPingAt,
+            motion: old.motion ?? row.motion,
+            trackingStatus: old.trackingStatus,
+            status: old.status,
+          }
+        : row;
+    return presentTransport(merged, now);
+  });
 }
 
 function asTracking(value: string | null | undefined): TransportTrackingStatus | null {
   if (value === 'LIVE' || value === 'DELAYED' || value === 'OFFLINE') return value;
+  const key = value?.trim().toLowerCase();
+  if (key === 'live') return 'LIVE';
+  if (key === 'delayed') return 'DELAYED';
+  if (key === 'offline') return 'OFFLINE';
+  return null;
+}
+
+function trackingFromPushStatus(status: string | null | undefined): TransportTrackingStatus | null {
+  const key = status?.trim().toLowerCase();
+  if (key === 'moving' || key === 'stopped' || key === 'live' || key === 'on_route' || key === 'at_stop') return 'LIVE';
+  if (key === 'delayed') return 'DELAYED';
   return null;
 }
 
@@ -145,10 +218,14 @@ function asMotion(value: string | null | undefined): TransportMotion | null {
 export function applyBusPositionPush(rows: Transport[] | undefined, push: BusPositionPush): Transport[] | undefined {
   if (!rows) return rows;
   return rows.map((row) => {
-    if (!row.busId || row.busId !== push.bus_id) return row;
-    const tracking = asTracking(push.tracking_status) ?? row.trackingStatus;
+    if (!row.busId || row.busId.trim().toLowerCase() !== push.bus_id.trim().toLowerCase()) return row;
+    const fromLabel = asTracking(push.tracking_status);
+    const fromMotion = trackingFromPushStatus(push.status) ?? trackingFromPushStatus(push.motion);
+    const hasGps = push.lat != null && push.lng != null;
+    // A moving/stopped fix with coordinates is the live bus, even when the list label is still OFFLINE.
+    const tracking = (hasGps && fromMotion === 'LIVE' ? fromMotion : null) ?? fromLabel ?? fromMotion ?? row.trackingStatus;
     const motion = asMotion(push.motion) ?? row.motion;
-    return {
+    const next = {
       ...row,
       lat: push.lat ?? row.lat,
       lng: push.lng ?? row.lng,
@@ -167,5 +244,6 @@ export function applyBusPositionPush(rows: Transport[] | undefined, push: BusPos
             ? 'delayed'
             : 'idle',
     };
+    return presentTransport(next);
   });
 }

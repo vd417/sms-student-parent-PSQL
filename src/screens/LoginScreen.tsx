@@ -10,34 +10,28 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, Loading } from '@/components/ui';
 import { colors, fontFamily, primaryGradient, radius, shadow, spacing } from '@/theme';
 import type { Role } from '@/models';
 import { useAuth } from '@/providers/AuthProvider';
 import { useKeyboardLift } from '@/hooks/useKeyboardLift';
-import type { AuthStackParamList } from '@/navigation/types';
 import { isStrongPassword, PASSWORD_RULE_TEXT } from '@/services/auth/password';
 import { isEmailOrPhone, normalizeLoginIdentifier } from '@/services/auth/identifier';
 import { loginPrefs } from '@/services/auth/loginPrefs';
 import { mapAuthError } from '@/services/auth/authError';
-
-type Nav = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
 const ROLE_COPY: Record<
   Role,
   { label: string; placeholder: string; autoCapitalize: 'none' | 'characters' }
 > = {
   student: {
-    label: 'Student ID or email',
-    placeholder: 'WBA-2024-1042 or you@school.edu',
-    // none — emails must not be uppercased (was causing "No account found")
+    label: 'Student ID',
+    placeholder: 'Student ID',
     autoCapitalize: 'none',
   },
   parent: {
-    label: 'Email or mobile',
-    placeholder: 'you@email.com or 98765 43210',
+    label: 'Email or mobile number',
+    placeholder: 'Email or mobile number',
     autoCapitalize: 'none',
   },
 };
@@ -50,8 +44,7 @@ function isValidLoginIdentifier(value: string, role: Role): boolean {
 }
 
 export function LoginScreen() {
-  const nav = useNavigation<Nav>();
-  const { lift, keyboardOpen } = useKeyboardLift();
+  const { keyboardOpen } = useKeyboardLift();
   const formScrollRef = useRef<ScrollView>(null);
   const { signIn, requestPasswordReset, resetPassword } = useAuth();
   const [role, setRole] = useState<Role>('student');
@@ -93,12 +86,6 @@ export function LoginScreen() {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (!keyboardOpen) return;
-    const frame = requestAnimationFrame(() => formScrollRef.current?.scrollToEnd({ animated: true }));
-    return () => cancelAnimationFrame(frame);
-  }, [keyboardOpen, step]);
 
   const copy = ROLE_COPY[role];
 
@@ -239,27 +226,26 @@ export function LoginScreen() {
       style={styles.root}
     >
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <View
-          style={[
-            styles.flow,
-            keyboardOpen && { justifyContent: 'flex-end', marginBottom: lift },
-          ]}
-        >
-          <Pressable
-            onPress={step === 'sign-in' ? () => nav.goBack() : backToSignIn}
-            hitSlop={12}
-            style={({ pressed }) => [styles.back, pressed && { opacity: 0.6 }]}
-          >
-            <Ionicons name="chevron-back" size={26} color={colors.white} />
-          </Pressable>
+        <View style={[styles.flow, keyboardOpen && styles.flowOpen]}>
+          {step === 'sign-in' ? null : (
+            <Pressable
+              onPress={backToSignIn}
+              hitSlop={12}
+              style={({ pressed }) => [styles.back, pressed && { opacity: 0.6 }]}
+            >
+              <Ionicons name="chevron-back" size={26} color={colors.white} />
+            </Pressable>
+          )}
 
-          <View style={styles.hero}>
-            <View style={styles.appLogo}>
-              <Ionicons name="school" size={28} color={colors.primary} />
+          {keyboardOpen ? null : (
+            <View style={styles.hero}>
+              <View style={styles.appLogo}>
+                <Ionicons name="school" size={28} color={colors.primary} />
+              </View>
+              <Text style={styles.appName}>Student Help Desk</Text>
+              <Text style={styles.tagline}>{tagline}</Text>
             </View>
-            <Text style={styles.appName}>Student Help Desk</Text>
-            <Text style={styles.tagline}>{tagline}</Text>
-          </View>
+          )}
 
           <View style={[styles.form, keyboardOpen && styles.formOpen]}>
             <ScrollView
@@ -271,19 +257,21 @@ export function LoginScreen() {
             >
               {step === 'sign-in' ? (
                 <>
-                  <View style={styles.roleToggle}>
-                    {(['student', 'parent'] as Role[]).map((r) => (
-                      <Pressable
-                        key={r}
-                        onPress={() => switchRole(r)}
-                        style={[styles.roleChip, role === r && styles.roleChipActive]}
-                      >
-                        <Text style={[styles.roleChipText, role === r && styles.roleChipTextActive]}>
-                          {r === 'student' ? 'Student' : 'Parent'}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
+                  {keyboardOpen ? null : (
+                    <View style={styles.roleToggle}>
+                      {(['student', 'parent'] as Role[]).map((r) => (
+                        <Pressable
+                          key={r}
+                          onPress={() => switchRole(r)}
+                          style={[styles.roleChip, role === r && styles.roleChipActive]}
+                        >
+                          <Text style={[styles.roleChipText, role === r && styles.roleChipTextActive]}>
+                            {r === 'student' ? 'Student' : 'Parent'}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
 
                   {notice ? (
                     <View style={styles.noticeBox}>
@@ -307,16 +295,13 @@ export function LoginScreen() {
                   </Field>
 
                   <Field label="Password">
-                    <TextInput
+                    <PasswordInput
                       value={passwordInput}
                       onChangeText={(t) => {
                         setPasswordInput(t);
                         if (error) setError(null);
                       }}
-                      placeholder="Enter password"
-                      placeholderTextColor={colors.inkMuted}
-                      secureTextEntry
-                      style={styles.input}
+                      placeholder="Password"
                     />
                   </Field>
 
@@ -410,29 +395,23 @@ export function LoginScreen() {
                     />
                   </Field>
                   <Field label="New password">
-                    <TextInput
+                    <PasswordInput
                       value={newPassword}
                       onChangeText={(t) => {
                         setNewPassword(t);
                         if (error) setError(null);
                       }}
                       placeholder="At least 8 characters"
-                      placeholderTextColor={colors.inkMuted}
-                      secureTextEntry
-                      style={styles.input}
                     />
                   </Field>
                   <Field label="Confirm password">
-                    <TextInput
+                    <PasswordInput
                       value={confirmPassword}
                       onChangeText={(t) => {
                         setConfirmPassword(t);
                         if (error) setError(null);
                       }}
                       placeholder="Re-enter password"
-                      placeholderTextColor={colors.inkMuted}
-                      secureTextEntry
-                      style={styles.input}
                     />
                   </Field>
                   <Text style={styles.ruleHint}>{PASSWORD_RULE_TEXT}</Text>
@@ -467,6 +446,40 @@ function RoleBadge({ role }: { role: Role }) {
   );
 }
 
+function PasswordInput({
+  value,
+  onChangeText,
+  placeholder,
+}: {
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <View style={styles.passwordWrap}>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={colors.inkMuted}
+        secureTextEntry={!visible}
+        autoCapitalize="none"
+        style={[styles.input, styles.passwordInput]}
+      />
+      <Pressable
+        onPress={() => setVisible((open) => !open)}
+        hitSlop={8}
+        style={styles.eye}
+        accessibilityRole="button"
+        accessibilityLabel={visible ? 'Hide password' : 'Show password'}
+      >
+        <Ionicons name={visible ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.inkMuted} />
+      </Pressable>
+    </View>
+  );
+}
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <View style={styles.field}>
@@ -490,6 +503,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   flow: { flex: 1, justifyContent: 'center' },
+  flowOpen: { justifyContent: 'flex-start', paddingTop: spacing.m },
   hero: { alignItems: 'center', gap: 10, marginBottom: spacing.xl },
   appLogo: {
     width: 56,
@@ -519,7 +533,17 @@ const styles = StyleSheet.create({
   },
   formOpen: {
     maxHeight: '100%',
-    flexShrink: 1,
+    flexShrink: 0,
+  },
+  passwordWrap: { position: 'relative', justifyContent: 'center' },
+  passwordInput: { paddingRight: 48 },
+  eye: {
+    position: 'absolute',
+    right: 8,
+    height: 52,
+    width: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   formScroll: { gap: 14 },
   roleToggle: {

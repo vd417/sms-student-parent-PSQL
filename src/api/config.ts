@@ -19,8 +19,8 @@ export const DATA_SOURCE: DataSource = extra.dataSource ?? 'http';
 export const API_BASE_URL: string =
   process.env.EXPO_PUBLIC_API_BASE_URL || extra.apiBaseUrl || '';
 
-// Web build of the transport map uses the Google Static Maps API; native uses react-native-maps
-// (Android reads the same key from app.json's android.config.googleMaps.apiKey).
+// Web and native bus maps read this key and Cloud Map ID. Android also reads the
+// same key from app.json's android.config.googleMaps.apiKey.
 export const GOOGLE_MAPS_API_KEY: string =
   process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || extra.googleMapsApiKey || '';
 export const GOOGLE_MAP_ID: string =

@@ -71,7 +71,7 @@ export function KidSwitcher({ includeAll, selectedId, onSelect }: Props = {}) {
             </View>
             <View>
               <Text style={[styles.name, { color: on ? colors.white : colors.ink }]}>
-                {c.name.split(' ')[0]}
+                {(c.name ?? '').trim().split(/\s+/)[0] || 'Child'}
               </Text>
               <Text style={[styles.grade, { color: on ? colors.white : colors.ink }]}>
                 {(c.grade ?? '').replace('Grade ', 'G')}

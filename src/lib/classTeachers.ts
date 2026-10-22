@@ -1,4 +1,4 @@
-import type { Teacher, TeacherRole } from '@/models';
+import type { Teacher } from '@/models';
 
 const HONORIFICS = new Set(['mr', 'mrs', 'ms', 'miss', 'dr', 'prof', 'smt', 'shri']);
 
@@ -36,12 +36,16 @@ export function samePerson(a: string, b: string): boolean {
   const rightParts = right.split(' ');
   const leftLast = leftParts[leftParts.length - 1];
   const rightLast = rightParts[rightParts.length - 1];
-  if (leftLast.length < 3 || leftLast !== rightLast) return false;
-  const leftFirst = leftParts.length === 1 ? '' : leftParts[0];
-  const rightFirst = rightParts.length === 1 ? '' : rightParts[0];
-  if (!leftFirst || !rightFirst) return true;
-  if (leftFirst === rightFirst) return true;
-  if (leftFirst.length === 1 || rightFirst.length === 1) return leftFirst[0] === rightFirst[0];
+  if (leftLast.length >= 3 && leftLast === rightLast) {
+    const leftFirst = leftParts.length === 1 ? '' : leftParts[0];
+    const rightFirst = rightParts.length === 1 ? '' : rightParts[0];
+    if (!leftFirst || !rightFirst) return true;
+    if (leftFirst === rightFirst) return true;
+    if (leftFirst.length === 1 || rightFirst.length === 1) return leftFirst[0] === rightFirst[0];
+  }
+  // Timetable often stores only "Ravi" while the directory has "Mr. Ravi Kumar".
+  if (leftParts.length === 1 && rightParts.includes(leftParts[0]) && leftParts[0].length >= 3) return true;
+  if (rightParts.length === 1 && leftParts.includes(rightParts[0]) && rightParts[0].length >= 3) return true;
   return false;
 }
 
@@ -63,55 +67,123 @@ export function classLabels(identity: ClassIdentity): string[] {
   return labels;
 }
 
-export type TimetableTeacher = { id?: string; name?: string };
+export type TimetableTeacher = { id?: string; name?: string; subject?: string };
 
-export function teachersForClass<T extends Pick<Teacher, 'id' | 'name' | 'role' | 'classTeacher'>>(
-  teachers: T[],
+function taughtSubjects(name: string, id: string, slots: TimetableTeacher[]): string[] {
+  const subjects: string[] = [];
+  for (const slot of slots) {
+    const subject = (slot.subject ?? '').trim();
+    if (!subject) continue;
+    const slotId = (slot.id ?? '').trim();
+    const slotName = (slot.name ?? '').trim();
+    const idHit = Boolean(id && slotId && id === slotId);
+    const nameHit = Boolean(slotName && samePerson(slotName, name));
+    if ((idHit || nameHit) && !subjects.some((row) => row.toLowerCase() === subject.toLowerCase())) {
+      subjects.push(subject);
+    }
+  }
+  return subjects;
+}
+
+function initialsFor(name: string): string {
+  const parts = personKey(name).split(' ').filter(Boolean);
+  return parts.map((part) => part[0]).join('').slice(0, 2).toUpperCase() || '?';
+}
+
+export function teachersForClass(
+  teachers: Teacher[],
   identity: ClassIdentity,
   slots: TimetableTeacher[],
-): T[] {
+): Teacher[] {
   const labels = classLabels(identity);
   const ids = new Set(slots.map((slot) => (slot.id ?? '').trim()).filter(Boolean));
   const names = slots.map((slot) => (slot.name ?? '').trim()).filter(Boolean);
   const matched = teachers.filter((teacher) => {
+    if (isSchoolLeader(teacher)) return true;
     const homeroom = (teacher.classTeacher ?? '').trim();
     if (homeroom && labels.some((label) => sameClass(homeroom, label))) return true;
     if (ids.has(teacher.id)) return true;
     return names.some((name) => samePerson(name, teacher.name));
   });
-  return matched.slice().sort((a, b) => teacherRank(a, labels) - teacherRank(b, labels) || a.name.localeCompare(b.name));
+  const withSubjects = matched.map((teacher) => {
+    const subjects = taughtSubjects(teacher.name, teacher.id, slots);
+    return subjects.length ? { ...teacher, subj: subjects.join(' · ') } : teacher;
+  });
+  const covered = (name: string, id?: string) =>
+    withSubjects.some((teacher) => (id && teacher.id === id) || samePerson(teacher.name, name));
+  const extras: Teacher[] = [];
+  const seen = new Set<string>();
+  for (const slot of slots) {
+    const name = (slot.name ?? '').trim();
+    const id = (slot.id ?? '').trim();
+    if (!name || covered(name, id)) continue;
+    const key = personKey(name);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const subjects = taughtSubjects(name, id, slots);
+    extras.push({
+      id: id || `name:${key}`,
+      name,
+      initials: initialsFor(name),
+      subj: subjects.join(' · '),
+      online: false,
+      role: 'subject_teacher',
+    });
+  }
+  return [...withSubjects, ...extras].sort(
+    (a, b) => teacherRank(a, labels) - teacherRank(b, labels) || a.name.localeCompare(b.name),
+  );
+}
+
+function staffTitle(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ');
+}
+
+function isSchoolLeader(teacher: Pick<Teacher, 'role' | 'designation'>): boolean {
+  if (teacher.role === 'principal') return true;
+  const title = staffTitle(teacher.designation ?? '');
+  return /\b(vice principal|principal|admin|administrator|headmaster|headmistress|head teacher|head of school|school head)\b/.test(
+    title,
+  );
 }
 
 function teacherRank(
-  teacher: Pick<Teacher, 'role' | 'classTeacher'>,
+  teacher: Pick<Teacher, 'role' | 'designation' | 'classTeacher'>,
   labels: string[],
 ): number {
+  if (isSchoolLeader(teacher)) return 0;
   const homeroom = (teacher.classTeacher ?? '').trim();
-  if (homeroom && labels.some((label) => sameClass(homeroom, label))) return 0;
-  if (teacher.role === 'class_teacher') return 1;
-  if (teacher.role === 'subject_teacher') return 2;
-  return 3;
+  if (homeroom && labels.some((label) => sameClass(homeroom, label))) return 1;
+  if (teacher.role === 'class_teacher') return 2;
+  if (teacher.role === 'subject_teacher') return 3;
+  return 4;
 }
 
-const ROLE_LABEL: Record<TeacherRole, string> = {
-  principal: 'Principal',
-  class_teacher: 'Class teacher',
-  subject_teacher: 'Subject teacher',
-};
-
-/** Role and designation together, then the class they are class teacher of. */
-export function teacherCardLine(
-  teacher: Pick<Teacher, 'role' | 'designation' | 'classTeacher' | 'subj'>,
+/** Inbox shows one staff role: Teacher, Principal, Admin, or Vice Principal. */
+export function teacherRoleLine(
+  teacher: Pick<Teacher, 'role' | 'designation' | 'classTeacher'>,
+  _identity?: ClassIdentity,
 ): string {
-  const role = ROLE_LABEL[teacher.role] ?? 'Teacher';
-  const parts = [role];
-  const designation = (teacher.designation ?? '').trim();
-  if (designation && designation.toLowerCase() !== role.toLowerCase()) parts.push(designation);
-  const homeroom = (teacher.classTeacher ?? '').trim();
-  if (homeroom) parts.push(homeroom);
-  const subject = (teacher.subj ?? '').trim();
-  if (subject && !parts.some((part) => part.toLowerCase() === subject.toLowerCase())) {
-    parts.push(subject);
+  const title = staffTitle(`${teacher.designation ?? ''} ${teacher.role ?? ''}`);
+  if (/\bvice principal\b/.test(title)) return 'Vice Principal';
+  if (/\b(admin|administrator)\b/.test(title)) return 'Admin';
+  if (
+    teacher.role === 'principal' ||
+    /\b(principal|headmaster|headmistress|head teacher|head of school|school head)\b/.test(title)
+  ) {
+    return 'Principal';
   }
-  return parts.join(' · ');
+  return 'Teacher';
+}
+
+/** Inbox line: staff role only. Subject and designation stay off the teacher row. */
+export function teacherCardLine(
+  teacher: Pick<Teacher, 'role' | 'designation' | 'classTeacher'>,
+  identity?: ClassIdentity,
+): string {
+  return teacherRoleLine(teacher, identity);
 }

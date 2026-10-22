@@ -5,7 +5,9 @@ import {
   boardingLabel,
   routeDestinationName,
   classLabel,
+  mergeTransportRows,
   parseBusPositionPush,
+  presentTransport,
   stopProgressKind,
   trackingFromLegacy,
   trackingLabel,
@@ -144,5 +146,58 @@ describe('parseBusPositionPush / applyBusPositionPush', () => {
 
   it('rejects payloads without a bus id', () => {
     expect(parseBusPositionPush({ lat: 1 })).toBeNull();
+  });
+
+  it('treats a moving snapshot with coordinates as live', () => {
+    const now = '2026-10-22T18:32:00.000Z';
+    const push = parseBusPositionPush({
+      bus_id: 'bus-12',
+      latitude: '28.62',
+      longitude: '77.32',
+      speed_kmh: '24',
+      status: 'moving',
+      last_update_at: now,
+    });
+    const patched = applyBusPositionPush(
+      [{ ...base, trackingStatus: 'OFFLINE', status: 'idle', lat: null, lng: null, lastPingAt: null }],
+      push!,
+    );
+    expect(patched?.[0].trackingStatus).toBe('LIVE');
+    expect(patched?.[0].lat).toBe(28.62);
+    expect(patched?.[0].lng).toBe(77.32);
+  });
+});
+
+describe('presentTransport / mergeTransportRows', () => {
+  const now = Date.parse('2026-10-22T18:32:00.000Z');
+
+  it('shows LIVE when the list still says OFFLINE but the GPS ping is current', () => {
+    const shown = presentTransport(
+      { ...base, trackingStatus: 'OFFLINE', status: 'idle', lastPingAt: '2026-10-22T18:31:40.000Z' },
+      now,
+    );
+    expect(shown.trackingStatus).toBe('LIVE');
+    expect(shown.lat).toBe(28.6);
+  });
+
+  it('keeps a live socket position when the next poll has no coordinates', () => {
+    const live = {
+      ...base,
+      trackingStatus: 'LIVE' as const,
+      lastPingAt: '2026-10-22T18:31:50.000Z',
+    };
+    const polled = {
+      ...base,
+      trackingStatus: 'OFFLINE' as const,
+      status: 'idle' as const,
+      lat: null,
+      lng: null,
+      speedKmh: null,
+      lastPingAt: null,
+    };
+    const merged = mergeTransportRows([live], [polled], now);
+    expect(merged[0].lat).toBe(28.6);
+    expect(merged[0].lng).toBe(77.3);
+    expect(merged[0].trackingStatus).toBe('LIVE');
   });
 });

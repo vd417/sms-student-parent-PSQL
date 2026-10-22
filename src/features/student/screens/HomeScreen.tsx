@@ -234,20 +234,6 @@ export function HomeScreen() {
           <Ionicons name="chevron-forward" size={16} color={colors.inkMuted} />
         </Pressable>
 
-        <Pressable
-          onPress={() => nav.navigate('PTM')}
-          style={({ pressed }) => [styles.busTrack, styles.ptmTrack, pressed && { opacity: 0.88 }]}
-        >
-          <View style={styles.busTrackIcon}>
-            <Ionicons name="calendar" size={20} color={hueColor('teal')} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.busTrackTitle}>PTM timetable</Text>
-            <Text style={styles.busTrackMeta}>Meetings booked with your teachers</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.inkMuted} />
-        </Pressable>
-
         <View style={{ marginTop: 20 }}>
           <SectionHeader
             title="Homework"
@@ -434,7 +420,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statsRow: { flexDirection: 'row', gap: 8, marginTop: 16, alignItems: 'stretch' },
-  ptmTrack: { backgroundColor: hueColor('teal', 'tint') },
   busTrack: {
     marginTop: 12,
     flexDirection: 'row',

@@ -44,6 +44,7 @@ export class AppErrorBoundary extends Component<Props, State> {
         <Text style={styles.body}>
           The app hit an unexpected error. Refresh to sign in again.
         </Text>
+        {__DEV__ ? <Text style={styles.body}>{this.state.error.message}</Text> : null}
         <Pressable onPress={this.refresh} style={styles.primary}>
           <Text style={styles.primaryText}>Refresh</Text>
         </Pressable>
