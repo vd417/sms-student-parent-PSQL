@@ -99,7 +99,6 @@ export function teachersForClass(
   const ids = new Set(slots.map((slot) => (slot.id ?? '').trim()).filter(Boolean));
   const names = slots.map((slot) => (slot.name ?? '').trim()).filter(Boolean);
   const matched = teachers.filter((teacher) => {
-    if (isSchoolLeader(teacher)) return true;
     const homeroom = (teacher.classTeacher ?? '').trim();
     if (homeroom && labels.some((label) => sameClass(homeroom, label))) return true;
     if (ids.has(teacher.id)) return true;
@@ -139,16 +138,12 @@ function staffTitle(value: string): string {
   return value
     .trim()
     .toLowerCase()
-    .replace(/[-_]+/g, ' ')
+    .replace(/[-_.]+/g, ' ')
     .replace(/\s+/g, ' ');
 }
 
 function isSchoolLeader(teacher: Pick<Teacher, 'role' | 'designation'>): boolean {
-  if (teacher.role === 'principal') return true;
-  const title = staffTitle(teacher.designation ?? '');
-  return /\b(vice principal|principal|admin|administrator|headmaster|headmistress|head teacher|head of school|school head)\b/.test(
-    title,
-  );
+  return teacherRoleLine(teacher) !== 'Teacher';
 }
 
 function teacherRank(
@@ -170,6 +165,7 @@ export function teacherRoleLine(
 ): string {
   const title = staffTitle(`${teacher.designation ?? ''} ${teacher.role ?? ''}`);
   if (/\bvice principal\b/.test(title)) return 'Vice Principal';
+  if (/\b(school owner|owner)\b/.test(title)) return 'School Owner';
   if (/\b(admin|administrator)\b/.test(title)) return 'Admin';
   if (
     teacher.role === 'principal' ||
@@ -178,6 +174,18 @@ export function teacherRoleLine(
     return 'Principal';
   }
   return 'Teacher';
+}
+
+/** Message row: a leadership role on the thread wins over a generic Teacher label. */
+export function messageRoleLine(
+  threadRole: string | null | undefined,
+  teacher?: Pick<Teacher, 'role' | 'designation' | 'classTeacher'>,
+  identity?: ClassIdentity,
+): string {
+  const fromThread = teacherRoleLine({ role: 'subject_teacher', designation: threadRole ?? '' }, identity);
+  if (fromThread !== 'Teacher') return fromThread;
+  if (teacher) return teacherRoleLine(teacher, identity);
+  return fromThread;
 }
 
 /** Inbox line: staff role only. Subject and designation stay off the teacher row. */

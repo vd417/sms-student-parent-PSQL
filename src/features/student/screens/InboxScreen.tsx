@@ -6,7 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Avatar, Empty, ErrorState, Loading, ScreenHeader, SearchField } from '@/components/ui';
 import { useMappedTeachers } from '@/hooks/useMappedTeachers';
 import { useOpenThread, useThreads } from '@/hooks/useMessaging';
-import { samePerson, teacherCardLine, teacherRoleLine } from '@/lib/classTeachers';
+import { messageRoleLine, samePerson, teacherCardLine, teacherRoleLine } from '@/lib/classTeachers';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueForName, radius, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
@@ -100,7 +100,13 @@ export function InboxScreen() {
           {threads.map((t) => (
             <Pressable
               key={t.id}
-              onPress={() => nav.navigate('ChatThread', { id: t.id, name: t.name, role: t.role })}
+              onPress={() =>
+                nav.navigate('ChatThread', {
+                  id: t.id,
+                  name: t.name,
+                  role: messageRoleLine(t.role, teacherFor(t.name), identity),
+                })
+              }
               style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
             >
               <View>
@@ -122,7 +128,7 @@ export function InboxScreen() {
                   <Text style={styles.when}>{t.when}</Text>
                 </View>
                 <Text style={styles.meta}>
-                  {teacherFor(t.name) ? teacherRoleLine(teacherFor(t.name) as Teacher, identity) : t.role}
+                  {messageRoleLine(t.role, teacherFor(t.name), identity)}
                 </Text>
                 <Text style={[styles.last, t.unread > 0 && styles.lastUnread]} numberOfLines={1}>
                   {t.last || 'No messages yet'}

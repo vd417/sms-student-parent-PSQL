@@ -176,7 +176,13 @@ function inferTeacherRole(d: TeacherDTO): Teacher['role'] {
     .toLowerCase()
     .replace(/[-_]+/g, ' ')
     .replace(/\s+/g, ' ');
-  if (PRINCIPAL_DESIGNATIONS.some((title) => designation.includes(title))) return 'principal';
+  const department = (d.department ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ');
+  const title = `${designation} ${department}`.trim();
+  if (PRINCIPAL_DESIGNATIONS.some((name) => title.includes(name))) return 'principal';
   if ((d.class_teacher ?? '').trim()) return 'class_teacher';
   return 'subject_teacher';
 }
@@ -190,6 +196,8 @@ export const toTeacher = (d: TeacherDTO): Teacher => {
   const rawRole = (d.role ?? '').trim();
   const knownRole = TEACHER_ROLES.includes(rawRole as Teacher['role']);
   const designation = (d.designation ?? '').trim() || (rawRole && !knownRole ? rawRole : '');
+  const department = (d.department ?? '').trim();
+  const roleText = [designation, department].filter(Boolean).join(' ');
   return {
     id: String(d.id),
     name,
@@ -197,7 +205,7 @@ export const toTeacher = (d: TeacherDTO): Teacher => {
     subj,
     online: !!d.online,
     role: inferTeacherRole(d),
-    designation: designation || undefined,
+    designation: roleText || undefined,
     classTeacher: (d.class_teacher ?? '').trim() || undefined,
     photoUrl: (d.photo_url ?? '').trim() || undefined,
   };

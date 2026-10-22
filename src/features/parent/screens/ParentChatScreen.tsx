@@ -15,7 +15,7 @@ import {
 import { BookMeetingBanner } from '@/features/inbox/BookMeetingBanner';
 import { useMappedTeachers } from '@/hooks/useMappedTeachers';
 import { useOpenThread, useThreads } from '@/hooks/useMessaging';
-import { samePerson, teacherCardLine, teacherRoleLine } from '@/lib/classTeachers';
+import { messageRoleLine, samePerson, teacherCardLine, teacherRoleLine } from '@/lib/classTeachers';
 import { useChildren } from '@/hooks/useParent';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueColor, hueForName, radius, spacing } from '@/theme';
@@ -128,7 +128,7 @@ export function ParentChatScreen() {
                     nav.navigate('ChatThread', {
                       id: t.id,
                       name: t.name,
-                      role: t.role,
+                      role: messageRoleLine(t.role, teacherFor(t.name), identity),
                       kid: t.kid,
                     })
                   }
@@ -154,7 +154,7 @@ export function ParentChatScreen() {
                     </View>
                     <View style={styles.metaRow}>
                       <Text style={styles.role}>
-                        {teacherFor(t.name) ? teacherRoleLine(teacherFor(t.name) as Teacher, identity) : t.role}
+                        {messageRoleLine(t.role, teacherFor(t.name), identity)}
                       </Text>
                       {kid ? (
                         <>

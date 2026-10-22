@@ -16,7 +16,7 @@ function teacherName(name?: string, subject?: string): string {
   return teacher;
 }
 
-/** This class's teachers, plus the principal, admin, and vice principal. */
+/** This class's teachers. A person who also leads the school keeps that role. */
 export function useMappedTeachers() {
   const { role } = useAuth();
   const isParent = role === 'parent';
