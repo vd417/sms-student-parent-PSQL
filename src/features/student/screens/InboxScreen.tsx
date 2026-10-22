@@ -4,20 +4,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Avatar, Empty, ErrorState, Loading, ScreenHeader, SearchField } from '@/components/ui';
-import { useDirectory } from '@/hooks/useDirectory';
+import { BookMeetingBanner } from '@/features/inbox/BookMeetingBanner';
+import { useMappedTeachers } from '@/hooks/useMappedTeachers';
 import { useOpenThread, useThreads } from '@/hooks/useMessaging';
+import { samePerson, teacherCardLine } from '@/lib/classTeachers';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueForName, radius, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
 import type { Teacher } from '@/models';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-
-const ROLE_ORDER: Record<Teacher['role'], number> = {
-  principal: 0,
-  class_teacher: 1,
-  subject_teacher: 2,
-};
 
 function initialsFor(name: string): string {
   return name
@@ -28,19 +24,12 @@ function initialsFor(name: string): string {
     .toUpperCase();
 }
 
-function teacherSubtitle(t: Teacher): string {
-  if (t.designation) return t.subj ? `${t.designation} · ${t.subj}` : t.designation;
-  if (t.role === 'principal') return t.subj ? `Principal · ${t.subj}` : 'Principal';
-  if (t.role === 'class_teacher') return t.subj ? `Class Teacher · ${t.subj}` : 'Class Teacher';
-  return t.subj || 'Teacher';
-}
-
 export function InboxScreen() {
   const nav = useNavigation<Nav>();
   const inboxFocused = useIsFocused();
   const [query, setQuery] = useState('');
   const threadsQ = useThreads('student', inboxFocused);
-  const teachersQ = useDirectory();
+  const { teachers: mappedTeachers, teachersQ } = useMappedTeachers();
   const openThread = useOpenThread('student');
   const toast = useToast();
 
@@ -53,7 +42,7 @@ export function InboxScreen() {
 
   const openTeacher = (t: Teacher) => {
     openThread.mutate(
-      { name: t.name, role: t.subj || 'Teacher' },
+      { name: t.name, role: teacherCardLine(t) },
       {
         onSuccess: (th) => nav.navigate('ChatThread', { id: th.id, name: th.name, role: th.role }),
         onError: () => toast('Could not open conversation. Try again.'),
@@ -82,13 +71,12 @@ export function InboxScreen() {
   const threads = (threadsQ.data ?? []).filter(
     (t) => !q || t.name.toLowerCase().includes(q) || t.role.toLowerCase().includes(q),
   );
-  const rawTeachers = teachersQ.data ?? [];
+  const directory = teachersQ.data ?? [];
+  const teacherFor = (name: string) => directory.find((teacher) => samePerson(teacher.name, name));
   const activeThreadNames = new Set((threadsQ.data ?? []).map((t) => t.name.trim().toLowerCase()));
-  const teachers = rawTeachers
+  const teachers = mappedTeachers
     .filter((t) => !activeThreadNames.has(t.name.trim().toLowerCase()))
-    .filter((t) => !q || t.name.toLowerCase().includes(q))
-    .slice()
-    .sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]);
+    .filter((t) => !q || t.name.toLowerCase().includes(q) || teacherCardLine(t).toLowerCase().includes(q));
   const noResults = q !== '' && threads.length === 0 && teachers.length === 0;
 
   return (
@@ -109,10 +97,6 @@ export function InboxScreen() {
 
         {noResults ? <Empty message={`No matches for “${query}”`} /> : null}
 
-        {threads.length === 0 && teachers.length === 0 && !q ? (
-          <Empty message="No conversations yet." />
-        ) : null}
-
         {threads.length > 0 ? <Text style={styles.eyebrow}>Messages</Text> : null}
         <View style={{ gap: 8 }}>
           {threads.map((t) => (
@@ -122,7 +106,12 @@ export function InboxScreen() {
               style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
             >
               <View>
-                <Avatar initials={initialsFor(t.name)} size={44} hue={hueForName(t.name)} />
+                <Avatar
+                  initials={initialsFor(t.name)}
+                  size={44}
+                  hue={hueForName(t.name)}
+                  photoUri={teacherFor(t.name)?.photoUrl}
+                />
                 {t.unread > 0 ? (
                   <View style={styles.badge}>
                     <Text style={styles.badgeTxt}>{t.unread}</Text>
@@ -134,7 +123,7 @@ export function InboxScreen() {
                   <Text style={styles.name}>{t.name}</Text>
                   <Text style={styles.when}>{t.when}</Text>
                 </View>
-                {t.role ? <Text style={styles.meta}>{t.role}</Text> : null}
+                <Text style={styles.meta}>{teacherFor(t.name) ? teacherCardLine(teacherFor(t.name) as Teacher) : t.role}</Text>
                 <Text style={[styles.last, t.unread > 0 && styles.lastUnread]} numberOfLines={1}>
                   {t.last || 'No messages yet'}
                 </Text>
@@ -143,23 +132,28 @@ export function InboxScreen() {
           ))}
         </View>
 
-        {teachers.length > 0 ? (
-          <Text style={[styles.eyebrow, { marginTop: threads.length ? 18 : 0 }]}>Teachers</Text>
-        ) : null}
+        <View style={{ marginTop: threads.length ? 18 : 0 }}>
+          <BookMeetingBanner onPress={() => nav.navigate('PTM')} />
+        </View>
+        <Text style={styles.eyebrow}>Teachers for this class</Text>
         <View style={{ gap: 8 }}>
-          {teachers.map((t) => (
-            <Pressable
-              key={t.id}
-              onPress={() => openTeacher(t)}
-              style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
-            >
-              <Avatar initials={t.initials} size={44} hue={hueForName(t.name)} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{t.name}</Text>
-                <Text style={styles.meta}>{teacherSubtitle(t)}</Text>
-              </View>
-            </Pressable>
-          ))}
+          {teachers.length === 0 ? (
+            <Empty message="No teachers are mapped to this class." />
+          ) : (
+            teachers.map((t) => (
+              <Pressable
+                key={t.id}
+                onPress={() => openTeacher(t)}
+                style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
+              >
+                <Avatar initials={t.initials} size={44} hue={hueForName(t.name)} photoUri={t.photoUrl} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.name}>{t.name}</Text>
+                  <Text style={styles.meta}>{teacherCardLine(t)}</Text>
+                </View>
+              </Pressable>
+            ))
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

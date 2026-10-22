@@ -1,5 +1,8 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ScheduleScreen } from '@/features/student/screens/ScheduleScreen';
+import { ClassTimetableScreen } from '@/features/class/ClassTimetableScreen';
+import { SubjectsScreen } from '@/features/student/screens/SubjectsScreen';
+import { ParentPTMScreen } from '@/features/parent/screens/ParentPTMScreen';
 import { StudentAttendanceScreen } from '@/features/student/screens/StudentAttendanceScreen';
 import { HomeworkDetailScreen } from '@/features/student/screens/HomeworkDetailScreen';
 import { SubjectDetailScreen } from '@/features/student/screens/SubjectDetailScreen';
@@ -23,6 +26,9 @@ export function StudentNavigator() {
     >
       <Stack.Screen name="Main" component={TabNavigator} />
       <Stack.Screen name="Schedule" component={ScheduleScreen} />
+      <Stack.Screen name="ClassTimetable" component={ClassTimetableScreen} />
+      <Stack.Screen name="PTM" component={ParentPTMScreen} />
+      <Stack.Screen name="Subjects" component={SubjectsScreen} />
       <Stack.Screen name="Attendance" component={StudentAttendanceScreen} />
       <Stack.Screen name="HomeworkDetail" component={HomeworkDetailScreen} />
       <Stack.Screen name="SubjectDetail" component={SubjectDetailScreen} />

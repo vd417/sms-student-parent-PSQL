@@ -124,6 +124,9 @@ export interface Teacher {
   role: TeacherRole;
   /** Raw backend designation text (e.g. "Vice Principal"), when available. */
   designation?: string;
+  /** Class label when this teacher is that class's homeroom teacher. */
+  classTeacher?: string;
+  photoUrl?: string;
 }
 
 export interface Peer {
@@ -233,6 +236,7 @@ export interface PTMMeeting {
   child: string;
   mode: string;
   status: 'confirmed' | 'pending';
+  meetingLink?: string;
 }
 
 export type TransportStatus = 'idle' | 'delayed' | 'at_stop' | 'on_route';

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fontFamily } from '@/theme';
 import { HomeScreen } from '@/features/student/screens/HomeScreen';
 import { HomeworkListScreen } from '@/features/student/screens/HomeworkListScreen';
-import { SubjectsScreen } from '@/features/student/screens/SubjectsScreen';
+import { ClassHubScreen } from '@/features/class/ClassHubScreen';
 import { InboxScreen } from '@/features/student/screens/InboxScreen';
 import { ChatThreadScreen } from '@/features/student/screens/ChatThreadScreen';
 import { ProfileScreen } from '@/features/student/screens/ProfileScreen';
@@ -19,10 +19,14 @@ const InboxStack = createNativeStackNavigator<InboxStackParamList>();
 const ICONS: Record<keyof TabParamList, keyof typeof Ionicons.glyphMap> = {
   Home: 'home',
   Homework: 'book',
-  Subjects: 'grid',
+  Class: 'school',
   Inbox: 'chatbubbles',
   Profile: 'person',
 };
+
+function StudentClassTab() {
+  return <ClassHubScreen audience="student" />;
+}
 
 function InboxStackNavigator() {
   return (
@@ -57,7 +61,7 @@ export function TabNavigator() {
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
       <Tab.Screen name="Homework" component={HomeworkListScreen} options={{ title: 'Homework' }} />
-      <Tab.Screen name="Subjects" component={SubjectsScreen} options={{ title: 'Subjects' }} />
+      <Tab.Screen name="Class" component={StudentClassTab} options={{ title: 'Class' }} />
       <Tab.Screen
         name="Inbox"
         component={InboxStackNavigator}

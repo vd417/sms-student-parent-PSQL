@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ParentTabNavigator } from './ParentTabNavigator';
+import { ClassTimetableScreen } from '@/features/class/ClassTimetableScreen';
 import { ParentAttendanceScreen } from '@/features/parent/screens/ParentAttendanceScreen';
 import { ParentPTMScreen } from '@/features/parent/screens/ParentPTMScreen';
 import { ParentTransportScreen } from '@/features/parent/screens/ParentTransportScreen';
@@ -24,6 +25,7 @@ export function ParentNavigator() {
     >
       <Stack.Screen name="Main" component={ParentTabNavigator} />
       <Stack.Screen name="Attendance" component={ParentAttendanceScreen} />
+      <Stack.Screen name="ClassTimetable" component={ClassTimetableScreen} />
       <Stack.Screen name="PTM" component={ParentPTMScreen} />
       <Stack.Screen name="Transport" component={ParentTransportScreen} />
       <Stack.Screen name="Leave" component={ParentLeaveScreen} />

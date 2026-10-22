@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, Loading } from '@/components/ui';
@@ -51,7 +51,8 @@ function isValidLoginIdentifier(value: string, role: Role): boolean {
 
 export function LoginScreen() {
   const nav = useNavigation<Nav>();
-  const { lift } = useKeyboardLift();
+  const { lift, keyboardOpen } = useKeyboardLift();
+  const formScrollRef = useRef<ScrollView>(null);
   const { signIn, requestPasswordReset, resetPassword } = useAuth();
   const [role, setRole] = useState<Role>('student');
 
@@ -92,6 +93,12 @@ export function LoginScreen() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!keyboardOpen) return;
+    const frame = requestAnimationFrame(() => formScrollRef.current?.scrollToEnd({ animated: true }));
+    return () => cancelAnimationFrame(frame);
+  }, [keyboardOpen, step]);
 
   const copy = ROLE_COPY[role];
 
@@ -232,7 +239,12 @@ export function LoginScreen() {
       style={styles.root}
     >
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <View style={[styles.flow, { paddingBottom: lift }]}>
+        <View
+          style={[
+            styles.flow,
+            keyboardOpen && { justifyContent: 'flex-end', marginBottom: lift },
+          ]}
+        >
           <Pressable
             onPress={step === 'sign-in' ? () => nav.goBack() : backToSignIn}
             hitSlop={12}
@@ -249,10 +261,12 @@ export function LoginScreen() {
             <Text style={styles.tagline}>{tagline}</Text>
           </View>
 
-          <View style={styles.form}>
+          <View style={[styles.form, keyboardOpen && styles.formOpen]}>
             <ScrollView
+              ref={formScrollRef}
               contentContainerStyle={styles.formScroll}
               keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
             >
               {step === 'sign-in' ? (
@@ -502,6 +516,10 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     maxHeight: '62%',
     ...shadow.pop,
+  },
+  formOpen: {
+    maxHeight: '100%',
+    flexShrink: 1,
   },
   formScroll: { gap: 14 },
   roleToggle: {

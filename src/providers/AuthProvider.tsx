@@ -8,6 +8,7 @@ import { tokenStore } from '@/services/auth/tokenStore';
 import { ApiError } from '@/services/errors';
 import { clearSisStudentCache } from '@/services/http/sisStudent';
 import { clearPersistedQueryCache } from './QueryProvider';
+import { registerSessionReset } from '@/lib/sessionRecovery';
 import { authReducer, initialAuthState } from './authReducer';
 
 interface AuthContextValue {
@@ -98,6 +99,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    return registerSessionReset(async () => {
+      await services.auth.signOut();
+      setAuthToken(null);
+      clearSisStudentCache();
+      await clearPersistedQueryCache();
+      dispatch({ type: 'SIGNED_OUT' });
+    });
   }, []);
 
   const value = useMemo<AuthContextValue>(

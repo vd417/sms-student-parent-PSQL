@@ -2,11 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { services } from '@/services';
 import { enabledWhenOwnOrChild, qk } from './keys';
 
-export const useStudentProfile = (studentId?: string) =>
+export const useStudentProfile = (studentId?: string, enabled = true) =>
   useQuery({
     queryKey: qk.studentProfile(studentId),
     queryFn: () => services.student.getProfile(studentId),
-    enabled: enabledWhenOwnOrChild(studentId),
+    enabled: enabled && enabledWhenOwnOrChild(studentId),
   });
 export const useToday = () =>
   useQuery({
@@ -14,11 +14,11 @@ export const useToday = () =>
     queryFn: () => services.student.getToday(),
     refetchOnMount: 'always',
   });
-export const useTimetable = (studentId?: string) =>
+export const useTimetable = (studentId?: string, enabled = true) =>
   useQuery({
     queryKey: qk.timetable(studentId),
     queryFn: () => services.student.getTimetable(studentId),
-    enabled: enabledWhenOwnOrChild(studentId),
+    enabled: enabled && enabledWhenOwnOrChild(studentId),
   });
 export const usePeers = () =>
   useQuery({ queryKey: qk.peers, queryFn: () => services.student.getPeers() });

@@ -1,5 +1,5 @@
-import { useContext, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { useContext, useEffect, useRef, useState } from 'react';
+import { Keyboard, Platform } from 'react-native';
 import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { runOnJS, useAnimatedKeyboard, useAnimatedReaction } from 'react-native-reanimated';
@@ -21,18 +21,44 @@ export function useKeyboardLift() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useContext(BottomTabBarHeightContext);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardClosed = useRef(false);
+
+  const applyHeight = (height: number) => {
+    if (keyboardClosed.current) {
+      setKeyboardHeight(0);
+      return;
+    }
+    setKeyboardHeight(height);
+  };
 
   // Reanimated's keyboard tracker reads WindowInsets/keyboard-animation
   // callbacks directly. The legacy RN `Keyboard` module instead infers height
   // from the decorView resizing, which stays ~0 on Android once
   // edgeToEdgeEnabled stops the window from resizing for the keyboard.
+  // Hide still has to win, so a late inset value cannot leave the form shifted.
   const keyboard = useAnimatedKeyboard();
   useAnimatedReaction(
     () => keyboard.height.value,
     (h, prev) => {
-      if (h !== prev) runOnJS(setKeyboardHeight)(h);
+      if (h !== prev) runOnJS(applyHeight)(h);
     },
   );
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, () => {
+      keyboardClosed.current = false;
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      keyboardClosed.current = true;
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const vv = webViewport();

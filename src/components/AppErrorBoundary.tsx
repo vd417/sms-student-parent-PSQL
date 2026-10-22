@@ -1,8 +1,8 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { CommonActions } from '@react-navigation/native';
 import { colors, fontFamily } from '@/theme';
-import { navigationRef } from '@/navigation/navigationRef';
+import { resetSessionForLogin } from '@/lib/sessionRecovery';
+import { queryClient } from '@/providers/QueryProvider';
 
 interface Props {
   children: ReactNode;
@@ -25,16 +25,15 @@ export class AppErrorBoundary extends Component<Props, State> {
     }
   }
 
-  private retry = () => this.setState({ error: null });
-
-  private goHome = () => {
-    this.setState({ error: null }, () => {
-      if (navigationRef.isReady()) {
-        navigationRef.dispatch(
-          CommonActions.navigate({ name: 'Main', params: { screen: 'Home' } }),
-        );
+  private refresh = () => {
+    void (async () => {
+      try {
+        queryClient.clear();
+        await resetSessionForLogin();
+      } finally {
+        this.setState({ error: null });
       }
-    });
+    })();
   };
 
   render() {
@@ -42,12 +41,11 @@ export class AppErrorBoundary extends Component<Props, State> {
     return (
       <View style={styles.wrap}>
         <Text style={styles.title}>Something went wrong</Text>
-        <Text style={styles.body}>The app hit an unexpected error. Your login was not cleared.</Text>
-        <Pressable onPress={this.retry} style={styles.primary}>
-          <Text style={styles.primaryText}>Retry</Text>
-        </Pressable>
-        <Pressable onPress={this.goHome} style={styles.secondary}>
-          <Text style={styles.secondaryText}>Go Home</Text>
+        <Text style={styles.body}>
+          The app hit an unexpected error. Refresh to sign in again.
+        </Text>
+        <Pressable onPress={this.refresh} style={styles.primary}>
+          <Text style={styles.primaryText}>Refresh</Text>
         </Pressable>
       </View>
     );
@@ -79,6 +77,4 @@ const styles = StyleSheet.create({
     borderRadius: 100,
   },
   primaryText: { fontFamily: fontFamily.bold, color: colors.white, fontSize: 14 },
-  secondary: { paddingHorizontal: 16, paddingVertical: 8 },
-  secondaryText: { fontFamily: fontFamily.semiBold, color: colors.primary, fontSize: 14 },
 });

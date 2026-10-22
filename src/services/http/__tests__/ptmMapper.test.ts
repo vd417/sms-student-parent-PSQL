@@ -22,6 +22,22 @@ describe('toPTM', () => {
     });
   });
 
+  it('keeps the teacher meeting link so Join can open it', () => {
+    expect(
+      toPTM({
+        id: 'm3',
+        date: '2026-10-03',
+        time: '15:00',
+        teacher: 'Ms. A. Krishnan',
+        subject: 'Mathematics',
+        child: 's1',
+        mode: 'Video call',
+        status: 'confirmed',
+        meeting_link: ' https://meet.google.com/abc-defg-hij ',
+      }).meetingLink,
+    ).toBe('https://meet.google.com/abc-defg-hij');
+  });
+
   it('maps a null subject to an empty string', () => {
     expect(
       toPTM({

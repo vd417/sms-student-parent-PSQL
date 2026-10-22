@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import MapView, { Marker, Polyline, PROVIDER_DEFAULT, PROVIDER_GOOGLE } from 'react-native-maps';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { GOOGLE_MAP_ID } from '@/api/config';
 import { decodePolyline } from '@/lib/decodePolyline';
 import { colors, fontFamily, radius } from '@/theme';
@@ -95,8 +95,9 @@ export function BusMap({
       <MapView
         ref={mapRef}
         style={styles.map}
-        provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : PROVIDER_DEFAULT}
-        googleMapId={Platform.OS === 'android' ? GOOGLE_MAP_ID : undefined}
+        provider={PROVIDER_GOOGLE}
+        googleMapId={GOOGLE_MAP_ID || undefined}
+        loadingEnabled
         initialRegion={region}
         scrollEnabled={interactive}
         zoomEnabled={interactive}

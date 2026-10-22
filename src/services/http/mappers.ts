@@ -192,6 +192,8 @@ export const toTeacher = (d: TeacherDTO): Teacher => {
     online: !!d.online,
     role: inferTeacherRole(d),
     designation: (d.designation ?? '').trim() || undefined,
+    classTeacher: (d.class_teacher ?? '').trim() || undefined,
+    photoUrl: (d.photo_url ?? '').trim() || undefined,
   };
 };
 
@@ -459,10 +461,11 @@ export function formatChatWhen(raw: string | null | undefined): string {
   if (/^\d{1,2}:\d{2}(\s*[AP]M)?$/i.test(s)) return s;
   const withSeconds = s.match(/^(\d{1,2}):(\d{2}):\d{2}$/);
   if (withSeconds) {
+    // Notifications store Time as UTC clock only (HH:MM:SS). Show the device's local time.
     const hours = Number(withSeconds[1]);
     const minutes = Number(withSeconds[2]);
     const d = new Date();
-    d.setHours(hours, minutes, 0, 0);
+    d.setUTCHours(hours, minutes, 0, 0);
     return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
   }
   // .NET often emits UTC without Z; treat that as UTC (same as teacher-app parseApiInstant).
@@ -495,7 +498,8 @@ export function noticeSortMs(raw: string | null | undefined): number {
       if (up === 'AM' && hours === 12) hours = 0;
     }
     const d = new Date();
-    d.setHours(hours, minutes, seconds, 0);
+    if (clock[3] != null && !ampm) d.setUTCHours(hours, minutes, seconds, 0);
+    else d.setHours(hours, minutes, seconds, 0);
     return d.getTime();
   }
   const parsed =
@@ -566,7 +570,20 @@ export const ptmDateLabel = (date: string): string => {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
   return m ? `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}` : date;
 };
-export const toPTM = (d: PTMMeetingDTO): PTMMeeting => ({ id: d.id, date: ptmDateLabel(d.date), time: d.time, teacher: d.teacher, subj: d.subject ?? '', child: d.child, mode: d.mode, status: d.status });
+export const toPTM = (d: PTMMeetingDTO): PTMMeeting => {
+  const meetingLink = (d.meeting_link ?? '').trim();
+  return {
+    id: d.id,
+    date: ptmDateLabel(d.date),
+    time: d.time,
+    teacher: d.teacher,
+    subj: d.subject ?? '',
+    child: d.child,
+    mode: d.mode,
+    status: d.status,
+    ...(meetingLink ? { meetingLink } : {}),
+  };
+};
 export const toTransport = (d: ChildBusPositionDTO): Transport => {
   const status = d.status;
   const tracking = d.tracking_status ?? trackingFromLegacy(status);

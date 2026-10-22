@@ -21,8 +21,10 @@ export const API_BASE_URL: string =
 
 // Web build of the transport map uses the Google Static Maps API; native uses react-native-maps
 // (Android reads the same key from app.json's android.config.googleMaps.apiKey).
-export const GOOGLE_MAPS_API_KEY: string = extra.googleMapsApiKey ?? '';
-export const GOOGLE_MAP_ID: string = extra.googleMapId ?? '';
+export const GOOGLE_MAPS_API_KEY: string =
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || extra.googleMapsApiKey || '';
+export const GOOGLE_MAP_ID: string =
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_MAP_ID || extra.googleMapId || '';
 
 // Network tuning. Timeout is measured after a connection slot is acquired so
 // Chrome's 6-connection-per-host queue does not abort waiting fetches as (canceled).
