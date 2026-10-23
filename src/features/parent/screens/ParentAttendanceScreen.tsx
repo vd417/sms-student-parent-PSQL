@@ -13,6 +13,7 @@ import { useToast } from '@/providers/ToastProvider';
 import { attendanceBySubject } from '@/lib/attendanceBySubject';
 import { attendanceMonthCells } from '@/services/http/mappers';
 import { rangeForPreset, type AttendancePreset } from '@/lib/attendanceRange';
+import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
 import { colors, fontFamily, radius } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
 
@@ -40,10 +41,8 @@ export function ParentAttendanceScreen() {
   const leaveQ = useLeave(childId);
   const childrenQ = useChildren();
 
-  const isLoading =
-    (attnQ.isLoading && attnQ.data === undefined) ||
-    (periodQ.isLoading && periodQ.data === undefined);
-  const isError = attnQ.isError && attnQ.data === undefined && periodQ.data === undefined;
+  const isLoading = isInitialLoad(attnQ) || isInitialLoad(periodQ);
+  const isError = isBlockingError(attnQ) && periodQ.data === undefined;
   const onRefresh = () => {
     attnQ.refetch();
     periodQ.refetch();
@@ -80,7 +79,8 @@ export function ParentAttendanceScreen() {
     );
   }
 
-  const { days, flags } = attnQ.data!;
+  const days = attnQ.data.days ?? [];
+  const flags = Array.isArray(attnQ.data.flags) ? attnQ.data.flags : [];
   const cells = attendanceMonthCells(now.getFullYear(), now.getMonth(), days);
   const todayKind = cells.find((c) => c.d === now.getDate())?.kind;
   const showPresentToday = Boolean(summaryQ.data?.presentTodayBadge) && todayKind !== 'absent';
@@ -199,7 +199,7 @@ export function ParentAttendanceScreen() {
                     { color: f.tone === 'absent' ? colors.absent : colors.late },
                   ]}
                 >
-                  {f.date.split(' ')[1]}
+                  {String(f.date ?? '').split(' ')[1] ?? ''}
                 </Text>
               </View>
               <View style={{ flex: 1 }}>

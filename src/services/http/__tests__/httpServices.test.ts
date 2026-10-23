@@ -9,6 +9,12 @@ jest.mock('@/services/auth/tokenStore', () => ({
   tokenStore: { save: jest.fn(async () => undefined), load: jest.fn(), clear: jest.fn(async () => undefined) },
 }));
 
+function postedJson(spy: jest.SpyInstance, index = 0): unknown {
+  const init = spy.mock.calls[index]?.[1] as { body?: unknown } | undefined;
+  if (typeof init?.body !== 'string') throw new Error('expected a JSON request body');
+  return JSON.parse(init.body);
+}
+
 function mockFetchOnce(body: unknown) {
   (global as any).fetch = jest.fn().mockResolvedValue({
     ok: true,
@@ -35,7 +41,7 @@ describe('httpServices', () => {
     const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce(undefined as any);
     await httpServices.devices.register({ expoPushToken: 'ExponentPushToken[x]', platform: 'ios' });
     expect(spy.mock.calls[0][0]).toBe('/me/devices');
-    expect(JSON.parse(spy.mock.calls[0][1].body as string)).toEqual({
+    expect(postedJson(spy)).toEqual({
       expo_push_token: 'ExponentPushToken[x]',
       platform: 'ios',
     });
@@ -122,7 +128,7 @@ describe('httpServices', () => {
       razorpayOrderId: 'order_x', razorpayPaymentId: 'pay_x', razorpaySignature: 'sig',
     });
     expect(spy.mock.calls[0][0]).toBe('/fees/invoices/INV-1/razorpay/verify');
-    expect(JSON.parse(spy.mock.calls[0][1].body as string)).toEqual({
+    expect(postedJson(spy)).toEqual({
       razorpay_order_id: 'order_x', razorpay_payment_id: 'pay_x', razorpay_signature: 'sig',
     });
     expect(result).toEqual({ status: 'paid' });
@@ -524,7 +530,7 @@ describe('httpServices derived paths', () => {
       attachmentUrls: ['data:image/jpeg;base64,abc'],
     });
     expect(spy.mock.calls[0][0]).toBe('/leave');
-    expect(JSON.parse(spy.mock.calls[0][1].body as string)).toMatchObject({
+    expect(postedJson(spy)).toMatchObject({
       type: 'medical',
       child_id: 'c1',
       from_date: '2026-07-01',
@@ -553,7 +559,7 @@ describe('httpServices.auth', () => {
     const setToken = jest.spyOn(client, 'setAuthToken');
     const session = await httpServices.auth.signIn('Asha@School.edu', 'pw', 'student');
     expect(spy.mock.calls[0][0]).toBe('/auth/login');
-    expect(JSON.parse(spy.mock.calls[0][1].body as string)).toEqual({
+    expect(postedJson(spy)).toEqual({
       email: 'asha@school.edu', password: 'pw', role: 'student',
     });
     expect(spy.mock.calls[1][0]).toBe('/auth/me');
@@ -569,7 +575,7 @@ describe('httpServices.auth', () => {
       .mockResolvedValueOnce({ access_token: 'ACC', refresh_token: 'REF' } as any)
       .mockResolvedValueOnce({ id: 'u1', email: '', roles: ['student'] } as any);
     await httpServices.auth.signIn('sccrdtb/STU/26/0002', 'pw', 'student');
-    expect(JSON.parse(spy.mock.calls[0][1].body as string)).toEqual({
+    expect(postedJson(spy)).toEqual({
       student_id: 'sccrdtb/STU/26/0002', password: 'pw', role: 'student',
     });
   });
@@ -629,7 +635,7 @@ describe('httpServices.auth', () => {
       sent: true, channel: 'email', sentTo: 'd***@home.test', recipient: 'self',
     });
     expect(spy.mock.calls[0][0]).toBe('/auth/password/forgot');
-    expect(JSON.parse(spy.mock.calls[0][1].body as string)).toEqual({
+    expect(postedJson(spy)).toEqual({
       identifier: 'dad@home.test', role: 'parent',
     });
   });
@@ -745,7 +751,7 @@ describe('httpServices.auth', () => {
     expect(msgs[0]).toMatchObject({ from: 'them', text: 'Hello' });
     const sent = await httpServices.messaging.send(id, 'Hi');
     expect(spy.mock.calls[1][0]).toBe(`/threads/${id}/messages`);
-    expect(JSON.parse(spy.mock.calls[1][1].body as string)).toEqual({ text: 'Hi' });
+    expect(postedJson(spy, 1)).toEqual({ text: 'Hi' });
     expect(sent.from).toBe('me');
     spy.mockRestore();
   });
@@ -766,7 +772,7 @@ describe('httpServices.auth', () => {
       id: 'm3', thread_id: id, text: '', sent_at: 'now', is_mine: true, image_url: 'data:image/jpeg;base64,abc',
     } as any);
     const sent = await httpServices.messaging.send(id, '', 'data:image/jpeg;base64,abc');
-    expect(JSON.parse(spy.mock.calls[0][1].body as string)).toEqual({ text: '', image_url: 'data:image/jpeg;base64,abc' });
+    expect(postedJson(spy)).toEqual({ text: '', image_url: 'data:image/jpeg;base64,abc' });
     expect(sent.imageUrl).toBe('data:image/jpeg;base64,abc');
     spy.mockRestore();
   });

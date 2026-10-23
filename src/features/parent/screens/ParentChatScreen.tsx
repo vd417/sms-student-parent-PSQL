@@ -16,6 +16,7 @@ import { BookMeetingBanner } from '@/features/inbox/BookMeetingBanner';
 import { useMappedTeachers } from '@/hooks/useMappedTeachers';
 import { useOpenThread, useThreads } from '@/hooks/useMessaging';
 import { messageRoleLine, samePerson, teacherCardLine, teacherRoleLine } from '@/lib/classTeachers';
+import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
 import { useChildren } from '@/hooks/useParent';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueColor, hueForName, radius, spacing } from '@/theme';
@@ -43,12 +44,8 @@ export function ParentChatScreen() {
   const { teachers: mappedTeachers, teachersQ, identity } = useMappedTeachers();
   const openThread = useOpenThread('parent');
 
-  const isLoading =
-    (threadsQ.isLoading && threadsQ.data === undefined) ||
-    (childrenQ.isLoading && childrenQ.data === undefined);
-  const isError =
-    (threadsQ.isError && threadsQ.data === undefined) ||
-    (childrenQ.isError && childrenQ.data === undefined);
+  const isLoading = isInitialLoad(threadsQ) || isInitialLoad(childrenQ);
+  const isError = isBlockingError(threadsQ) || isBlockingError(childrenQ);
   const onRefresh = () => {
     threadsQ.refetch();
     childrenQ.refetch();
@@ -160,7 +157,7 @@ export function ParentChatScreen() {
                         <>
                           <Text style={styles.dotSep}>·</Text>
                           <Text style={[styles.kid, { color: hueColor(kid.hue) }]}>
-                            {kid.name.split(' ')[0]}
+                            {String(kid.name ?? '').split(' ')[0] || 'Child'}
                           </Text>
                         </>
                       ) : null}

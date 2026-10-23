@@ -21,7 +21,7 @@ export class AppErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     if (__DEV__) {
-      console.warn('AppErrorBoundary', error.message, info.componentStack);
+      console.error('AppErrorBoundary', error.stack ?? error.message, info.componentStack);
     }
   }
 

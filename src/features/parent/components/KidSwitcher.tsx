@@ -71,10 +71,10 @@ export function KidSwitcher({ includeAll, selectedId, onSelect }: Props = {}) {
             </View>
             <View>
               <Text style={[styles.name, { color: on ? colors.white : colors.ink }]}>
-                {(c.name ?? '').trim().split(/\s+/)[0] || 'Child'}
+                {String(c.name ?? '').trim().split(/\s+/)[0] || 'Child'}
               </Text>
               <Text style={[styles.grade, { color: on ? colors.white : colors.ink }]}>
-                {(c.grade ?? '').replace('Grade ', 'G')}
+                {String(c.grade ?? '').replace('Grade ', 'G')}
               </Text>
             </View>
             {c.unread > 0 && !on ? (

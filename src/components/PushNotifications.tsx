@@ -37,13 +37,15 @@ export function PushNotifications() {
   useEffect(() => {
     if (!registered.current) {
       registered.current = true;
-      registerForPushNotificationsAsync().then((reg) => {
-        if (reg) {
-          services.devices
-            .register({ expoPushToken: reg.token, platform: reg.platform })
-            .catch(() => {});
-        }
-      });
+      registerForPushNotificationsAsync()
+        .then((reg) => {
+          if (reg) {
+            services.devices
+              .register({ expoPushToken: reg.token, platform: reg.platform })
+              .catch(() => {});
+          }
+        })
+        .catch(() => {});
     }
 
     // expo-notifications listeners are native-only; skip them on web/unsupported

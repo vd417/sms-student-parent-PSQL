@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Card, Empty, ErrorState, Loading, Pill, ScreenHeader } from '@/components/ui';
 import { useNoticeList } from '@/hooks/useAnnouncements';
 import { goToNotice, noticeKind } from '@/lib/noticeRoute';
+import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
 import { colors, fontFamily, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -13,6 +14,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export function AnnouncementsScreen() {
   const { annQ, clear, unreadCount } = useNoticeList('student');
   const nav = useNavigation<Nav>();
+  const notices = Array.isArray(annQ.data) ? annQ.data : [];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -32,11 +34,11 @@ export function AnnouncementsScreen() {
           ) : null
         }
       />
-      {annQ.isLoading && annQ.data === undefined ? (
+      {isInitialLoad(annQ) ? (
         <Loading />
-      ) : annQ.isError && annQ.data === undefined ? (
+      ) : isBlockingError(annQ) ? (
         <ErrorState onRetry={() => annQ.refetch()} />
-      ) : (annQ.data ?? []).length === 0 ? (
+      ) : notices.length === 0 ? (
         <Empty message="No notices yet." />
       ) : (
         <ScrollView
@@ -47,7 +49,7 @@ export function AnnouncementsScreen() {
           }
         >
           <View style={{ gap: 10 }}>
-            {(annQ.data ?? []).map((n) => {
+            {notices.map((n) => {
               const kind = noticeKind(n);
               const onPress = () => goToNotice(nav, kind, 'student');
               return (

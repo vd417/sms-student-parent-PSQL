@@ -93,9 +93,18 @@ export function ParentHomeScreen() {
     );
   }
 
-  const parent = profileQ.data!;
-  const parentFirst = (parent.name ?? '').trim().split(/\s+/)[0] || 'there';
-  const children = childrenQ.data ?? [];
+  const parent = profileQ.data;
+  if (!parent) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <Loading />
+      </SafeAreaView>
+    );
+  }
+  const parentFirst = String(parent.name ?? '').trim().split(/\s+/)[0] || 'there';
+  const children = (Array.isArray(childrenQ.data) ? childrenQ.data : []).filter(
+    (child) => child && typeof child === 'object' && child.id,
+  );
   if (children.length === 0) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
@@ -130,7 +139,7 @@ export function ParentHomeScreen() {
   const child = children.find((c) => c.id === childId) ?? children[0];
   // No live "today" schedule/meals endpoint yet — render an empty state, not an error.
   const today = todayQ.data ?? { classes: [], meals: { breakfast: '', lunch: '' }, pickup: '—', todayAttn: null };
-  const classes = today.classes ?? [];
+  const classes = Array.isArray(today.classes) ? today.classes : [];
   // 'partial' invoices are still outstanding — only fully-paid fees drop off this alert.
   const dueFee = feesQ.data?.find((f) => f.status === 'due' || f.status === 'partial');
   const firstAnn = annQ.data?.[0];
@@ -141,7 +150,10 @@ export function ParentHomeScreen() {
     todayAttnPct != null
       ? formatHomeAttn(todayAttnPct)
       : formatReportOrHomeAvg(
-          buildReportFromGrades(gradesQ.data ?? [], subjectsQ.data ?? []),
+          buildReportFromGrades(
+            Array.isArray(gradesQ.data) ? gradesQ.data : [],
+            Array.isArray(subjectsQ.data) ? subjectsQ.data : [],
+          ),
           child.avg,
         );
 

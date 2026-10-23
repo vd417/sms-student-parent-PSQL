@@ -67,7 +67,7 @@
         "projectId": "834d3f50-6b19-4ed3-8b6a-050fae93c858"
       },
       "dataSource": "http",
-      "apiBaseUrl": "http://localhost:5162/v1",
+      "apiBaseUrl": "https://api.sms.catretech.me/v1",
       "googleMapsApiKey": "AIzaSyCLBnzIqfPTAoo_HnCVMP_nnd57nOMU7GY",
       "googleMapId": "aab697c91ef02136bf693efd"
     },

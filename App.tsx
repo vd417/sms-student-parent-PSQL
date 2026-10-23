@@ -25,7 +25,7 @@ import { colors } from '@/theme';
 const isWeb = Platform.OS === 'web';
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
@@ -33,7 +33,7 @@ export default function App() {
     PlusJakartaSans_800ExtraBold,
   });
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded && !fontError) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.primary, justifyContent: 'center' }}>
         <ActivityIndicator color={colors.white} />
@@ -104,7 +104,6 @@ const webStyles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 3,
     borderColor: '#0B0E1F',
-    // @ts-expect-error web-only style
     boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
   },
   statusBar: {

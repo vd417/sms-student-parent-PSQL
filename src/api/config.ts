@@ -13,9 +13,8 @@ const extra = (Constants.expoConfig?.extra ?? {}) as {
 // services/index.ts. Defaults to live HTTP; mock is opt-in for offline dev.
 export const DATA_SOURCE: DataSource = extra.dataSource ?? 'http';
 
-// Base URL carries the API version (ends in /v1). Preview APKs read
-// EXPO_PUBLIC_API_BASE_URL from eas.json (PC Wi-Fi IP). Local web/dev keep
-// app.json (localhost). A phone cannot reach localhost on this machine.
+// Base URL carries the API version (ends in /v1). EAS preview can override
+// this with EXPO_PUBLIC_API_BASE_URL. The shipped app uses production.
 export const API_BASE_URL: string =
   process.env.EXPO_PUBLIC_API_BASE_URL || extra.apiBaseUrl || '';
 

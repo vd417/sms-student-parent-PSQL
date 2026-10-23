@@ -34,7 +34,7 @@ describe('buildReportFromGrades', () => {
       teacher: 'T',
       avg: 0,
       trend: 0,
-      color: 'green',
+      color: 'teal',
     },
   ];
 

@@ -99,12 +99,19 @@ export function HomeScreen() {
     );
   }
 
-  const student = profileQ.data!;
-  const today = todayQ.data ?? [];
-  const allHomework = homeworkQ.data ?? [];
-  const subjects = subjectsQ.data ?? [];
-  const announcements = annQ.data ?? [];
-  const grades = gradesQ.data ?? [];
+  const student = profileQ.data;
+  if (!student) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <Loading />
+      </SafeAreaView>
+    );
+  }
+  const today = Array.isArray(todayQ.data) ? todayQ.data : [];
+  const allHomework = Array.isArray(homeworkQ.data) ? homeworkQ.data : [];
+  const subjects = Array.isArray(subjectsQ.data) ? subjectsQ.data : [];
+  const announcements = Array.isArray(annQ.data) ? annQ.data : [];
+  const grades = Array.isArray(gradesQ.data) ? gradesQ.data : [];
   const report = buildReportFromGrades(grades, subjects);
   const subjectById = (id: string) =>
     subjects.find((s) => s.id === id) ??
@@ -123,7 +130,7 @@ export function HomeScreen() {
     .filter((h) => h.status === 'todo' || h.status === 'progress')
     .slice(0, 2);
   const firstAnn = announcements[0];
-  const firstName = (student.name ?? 'there').trim().split(/\s+/)[0] || 'there';
+  const firstName = String(student.name ?? 'there').trim().split(/\s+/)[0] || 'there';
   const overallLabel = formatReportOrHomeAvg(report, student.overallAvg);
   const attnChip = dailyAttendanceChip(todayAttnQ.data ?? null);
   const notices = noticesQ.data ?? [];

@@ -7,6 +7,7 @@ import { Avatar, Empty, ErrorState, Loading, ScreenHeader, SearchField } from '@
 import { useMappedTeachers } from '@/hooks/useMappedTeachers';
 import { useOpenThread, useThreads } from '@/hooks/useMessaging';
 import { messageRoleLine, samePerson, teacherCardLine, teacherRoleLine } from '@/lib/classTeachers';
+import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueForName, radius, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
@@ -32,8 +33,8 @@ export function InboxScreen() {
   const openThread = useOpenThread('student');
   const toast = useToast();
 
-  const isLoading = threadsQ.isLoading && threadsQ.data === undefined;
-  const isError = threadsQ.isError && threadsQ.data === undefined;
+  const isLoading = isInitialLoad(threadsQ);
+  const isError = isBlockingError(threadsQ);
   const onRefresh = () => {
     threadsQ.refetch();
     teachersQ.refetch();
@@ -67,7 +68,7 @@ export function InboxScreen() {
   }
 
   const q = query.trim().toLowerCase();
-  const threads = (threadsQ.data ?? []).filter(
+  const threads = (Array.isArray(threadsQ.data) ? threadsQ.data : []).filter(
     (t) => !q || t.name.toLowerCase().includes(q) || t.role.toLowerCase().includes(q),
   );
   const directory = teachersQ.data ?? [];

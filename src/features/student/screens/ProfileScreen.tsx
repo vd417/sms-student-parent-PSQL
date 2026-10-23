@@ -10,6 +10,7 @@ import { useGrades } from '@/hooks/useGrades';
 import { useSubjects } from '@/hooks/useSubjects';
 import { useTransport } from '@/hooks/useTransport';
 import { assignmentMessage, trackingLabel } from '@/lib/busTracking';
+import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
 import { useAuth } from '@/providers/AuthProvider';
 import { buildReportFromGrades } from '@/lib/reportCardBuild';
 import { formatHomeAvg } from '@/lib/homeStats';
@@ -36,8 +37,8 @@ export function ProfileScreen() {
   const subjectsQ = useSubjects();
   const transportQ = useTransport();
 
-  const isLoading = profileQ.isLoading && profileQ.data === undefined;
-  const isError = profileQ.isError && profileQ.data === undefined;
+  const isLoading = isInitialLoad(profileQ);
+  const isError = isBlockingError(profileQ);
   const onRefresh = () => {
     profileQ.refetch();
     achievementsQ.refetch();
@@ -63,7 +64,15 @@ export function ProfileScreen() {
     );
   }
 
-  const student = profileQ.data!;
+  const student = profileQ.data;
+  if (!student) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader title="Profile" />
+        <Loading />
+      </SafeAreaView>
+    );
+  }
   const achievements = achievementsQ.data ?? [];
   const report = buildReportFromGrades(gradesQ.data ?? [], subjectsQ.data ?? []);
   const avgLabel = report.rows.length ? `${Math.round(report.pct)}%` : formatHomeAvg(student.overallAvg);

@@ -225,7 +225,9 @@ export function applyBusPositionPush(rows: Transport[] | undefined, push: BusPos
     // A moving/stopped fix with coordinates is the live bus, even when the list label is still OFFLINE.
     const tracking = (hasGps && fromMotion === 'LIVE' ? fromMotion : null) ?? fromLabel ?? fromMotion ?? row.trackingStatus;
     const motion = asMotion(push.motion) ?? row.motion;
-    const next = {
+    const status: TransportStatus =
+      tracking === 'LIVE' ? (motion === 'stopped' ? 'at_stop' : 'on_route') : tracking === 'DELAYED' ? 'delayed' : 'idle';
+    const next: Transport = {
       ...row,
       lat: push.lat ?? row.lat,
       lng: push.lng ?? row.lng,
@@ -235,14 +237,7 @@ export function applyBusPositionPush(rows: Transport[] | undefined, push: BusPos
       trackingStatus: tracking,
       motion,
       etaNextStopMin: tracking === 'LIVE' ? (push.eta_next_stop_min ?? row.etaNextStopMin) : null,
-      status:
-        tracking === 'LIVE'
-          ? motion === 'stopped'
-            ? 'at_stop'
-            : 'on_route'
-          : tracking === 'DELAYED'
-            ? 'delayed'
-            : 'idle',
+      status,
     };
     return presentTransport(next);
   });

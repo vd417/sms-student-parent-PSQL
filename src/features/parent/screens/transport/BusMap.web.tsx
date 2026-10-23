@@ -12,6 +12,14 @@ const ROUTE = '#4361EE';
 
 type LatLng = { lat: number; lng: number };
 type GOverlay = { setMap?: (map: unknown) => void; map?: unknown };
+type GoogleMapsNamespace = {
+  importLibrary: (name: string) => Promise<Record<string, unknown>>;
+  LatLngBounds: new () => { extend: (p: LatLng) => void };
+};
+
+function googleMaps(): GoogleMapsNamespace {
+  return (window as unknown as { google: { maps: GoogleMapsNamespace } }).google.maps;
+}
 
 function busStatusColor(speedKmh?: number | null, motion?: BusMapProps['motion']) {
   if (typeof speedKmh === 'number' && speedKmh > 3) return '#16a34a';
@@ -178,7 +186,7 @@ export function BusMap({
     loadGoogleMaps(GOOGLE_MAPS_API_KEY)
       .then(async () => {
         if (cancelled || !hostRef.current || mapRef.current) return;
-        const maps = (window as Window & { google: { maps: { importLibrary: (name: string) => Promise<Record<string, unknown>>; LatLngBounds: new () => { extend: (p: LatLng) => void } } } }).google.maps;
+        const maps = googleMaps();
         const lib = await maps.importLibrary('maps');
         const markers = await maps.importLibrary('marker');
         const MapCtor = lib.Map as new (el: HTMLElement, opts: Record<string, unknown>) => typeof mapRef.current;

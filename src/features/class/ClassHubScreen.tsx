@@ -13,6 +13,7 @@ import { useChildren } from '@/hooks/useParent';
 import { useSubjects } from '@/hooks/useSubjects';
 import { useStudentProfile } from '@/hooks/useStudent';
 import { examsForClassCatalog } from '@/lib/belongsToSubject';
+import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
 import { useAuth } from '@/providers/AuthProvider';
 import { useSelectedChild } from '@/providers/ChildProvider';
 import { colors, fontFamily, radius, spacing } from '@/theme';
@@ -50,8 +51,7 @@ export function ClassHubScreen({ audience }: { audience: 'student' | 'parent' })
       'My class';
 
   const waiting =
-    (isParent && childrenQ.isLoading && childrenQ.data === undefined) ||
-    (!isParent && profileQ.isLoading && profileQ.data === undefined);
+    (isParent && isInitialLoad(childrenQ)) || (!isParent && isInitialLoad(profileQ));
   if (waiting) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
@@ -59,7 +59,7 @@ export function ClassHubScreen({ audience }: { audience: 'student' | 'parent' })
       </SafeAreaView>
     );
   }
-  if (isParent && childrenQ.isError && childrenQ.data === undefined) {
+  if (isParent && isBlockingError(childrenQ)) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ErrorState onRetry={() => childrenQ.refetch()} />
