@@ -77,14 +77,15 @@ export function ParentHomeScreen() {
     subjectsQ.refetch();
   };
 
-  if (isInitialLoad(profileQ)) {
+  // Roster arrives after the profile. Notices may still be in flight.
+  if (isInitialLoad(profileQ) || isInitialLoad(childrenQ)) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <Loading />
       </SafeAreaView>
     );
   }
-  if (isBlockingError(profileQ)) {
+  if (isBlockingError(profileQ) || isBlockingError(childrenQ)) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ErrorState onRetry={onRefresh} />
@@ -92,8 +93,18 @@ export function ParentHomeScreen() {
     );
   }
 
-  const parent = profileQ.data!;
-  const children = childrenQ.data ?? [];
+  const parent = profileQ.data;
+  if (!parent) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <Loading />
+      </SafeAreaView>
+    );
+  }
+  const parentFirst = String(parent.name ?? '').trim().split(/\s+/)[0] || 'there';
+  const children = (Array.isArray(childrenQ.data) ? childrenQ.data : []).filter(
+    (child) => child && typeof child === 'object' && child.id,
+  );
   if (children.length === 0) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
@@ -104,7 +115,7 @@ export function ParentHomeScreen() {
         >
           <View style={styles.header}>
             <View>
-              <Text style={styles.greet}>Hello {parent.name.split(' ')[0]} 👋</Text>
+              <Text style={styles.greet}>Hello {parentFirst} 👋</Text>
               <Text style={[typography.h1, { marginTop: 2 }]}>
                 {new Date().toLocaleDateString(undefined, {
                   weekday: 'long',
@@ -128,17 +139,21 @@ export function ParentHomeScreen() {
   const child = children.find((c) => c.id === childId) ?? children[0];
   // No live "today" schedule/meals endpoint yet — render an empty state, not an error.
   const today = todayQ.data ?? { classes: [], meals: { breakfast: '', lunch: '' }, pickup: '—', todayAttn: null };
+  const classes = Array.isArray(today.classes) ? today.classes : [];
   // 'partial' invoices are still outstanding — only fully-paid fees drop off this alert.
   const dueFee = feesQ.data?.find((f) => f.status === 'due' || f.status === 'partial');
-  const firstAnn = annQ.data![0];
-  const doneClasses = today.classes.filter((x) => x.done).length;
+  const firstAnn = annQ.data?.[0];
+  const doneClasses = classes.filter((x) => x.done).length;
   const attendanceChip = dailyAttendanceChip(today.todayAttn);
-  const todayAttnPct = attendancePctFromStatuses(today.classes.map((c) => c.attn));
+  const todayAttnPct = attendancePctFromStatuses(classes.map((c) => c.attn));
   const avgLabel =
     todayAttnPct != null
       ? formatHomeAttn(todayAttnPct)
       : formatReportOrHomeAvg(
-          buildReportFromGrades(gradesQ.data ?? [], subjectsQ.data ?? []),
+          buildReportFromGrades(
+            Array.isArray(gradesQ.data) ? gradesQ.data : [],
+            Array.isArray(subjectsQ.data) ? subjectsQ.data : [],
+          ),
           child.avg,
         );
 
@@ -151,7 +166,7 @@ export function ParentHomeScreen() {
       >
         <View style={styles.header}>
           <View>
-            <Text style={styles.greet}>Hello {parent.name.split(' ')[0]} 👋</Text>
+            <Text style={styles.greet}>Hello {parentFirst} 👋</Text>
             <Text style={[typography.h1, { marginTop: 2 }]}>
               {new Date().toLocaleDateString(undefined, {
                 weekday: 'long',
@@ -188,7 +203,7 @@ export function ParentHomeScreen() {
               </View>
             </View>
             <View style={styles.heroStats}>
-              <HeroStat label="Classes done" value={`${doneClasses}/${today.classes.length}`} />
+              <HeroStat label="Classes done" value={`${doneClasses}/${classes.length}`} />
               <HeroStat label="Pickup" value={today.pickup} divider />
               <HeroStat label="Avg" value={avgLabel} />
             </View>
@@ -198,16 +213,16 @@ export function ParentHomeScreen() {
         {/* Today's classes */}
         <View style={styles.section}>
           <SectionHeader title="Today's classes" style={{ marginBottom: 12 }} />
-          {today.classes.length === 0 ? (
+          {classes.length === 0 ? (
             <Card style={{ padding: 14 }}>
               <Empty message="No classes today." />
             </Card>
           ) : (
             <Card style={{ padding: 14 }}>
-              {today.classes.map((cl, i) => (
+              {classes.map((cl, i) => (
                 <View
                   key={`${cl.t}-${i}`}
-                  style={[styles.classRow, i !== today.classes.length - 1 && styles.classDivider]}
+                  style={[styles.classRow, i !== classes.length - 1 && styles.classDivider]}
                 >
                   <Text style={styles.classTime}>{cl.t}</Text>
                   <Text style={styles.classLabel}>{cl.label}</Text>

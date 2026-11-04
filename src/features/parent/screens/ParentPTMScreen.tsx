@@ -13,16 +13,23 @@ import {
 } from '@/components/ui';
 import { usePTM, useSetPTMStatus } from '@/hooks/usePTM';
 import { useChildren } from '@/hooks/useParent';
+import { useAuth } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
+import { openMeetingLink } from '@/lib/meetingLink';
 import { colors, fontFamily, radius } from '@/theme';
+import type { PTMMeeting } from '@/models';
 
 export function ParentPTMScreen() {
   const toast = useToast();
+  const { role } = useAuth();
+  const isStudent = role === 'student';
   const ptmQ = usePTM();
   const childrenQ = useChildren();
   const setStatus = useSetPTMStatus();
 
-  const isLoading = (ptmQ.isLoading && ptmQ.data === undefined) || (childrenQ.isLoading && childrenQ.data === undefined);
+  const isLoading =
+    (ptmQ.isLoading && ptmQ.data === undefined) ||
+    (!isStudent && childrenQ.isLoading && childrenQ.data === undefined);
   const isError = ptmQ.isError && ptmQ.data === undefined;
   const onRefresh = () => {
     ptmQ.refetch();
@@ -52,9 +59,20 @@ export function ParentPTMScreen() {
     );
   }
 
-  const meetings = ptmQ.data!;
-  const children = childrenQ.data!;
-  const kidName = (id: string) => children.find((c) => c.id === id)?.name ?? 'your child';
+  const meetings = ptmQ.data ?? [];
+  const children = childrenQ.data ?? [];
+  const kidName = (id: string) =>
+    isStudent ? 'you' : (children.find((c) => c.id === id)?.name ?? 'your child');
+
+  const joinMeeting = async (meeting: PTMMeeting) => {
+    const link = meeting.meetingLink?.trim();
+    if (!link) {
+      toast('This meeting has no join link yet.');
+      return;
+    }
+    const opened = await openMeetingLink(link);
+    if (!opened) toast('Could not open the meeting link.');
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -75,7 +93,7 @@ export function ParentPTMScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.bannerTitle}>Book a meeting</Text>
-              <Text style={styles.bannerMeta}>15-min slots with your child&apos;s teachers</Text>
+              <Text style={styles.bannerMeta}>Meetings booked with class teachers</Text>
             </View>
             <Button size="md" variant="primary" onPress={() => toast('Coming soon')}>
               Book slot
@@ -121,8 +139,8 @@ export function ParentPTMScreen() {
                       Confirm
                     </Button>
                   ) : (
-                    <Button size="md" variant="primary">
-                      Join / directions
+                    <Button size="md" variant="primary" onPress={() => joinMeeting(m)}>
+                      Join
                     </Button>
                   )}
                   <Button

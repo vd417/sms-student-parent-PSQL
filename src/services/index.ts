@@ -15,6 +15,7 @@ import {
 import { homeworkMock } from './mock/homework.mock';
 import { schoolMock } from './mock/school.mock';
 import { authMock } from './mock/auth.mock';
+import { devicesMock } from './mock/devices.mock';
 import {
   parentMock,
   feesMock,
@@ -34,6 +35,7 @@ function mockServices(): Services {
     grades: gradesMock(),
     announcements: announcementsMock(),
     notifications: notificationsMock(),
+    devices: devicesMock(),
     settings: settingsMock(),
     messaging: messagingMock(),
     directory: directoryMock(),

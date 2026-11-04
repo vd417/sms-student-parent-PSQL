@@ -15,7 +15,7 @@ export type NoticeAudience = 'student' | 'parent';
 
 export type NoticeDestination =
   | { tab: 'Inbox' | 'Homework' | 'Class' | 'Fees' }
-  | { stack: 'Announcements' | 'Transport' | 'Attendance' | 'Schedule' | 'Grades' | 'Leave' };
+  | { stack: 'Announcements' | 'Transport' | 'Attendance' | 'Schedule' | 'ClassTimetable' | 'Grades' | 'Leave' };
 
 export function noticeKind(input: {
   tone?: string | null;
@@ -47,7 +47,7 @@ export function noticeDestination(kind: NoticeKind, audience: NoticeAudience): N
   if (kind === 'fees') return audience === 'parent' ? { tab: 'Fees' } : { stack: 'Announcements' };
   if (kind === 'leave') return audience === 'parent' ? { stack: 'Leave' } : { stack: 'Announcements' };
   if (kind === 'attendance') return { stack: 'Attendance' };
-  if (kind === 'timetable') return audience === 'parent' ? { tab: 'Class' } : { stack: 'Schedule' };
+  if (kind === 'timetable') return { stack: 'ClassTimetable' };
   if (kind === 'grades') return { stack: 'Grades' };
   return { stack: 'Announcements' };
 }

@@ -33,7 +33,7 @@ describe('canonical DTO key contract', () => {
     };
     expect(d.access_token).toBe('a');
     expect(d.refresh_token).toBe('r');
-    expect(d.user.role).toBe('student');
+    expect(d.user?.role).toBe('student');
   });
 
   it('ExamPaperDTO uses name (canonical) for the paper title', () => {

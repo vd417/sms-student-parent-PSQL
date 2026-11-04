@@ -2,11 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { services } from '@/services';
 import { enabledWhenOwnOrChild, qk } from './keys';
 
-export const useAttendance = (childId: string) =>
+export const useAttendance = (childId?: string) =>
   useQuery({
-    queryKey: qk.attendance(childId),
+    queryKey: qk.attendance(childId || 'me'),
     queryFn: () => services.attendance.month(childId),
-    enabled: Boolean(childId),
+    enabled: enabledWhenOwnOrChild(childId),
   });
 
 export const useTodayAttendance = () =>

@@ -8,6 +8,7 @@ import { Empty, ErrorState, Loading, ScreenHeader, TabBar } from '@/components/u
 import { useHomework } from '@/hooks/useHomework';
 import { useSubjects } from '@/hooks/useSubjects';
 import { formatDueLabel } from '@/lib/homeworkDue';
+import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
 import { colors, fontFamily, radius, spacing } from '@/theme';
 import type { Homework } from '@/models';
 import type { RootStackParamList } from '@/navigation/types';
@@ -36,8 +37,8 @@ export function HomeworkListScreen() {
   const homeworkQ = useHomework();
   const subjectsQ = useSubjects();
 
-  const isLoading = homeworkQ.isLoading && homeworkQ.data === undefined;
-  const isError = homeworkQ.isError && homeworkQ.data === undefined;
+  const isLoading = isInitialLoad(homeworkQ);
+  const isError = isBlockingError(homeworkQ);
   const onRefresh = () => {
     homeworkQ.refetch();
     subjectsQ.refetch();
@@ -60,13 +61,13 @@ export function HomeworkListScreen() {
     );
   }
 
-  const data = homeworkQ.data ?? [];
+  const data = Array.isArray(homeworkQ.data) ? homeworkQ.data : [];
   const open = data.filter(isOpen);
   const done = data.filter(isDone);
   const dueToday = open.filter((h) => formatDueLabel(h.due) === 'Today').length;
 
   const filtered = (tab === 'all' ? data : tab === 'done' ? done : open).slice().sort((a, b) =>
-    a.due.localeCompare(b.due),
+    String(a.due ?? '').localeCompare(String(b.due ?? '')),
   );
 
   return (

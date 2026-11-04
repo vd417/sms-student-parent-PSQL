@@ -82,6 +82,11 @@ export interface NotificationsService {
   markRead(): Promise<void>;
 }
 
+export interface DevicesService {
+  /** Idempotent upsert of this device's Expo push token for the signed-in user. */
+  register(input: { expoPushToken: string; platform: 'ios' | 'android' }): Promise<void>;
+}
+
 export interface AppSettings {
   chatAlerts: boolean;
   schoolNotices: boolean;
@@ -148,7 +153,7 @@ export interface TransportService {
 }
 
 export interface AttendanceService {
-  month(childId: string): Promise<{ days: AttendanceDay[]; flags: AttendanceFlag[] }>;
+  month(childId?: string): Promise<{ days: AttendanceDay[]; flags: AttendanceFlag[] }>;
   today(childId?: string): Promise<DailyAttendanceStatus>;
   periods(childId?: string, from?: string, to?: string): Promise<PeriodAttendanceEntry[]>;
   /** Official period-based aggregate from SaaS (same for CRM / Teacher / Student / Parent). */
@@ -173,6 +178,7 @@ export interface Services {
   grades: GradesService;
   announcements: AnnouncementsService;
   notifications: NotificationsService;
+  devices: DevicesService;
   settings: SettingsService;
   messaging: MessagingService;
   directory: DirectoryService;

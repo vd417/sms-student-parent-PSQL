@@ -12,8 +12,11 @@ import {
   ScreenHeader,
   SearchField,
 } from '@/components/ui';
-import { useDirectory } from '@/hooks/useDirectory';
+import { BookMeetingBanner } from '@/features/inbox/BookMeetingBanner';
+import { useMappedTeachers } from '@/hooks/useMappedTeachers';
 import { useOpenThread, useThreads } from '@/hooks/useMessaging';
+import { messageRoleLine, samePerson, teacherCardLine, teacherRoleLine } from '@/lib/classTeachers';
+import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
 import { useChildren } from '@/hooks/useParent';
 import { useToast } from '@/providers/ToastProvider';
 import { colors, fontFamily, hueColor, hueForName, radius, spacing } from '@/theme';
@@ -21,12 +24,6 @@ import type { ParentStackParamList } from '@/navigation/types';
 import type { Teacher } from '@/models';
 
 type Nav = NativeStackNavigationProp<ParentStackParamList>;
-
-const ROLE_ORDER: Record<Teacher['role'], number> = {
-  principal: 0,
-  class_teacher: 1,
-  subject_teacher: 2,
-};
 
 function initialsFor(name: string): string {
   return name
@@ -37,13 +34,6 @@ function initialsFor(name: string): string {
     .toUpperCase();
 }
 
-function teacherSubtitle(t: Teacher): string {
-  if (t.designation) return t.subj ? `${t.designation} · ${t.subj}` : t.designation;
-  if (t.role === 'principal') return t.subj ? `Principal · ${t.subj}` : 'Principal';
-  if (t.role === 'class_teacher') return t.subj ? `Class Teacher · ${t.subj}` : 'Class Teacher';
-  return t.subj || 'Teacher';
-}
-
 export function ParentChatScreen() {
   const nav = useNavigation<Nav>();
   const toast = useToast();
@@ -51,11 +41,11 @@ export function ParentChatScreen() {
   const [query, setQuery] = useState('');
   const threadsQ = useThreads('parent', inboxFocused);
   const childrenQ = useChildren();
-  const teachersQ = useDirectory();
+  const { teachers: mappedTeachers, teachersQ, identity } = useMappedTeachers();
   const openThread = useOpenThread('parent');
 
-  const isLoading = (threadsQ.isLoading && threadsQ.data === undefined) || (childrenQ.isLoading && childrenQ.data === undefined);
-  const isError = threadsQ.isError && threadsQ.data === undefined;
+  const isLoading = isInitialLoad(threadsQ) || isInitialLoad(childrenQ);
+  const isError = isBlockingError(threadsQ) || isBlockingError(childrenQ);
   const onRefresh = () => {
     threadsQ.refetch();
     childrenQ.refetch();
@@ -64,7 +54,7 @@ export function ParentChatScreen() {
 
   const openTeacher = (t: Teacher) => {
     openThread.mutate(
-      { name: t.name, role: t.subj || 'Teacher' },
+      { name: t.name, role: teacherCardLine(t, identity) },
       {
         onSuccess: (th) => nav.navigate('ChatThread', { id: th.id, name: th.name, role: th.role }),
         onError: () => toast('Could not open conversation. Try again.'),
@@ -90,19 +80,17 @@ export function ParentChatScreen() {
   }
 
   const q = query.trim().toLowerCase();
-  const threads = threadsQ.data!.filter(
+  const threads = (threadsQ.data ?? []).filter(
     (t) => !q || t.name.toLowerCase().includes(q) || t.role.toLowerCase().includes(q),
   );
-  const children = childrenQ.data!;
+  const children = childrenQ.data ?? [];
   const kidFor = (id?: string | null) => (id ? children.find((c) => c.id === id) : undefined);
 
-  const rawTeachers = teachersQ.data ?? [];
-  const activeThreadNames = new Set(threadsQ.data!.map((t) => t.name.trim().toLowerCase()));
-  const teachers = rawTeachers
-    .filter((t) => !activeThreadNames.has(t.name.trim().toLowerCase()))
-    .filter((t) => !q || t.name.toLowerCase().includes(q))
-    .slice()
-    .sort((a, b) => ROLE_ORDER[a.role] - ROLE_ORDER[b.role]);
+  const directory = teachersQ.data ?? [];
+  const teacherFor = (name: string) => directory.find((teacher) => samePerson(teacher.name, name));
+  const teachers = mappedTeachers.filter(
+    (t) => !q || t.name.toLowerCase().includes(q) || teacherCardLine(t, identity).toLowerCase().includes(q),
+  );
   const noResults = q !== '' && threads.length === 0 && teachers.length === 0;
 
   return (
@@ -110,7 +98,7 @@ export function ParentChatScreen() {
       <ScreenHeader
         title="Inbox"
         showBack={false}
-        right={<IconButton icon="create-outline" onPress={() => toast('Coming soon')} />}
+        right={<IconButton icon="calendar-outline" onPress={() => nav.navigate('PTM')} />}
       />
       <View style={{ paddingHorizontal: 18, paddingVertical: 14 }}>
         <SearchField placeholder="Search teachers, groups" value={query} onChangeText={setQuery} />
@@ -137,14 +125,19 @@ export function ParentChatScreen() {
                     nav.navigate('ChatThread', {
                       id: t.id,
                       name: t.name,
-                      role: t.role,
+                      role: messageRoleLine(t.role, teacherFor(t.name), identity),
                       kid: t.kid,
                     })
                   }
                   style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
                 >
                   <View>
-                    <Avatar initials={initialsFor(t.name)} size={44} hue={hueForName(t.name)} />
+                    <Avatar
+                      initials={initialsFor(t.name)}
+                      size={44}
+                      hue={hueForName(t.name)}
+                      photoUri={teacherFor(t.name)?.photoUrl}
+                    />
                     {t.unread > 0 ? (
                       <View style={styles.badge}>
                         <Text style={styles.badgeTxt}>{t.unread}</Text>
@@ -157,12 +150,14 @@ export function ParentChatScreen() {
                       <Text style={styles.when}>{t.when}</Text>
                     </View>
                     <View style={styles.metaRow}>
-                      <Text style={styles.role}>{t.role}</Text>
+                      <Text style={styles.role}>
+                        {messageRoleLine(t.role, teacherFor(t.name), identity)}
+                      </Text>
                       {kid ? (
                         <>
                           <Text style={styles.dotSep}>·</Text>
                           <Text style={[styles.kid, { color: hueColor(kid.hue) }]}>
-                            {kid.name.split(' ')[0]}
+                            {String(kid.name ?? '').split(' ')[0] || 'Child'}
                           </Text>
                         </>
                       ) : null}
@@ -182,28 +177,29 @@ export function ParentChatScreen() {
             })}
           </View>
 
-          {teachers.length > 0 ? (
-            <Text style={[styles.eyebrow, { marginTop: threads.length ? 18 : 0 }]}>Teachers</Text>
-          ) : null}
-          <View style={{ gap: 8 }}>
-            {teachers.map((t) => (
-              <Pressable
-                key={t.id}
-                onPress={() => openTeacher(t)}
-                style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
-              >
-                <Avatar initials={t.initials} size={44} hue={hueForName(t.name)} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.name}>{t.name}</Text>
-                  <Text style={styles.role}>{teacherSubtitle(t)}</Text>
-                </View>
-              </Pressable>
-            ))}
+          <View style={{ marginTop: threads.length ? 18 : 0 }}>
+            <BookMeetingBanner onPress={() => nav.navigate('PTM')} />
           </View>
-
-          {threads.length === 0 && teachers.length === 0 && !q ? (
-            <Empty message="No conversations yet." />
-          ) : null}
+          <Text style={styles.eyebrow}>Teachers for this class</Text>
+          <View style={{ gap: 8 }}>
+            {teachers.length === 0 ? (
+              <Empty message="No teachers are mapped to this class." />
+            ) : (
+              teachers.map((t) => (
+                <Pressable
+                  key={t.id}
+                  onPress={() => openTeacher(t)}
+                  style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}
+                >
+                  <Avatar initials={t.initials} size={44} hue={hueForName(t.name)} photoUri={t.photoUrl} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.name}>{t.name}</Text>
+                    <Text style={styles.role}>{teacherRoleLine(t, identity)}</Text>
+                  </View>
+                </Pressable>
+              ))
+            )}
+          </View>
         </ScrollView>
       )}
     </SafeAreaView>

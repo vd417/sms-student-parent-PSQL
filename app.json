@@ -4,17 +4,22 @@
     "slug": "student-app",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "schooldesk-student",
     "newArchEnabled": true,
     "splash": {
+      "image": "./assets/splash-icon.png",
       "backgroundColor": "#0C4A6E",
       "resizeMode": "contain"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.catreschool.student",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "config": {
+        "googleMapsApiKey": "AIzaSyCLBnzIqfPTAoo_HnCVMP_nnd57nOMU7GY"
+      }
     },
     "android": {
       "package": "com.catreschool.student",
@@ -23,6 +28,7 @@
       "softwareKeyboardLayoutMode": "resize",
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0C4A6E"
       },
       "config": {
@@ -36,7 +42,8 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "single"
+      "output": "single",
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-font",

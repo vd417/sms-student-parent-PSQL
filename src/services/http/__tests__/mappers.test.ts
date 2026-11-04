@@ -239,6 +239,11 @@ describe('http mappers → domain', () => {
   it('formats HH:mm:ss notice times without seconds', () => {
     expect(formatChatWhen('23:28:21')).not.toBe('23:28:21');
     expect(formatChatWhen('23:28:21')).not.toMatch(/:\d{2}:\d{2}/);
+    const utcClock = new Date();
+    utcClock.setUTCHours(4, 30, 0, 0);
+    expect(formatChatWhen('04:30:00')).toBe(
+      utcClock.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
+    );
     expect(noticeSortMs('23:28:21')).toBeGreaterThan(noticeSortMs('09:00:00'));
   });
 
@@ -494,10 +499,14 @@ describe('http mappers → domain', () => {
       sent_at: '2026-09-18T04:30:00',
       is_mine: true,
     };
-    const expected = new Date('2026-09-18T04:30:00Z').toLocaleTimeString(undefined, {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
+    const dt = new Date('2026-09-18T04:30:00Z');
+    const time = dt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    // Production prepends the date for any message not from today (mappers.ts sameDay check),
+    // so build the expected string the same way to keep this UTC-parsing test date-stable.
+    const expected =
+      dt.toDateString() === new Date().toDateString()
+        ? time
+        : `${dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${time}`;
     expect(toChatMessage(d).time).toBe(expected);
   });
 

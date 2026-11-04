@@ -9,6 +9,7 @@ import { useChildren, useParentProfile } from '@/hooks/useParent';
 import { useAuth } from '@/providers/AuthProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { useSelectedChild } from '@/providers/ChildProvider';
+import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
 import { colors, fontFamily, hueColor, primaryGradient, radius, spacing } from '@/theme';
 import type { ParentStackParamList } from '@/navigation/types';
 
@@ -22,8 +23,8 @@ export function ParentProfileScreen() {
   const profileQ = useParentProfile();
   const childrenQ = useChildren();
 
-  const isLoading = (profileQ.isLoading && profileQ.data === undefined) || (childrenQ.isLoading && childrenQ.data === undefined);
-  const isError = profileQ.isError && profileQ.data === undefined;
+  const isLoading = isInitialLoad(profileQ) || isInitialLoad(childrenQ);
+  const isError = isBlockingError(profileQ);
   const onRefresh = () => {
     profileQ.refetch();
     childrenQ.refetch();
@@ -46,7 +47,15 @@ export function ParentProfileScreen() {
     );
   }
 
-  const parent = profileQ.data!;
+  const parent = profileQ.data;
+  if (!parent) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader title="Profile" />
+        <Loading />
+      </SafeAreaView>
+    );
+  }
   const children = childrenQ.data ?? [];
 
   return (

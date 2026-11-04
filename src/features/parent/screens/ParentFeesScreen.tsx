@@ -12,6 +12,7 @@ import { useSelectedChild } from '@/providers/ChildProvider';
 import { useToast } from '@/providers/ToastProvider';
 import type { Fee } from '@/models';
 import type { RazorpayOrder } from '@/services/types';
+import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
 import { colors, fontFamily, primaryGradient, radius, spacing, typography } from '@/theme';
 import { downloadInvoice } from '../utils/invoicePdf';
 
@@ -101,7 +102,7 @@ export function ParentFeesScreen() {
     );
   }
 
-  if (feesQ.isLoading && feesQ.data === undefined) {
+  if (isInitialLoad(feesQ)) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScreenHeader
@@ -112,7 +113,7 @@ export function ParentFeesScreen() {
       </SafeAreaView>
     );
   }
-  if (feesQ.isError && feesQ.data === undefined) {
+  if (isBlockingError(feesQ)) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScreenHeader
@@ -124,7 +125,7 @@ export function ParentFeesScreen() {
     );
   }
 
-  const fees = feesQ.data!;
+  const fees = Array.isArray(feesQ.data) ? feesQ.data : [];
   // 'partial' invoices are still outstanding — a fee only leaves the due card once fully paid.
   // Sort by due date so the most urgent outstanding invoice becomes the hero card; any other
   // outstanding invoices (e.g. a newly announced fee) still surface below instead of being

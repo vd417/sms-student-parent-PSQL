@@ -37,14 +37,13 @@ describe('noticeDestination', () => {
 describe('unread counts', () => {
   it('sums chat unread onto Inbox and all unread notices onto the bell', () => {
     expect(unreadChatCount([{ unread: 2 }, { unread: 1 }, { unread: 0 }])).toBe(3);
-    expect(
-      unreadNoticeCount([
-        { unread: true, tone: 'chat', title: 'Amit', body: 'Hi' },
-        { unread: true, tone: 'bus', title: 'Bus started', body: '' },
-        { unread: true, tone: 'brand', title: 'Fee due', body: '' },
-        { unread: false, tone: 'brand', title: 'Holiday', body: '' },
-      ]),
-    ).toBe(3);
+    const notices = [
+      { unread: true, tone: 'chat', title: 'Amit', body: 'Hi' },
+      { unread: true, tone: 'bus', title: 'Bus started', body: '' },
+      { unread: true, tone: 'brand', title: 'Fee due', body: '' },
+      { unread: false, tone: 'brand', title: 'Holiday', body: '' },
+    ];
+    expect(unreadNoticeCount(notices)).toBe(3);
     expect(inboxTabBadge(0)).toBeUndefined();
     expect(inboxTabBadge(4)).toBe(4);
     expect(inboxTabBadge(120)).toBe('99+');

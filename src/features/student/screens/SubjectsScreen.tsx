@@ -14,6 +14,7 @@ import {
 import { SubjectCard } from '@/components/cards/SubjectCard';
 import { useStudentProfile } from '@/hooks/useStudent';
 import { useSubjects } from '@/hooks/useSubjects';
+import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
 import { colors, spacing } from '@/theme';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -33,7 +34,7 @@ export function SubjectsScreen() {
     }, [subjectsQ.refetch]),
   );
 
-  if (subjectsQ.isLoading && subjectsQ.data === undefined) {
+  if (isInitialLoad(subjectsQ)) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScreenHeader
@@ -53,7 +54,7 @@ export function SubjectsScreen() {
       </SafeAreaView>
     );
   }
-  if (subjectsQ.isError && subjectsQ.data === undefined) {
+  if (isBlockingError(subjectsQ)) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScreenHeader kicker={classLabel || undefined} title="My subjects" />
@@ -63,7 +64,7 @@ export function SubjectsScreen() {
   }
 
   const q = query.trim().toLowerCase();
-  const subjects = subjectsQ.data!.filter(
+  const subjects = (subjectsQ.data ?? []).filter(
     (s) =>
       !q ||
       s.name.toLowerCase().includes(q) ||

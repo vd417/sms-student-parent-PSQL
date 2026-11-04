@@ -7,6 +7,8 @@ export type BusMapStop = {
   lng: number;
   yours?: boolean;
   passed?: boolean;
+  /** 1-based stop number along the route. */
+  order?: number;
 };
 
 export type BusMapProps = {
@@ -15,6 +17,7 @@ export type BusMapProps = {
   busNo: string;
   trackingStatus?: 'LIVE' | 'DELAYED' | 'OFFLINE';
   motion?: 'moving' | 'stopped' | null;
+  speedKmh?: number | null;
   studentStop?: BusMapStop | null;
   stops?: BusMapStop[];
   interactive?: boolean;
@@ -23,20 +26,40 @@ export type BusMapProps = {
   follow?: boolean;
   myLat?: number | null;
   myLng?: number | null;
-  /** Road-following geometry for the assigned route; `unavailable` (or omitted) renders no line + a badge, never the old straight-line fallback. */
+  /** Road geometry when the server has it; otherwise the line follows the stoppages. */
   routeGeometry?: RouteGeometryDTO;
   onPress?: () => void;
   onRecenterReady?: (recenter: () => void) => void;
 };
 
+/** Live GPS only. A stop coordinate is never used as a stand-in for the bus. */
+export function liveBusCoordinate(
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+): { latitude: number; longitude: number } | null {
+  const latitude = asFiniteNumber(lat);
+  const longitude = asFiniteNumber(lng);
+  if (latitude == null || longitude == null) return null;
+  return { latitude, longitude };
+}
+
+function asFiniteNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
 /**
- * Only `polyline5` (the standard Google precision-5 algorithm) or an absent `format`
- * (Google's own default) is safe for this app's decoder, which only implements
- * precision-5 decoding. Any other explicit format would silently decode to
- * coordinates that are off by a scale factor, so it must be treated as unsafe.
+ * The decoder implements Google's precision-5 algorithm. The live API names that
+ * encoding `google-encoded-polyline`. `polyline6` and other precisions are not safe.
  */
 function isSafeGeometryFormat(format: string | null | undefined): boolean {
-  return format == null || format === 'polyline5';
+  if (format == null || format.trim() === '') return true;
+  const key = format.trim().toLowerCase();
+  return key === 'polyline5' || key === 'google-encoded-polyline' || key === 'encoded-polyline';
 }
 
 /** The geometry to trust for drawing a road-following line — null when unavailable or unsafe to decode. */

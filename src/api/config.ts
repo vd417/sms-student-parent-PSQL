@@ -13,16 +13,17 @@ const extra = (Constants.expoConfig?.extra ?? {}) as {
 // services/index.ts. Defaults to live HTTP; mock is opt-in for offline dev.
 export const DATA_SOURCE: DataSource = extra.dataSource ?? 'http';
 
-// Base URL carries the API version (ends in /v1). Preview APKs read
-// EXPO_PUBLIC_API_BASE_URL from eas.json (PC Wi-Fi IP). Local web/dev keep
-// app.json (localhost). A phone cannot reach localhost on this machine.
+// Base URL carries the API version (ends in /v1). EAS preview can override
+// this with EXPO_PUBLIC_API_BASE_URL. The shipped app uses production.
 export const API_BASE_URL: string =
   process.env.EXPO_PUBLIC_API_BASE_URL || extra.apiBaseUrl || '';
 
-// Web build of the transport map uses the Google Static Maps API; native uses react-native-maps
-// (Android reads the same key from app.json's android.config.googleMaps.apiKey).
-export const GOOGLE_MAPS_API_KEY: string = extra.googleMapsApiKey ?? '';
-export const GOOGLE_MAP_ID: string = extra.googleMapId ?? '';
+// Web and native bus maps read this key and Cloud Map ID. Android also reads the
+// same key from app.json's android.config.googleMaps.apiKey.
+export const GOOGLE_MAPS_API_KEY: string =
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || extra.googleMapsApiKey || '';
+export const GOOGLE_MAP_ID: string =
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_MAP_ID || extra.googleMapId || '';
 
 // Network tuning. Timeout is measured after a connection slot is acquired so
 // Chrome's 6-connection-per-host queue does not abort waiting fetches as (canceled).

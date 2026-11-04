@@ -24,13 +24,14 @@ export type ReportCardData = {
 function subjectKey(g: Grade, subjects: Subject[]): { key: string; name: string } {
   const byId = g.subjId ? subjects.find((s) => s.id === g.subjId) : undefined;
   if (byId) return { key: normalizeSubjectName(byId.name) || byId.id, name: byId.name };
-  const name = (g.subjectName ?? '').trim();
+  const name = String(g.subjectName ?? '').trim();
   if (name) {
     const want = normalizeSubjectName(name);
     const twin = subjects.find((s) => normalizeSubjectName(s.name) === want);
     return { key: want || `name:${name.toLowerCase()}`, name: twin?.name || name };
   }
-  return { key: `title:${g.title.toLowerCase()}`, name: g.title || 'Subject' };
+  const title = String(g.title ?? 'Subject');
+  return { key: `title:${title.toLowerCase()}`, name: title || 'Subject' };
 }
 
 /**
@@ -39,18 +40,22 @@ function subjectKey(g: Grade, subjects: Subject[]): { key: string; name: string 
  * When a class catalog is provided (IV-B subjects), other-section papers are dropped.
  */
 export function buildReportFromGrades(
-  grades: Grade[],
-  subjects: Subject[] = [],
+  grades: Grade[] | null | undefined,
+  subjects: Subject[] | null | undefined = [],
 ): ReportCardData {
-  const scoped = gradesForClassCatalog(grades, subjects);
+  const rowsIn = (Array.isArray(grades) ? grades : []).filter(
+    (g): g is Grade => !!g && typeof g === 'object',
+  );
+  const catalog = Array.isArray(subjects) ? subjects : [];
+  const scoped = gradesForClassCatalog(rowsIn, catalog);
   const bag = new Map<string, { name: string; marks: number; max: number }>();
   for (const g of scoped) {
-    const { key, name } = subjectKey(g, subjects);
+    const { key, name } = subjectKey(g, catalog);
     const cur = bag.get(key) ?? { name, marks: 0, max: 0 };
     bag.set(key, {
       name: cur.name || name,
-      marks: cur.marks + g.score,
-      max: cur.max + g.max,
+      marks: cur.marks + (Number(g.score) || 0),
+      max: cur.max + (Number(g.max) || 0),
     });
   }
 

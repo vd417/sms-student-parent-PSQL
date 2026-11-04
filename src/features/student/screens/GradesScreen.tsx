@@ -23,6 +23,7 @@ import {
 import { subjectShortCode } from '@/services/http/mappers';
 import { pickSchoolMarkUrl } from '@/services/http/schoolMark';
 import { gradesForClassCatalog, normalizeSubjectName } from '@/lib/belongsToSubject';
+import { isBlockingError, isInitialLoad } from '@/lib/queryStatus';
 import { gradeFor } from '@/lib/gradeScale';
 import {
   buildReportFromGrades,
@@ -59,8 +60,8 @@ export function GradesScreen() {
   const schoolQ = useSchool();
   const summaryQ = useAttendanceSummary(studentId);
 
-  const isLoading = (profileQ.isLoading && profileQ.data === undefined) || (gradesQ.isLoading && gradesQ.data === undefined);
-  const isError = (profileQ.isError && profileQ.data === undefined) && (gradesQ.isError && gradesQ.data === undefined);
+  const isLoading = isInitialLoad(profileQ) || isInitialLoad(gradesQ);
+  const isError = isBlockingError(profileQ) && isBlockingError(gradesQ);
   const onRefresh = () => {
     profileQ.refetch();
     subjectsQ.refetch();
@@ -86,7 +87,15 @@ export function GradesScreen() {
     );
   }
 
-  const student = profileQ.data!;
+  const student = profileQ.data;
+  if (!student) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ScreenHeader kicker="Exams" title="Report card" />
+        <Loading />
+      </SafeAreaView>
+    );
+  }
   const subjects = subjectsQ.data ?? [];
   const grades = gradesForClassCatalog(gradesQ.data ?? [], subjects);
   const school = schoolQ.data;

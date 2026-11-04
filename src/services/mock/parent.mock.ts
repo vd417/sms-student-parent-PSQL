@@ -143,7 +143,7 @@ function generateMockPeriods(now: Date): PeriodAttendanceEntry[] {
 
 export function attendanceMock(opts: Opts = {}): AttendanceService {
   return {
-    month: (childId) => withLatency(() => attendanceFor(childId), opts),
+    month: (childId) => withLatency(() => attendanceFor(childId ?? ''), opts),
     today: () => withLatency(() => 'present', opts),
     periods: (_childId, from, to) =>
       withLatency(() => {

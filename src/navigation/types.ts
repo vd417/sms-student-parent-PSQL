@@ -14,6 +14,9 @@ export type RootStackParamList = {
   Login: undefined;
   Main: NavigatorScreenParams<TabParamList> | undefined;
   Schedule: undefined;
+  ClassTimetable: { studentId?: string } | undefined;
+  PTM: undefined;
+  Subjects: undefined;
   Attendance: undefined;
   HomeworkDetail: { id: string; studentId?: string };
   SubjectDetail: { id: string; studentId?: string };
@@ -29,7 +32,7 @@ export type RootStackParamList = {
 export type TabParamList = {
   Home: undefined;
   Homework: undefined;
-  Subjects: undefined;
+  Class: undefined;
   Inbox: NavigatorScreenParams<InboxStackParamList> | undefined;
   Profile: undefined;
 };
@@ -37,6 +40,7 @@ export type TabParamList = {
 export type ParentStackParamList = {
   Main: NavigatorScreenParams<ParentTabParamList> | undefined;
   Attendance: undefined;
+  ClassTimetable: { studentId?: string } | undefined;
   PTM: undefined;
   Transport: undefined;
   Leave: undefined;
