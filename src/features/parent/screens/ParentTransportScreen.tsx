@@ -399,6 +399,16 @@ function ChildTrack({
               This bus hasn&apos;t started today&apos;s trip yet. You&apos;ll get a notice when it starts,
               and again when it is 1 km from your stop.
             </Text>
+          ) : tr.status === 'running' && tr.trackingStatus !== 'LIVE' ? (
+            <>
+              <Text style={styles.idleNote}>Trip is running. Waiting for a live GPS fix.</Text>
+              {boarded ? (
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Pickup</Text>
+                  <Text style={styles.infoValue}>{boarded}</Text>
+                </View>
+              ) : null}
+            </>
           ) : (
             <>
               {tr.nextStopName ? (

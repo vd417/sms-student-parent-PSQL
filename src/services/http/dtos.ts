@@ -207,7 +207,7 @@ export interface ChildBusPositionDTO {
   bus_no?: string | null;
   route_id?: string | null;
   route_name: string | null;
-  status: 'idle' | 'delayed' | 'at_stop' | 'on_route';
+  status: 'idle' | 'running' | 'delayed' | 'at_stop' | 'on_route';
   tracking_status?: 'LIVE' | 'DELAYED' | 'OFFLINE' | null;
   motion?: 'moving' | 'stopped' | null;
   assignment?: 'assigned' | 'pending' | 'none' | 'opted_out' | null;

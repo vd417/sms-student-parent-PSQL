@@ -28,6 +28,8 @@ const INVALIDATE_EVENTS = [
   'stop_arrived',
   'stop_completed',
   'school_arrived',
+  'student_pickup',
+  'student_drop',
 ];
 
 /** One TransportFleetHub connection; JoinBus once per unique bus even if two children share it.

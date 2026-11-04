@@ -235,7 +235,7 @@ export interface PTMMeeting {
   status: 'confirmed' | 'pending';
 }
 
-export type TransportStatus = 'idle' | 'delayed' | 'at_stop' | 'on_route';
+export type TransportStatus = 'idle' | 'running' | 'delayed' | 'at_stop' | 'on_route';
 export type TransportTrackingStatus = 'LIVE' | 'DELAYED' | 'OFFLINE';
 export type TransportAssignment = 'assigned' | 'pending' | 'none' | 'opted_out';
 export type TransportMotion = 'moving' | 'stopped';
