@@ -9,6 +9,7 @@ import { ApiError } from '@/services/errors';
 import { clearSisStudentCache } from '@/services/http/sisStudent';
 import { clearPersistedQueryCache } from './QueryProvider';
 import { authReducer, initialAuthState } from './authReducer';
+import { registerDevicePush } from '@/lib/pushRegistration';
 
 interface AuthContextValue {
   session: Session | null;
@@ -99,6 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (state.status === 'authenticated') void registerDevicePush('student');
+  }, [state.status]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

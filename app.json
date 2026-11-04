@@ -13,10 +13,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.schooldesk.student"
+      "bundleIdentifier": "com.catreschool.student",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
-      "package": "com.schooldesk.student",
+      "package": "com.catreschool.student",
+      "googleServicesFile": "./google-services.json",
       "usesCleartextTraffic": true,
       "softwareKeyboardLayoutMode": "resize",
       "edgeToEdgeEnabled": true,
@@ -39,6 +41,12 @@
     "plugins": [
       "expo-font",
       "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "default"
+        }
+      ],
       [
         "expo-image-picker",
         {
