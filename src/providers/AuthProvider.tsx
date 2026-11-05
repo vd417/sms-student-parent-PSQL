@@ -10,7 +10,7 @@ import { clearSisStudentCache } from '@/services/http/sisStudent';
 import { clearPersistedQueryCache } from './QueryProvider';
 import { registerSessionReset } from '@/lib/sessionRecovery';
 import { authReducer, initialAuthState } from './authReducer';
-import { registerDevicePush } from '@/lib/pushRegistration';
+import { registerDevicePush, unregisterDevicePush } from '@/lib/pushRegistration';
 
 interface AuthContextValue {
   session: Session | null;
@@ -108,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     return registerSessionReset(async () => {
+      await unregisterDevicePush();
       await services.auth.signOut();
       setAuthToken(null);
       clearSisStudentCache();
@@ -142,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       resetPassword: (identifier, code, password) =>
         services.auth.resetPassword(identifier, code, password),
       signOut: async () => {
+        await unregisterDevicePush();
         await services.auth.signOut();
         setAuthToken(null);
         clearSisStudentCache();
