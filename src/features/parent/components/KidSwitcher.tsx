@@ -17,6 +17,8 @@ export function KidSwitcher({ includeAll, selectedId, onSelect }: Props = {}) {
   const { childId, setChildId } = useSelectedChild();
 
   if (!children?.length) return null;
+  // One child in this school needs no picker. Two or more: tap a child to open that child's data.
+  if (children.length < 2 && !includeAll) return null;
 
   const current = selectedId ?? childId;
   const showAll = Boolean(includeAll && children.length > 1);

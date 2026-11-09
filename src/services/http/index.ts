@@ -1,6 +1,6 @@
 import type { Role } from '@/models';
 import type { DailyAttendanceStatus } from '@/models';
-import type { PasswordResetSent, Services } from '@/services/types';
+import type { ParentOtpResult, PasswordResetSent, Services } from '@/services/types';
 import { apiFetch, setAuthToken } from '@/api/client';
 import { isConfirmedAuthFailure, isTransientFailure } from '@/api/errorKind';
 import { classifyIdentifier, normalizeLoginIdentifier } from '@/services/auth/identifier';
@@ -246,6 +246,43 @@ export const httpServices: Services = {
         code,
         password,
       });
+    },
+    requestParentOtp: async (identifier) => {
+      const id = normalizeLoginIdentifier(identifier);
+      const dto = await post<{
+        sent?: boolean;
+        channel?: 'sms' | 'email';
+        sent_to?: string;
+        recipient?: 'self' | 'parent';
+      }>('/auth/otp/request', { identifier: id });
+      return {
+        channel: dto.channel === 'sms' ? 'sms' : 'email',
+        sent: dto.sent !== false,
+        sentTo: dto.sent_to ?? '',
+        recipient: dto.recipient === 'parent' ? 'parent' : 'self',
+      } satisfies PasswordResetSent;
+    },
+    verifyParentOtp: async (identifier, code, organizationId) => {
+      const dto = await post<SessionDTO & {
+        selection_required?: boolean;
+        organizations?: { id: string; name: string }[] | null;
+      }>('/auth/otp/verify', {
+        identifier: normalizeLoginIdentifier(identifier),
+        code,
+        role: 'parent',
+        ...(organizationId ? { organization_id: organizationId } : {}),
+      });
+      if (dto.selection_required) {
+        const organizations = (dto.organizations ?? [])
+          .filter((org) => org?.id && org?.name)
+          .map((org) => ({ id: org.id, name: org.name }));
+        if (organizations.length < 2) {
+          throw new ApiError('School list was incomplete. Request a new code.', 500);
+        }
+        return { selectionRequired: true, organizations } satisfies ParentOtpResult;
+      }
+      const session = await persistAfterLogin(dto, 'parent');
+      return { selectionRequired: false, session } satisfies ParentOtpResult;
     },
     refresh: async (refreshToken) => {
       const dto = await post<{ access_token: string; refresh_token: string }>('/auth/refresh', {

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "School Desk · Student",
-    "slug": "student-app",
+    "slug": "school-desk-student",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -71,13 +71,13 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "834d3f50-6b19-4ed3-8b6a-050fae93c858"
+        "projectId": "c20aaa0a-43c3-4f99-a3c9-db152ebeee4f"
       },
       "dataSource": "http",
-      "apiBaseUrl": "http://localhost:5162/v1",
+      "apiBaseUrl": "https://api.sms.catretech.me/v1",
       "googleMapsApiKey": "AIzaSyCLBnzIqfPTAoo_HnCVMP_nnd57nOMU7GY",
       "googleMapId": "aab697c91ef02136bf693efd"
     },
-    "owner": "vaibhavdds-team"
+    "owner": "catre"
   }
 }

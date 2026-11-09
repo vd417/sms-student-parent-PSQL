@@ -38,11 +38,23 @@ export interface PasswordResetSent {
   recipient: 'self' | 'parent';
 }
 
+export interface ParentOrganization {
+  id: string;
+  name: string;
+}
+
+/** One school signs straight in. Several schools stay on this screen until the parent picks one. */
+export type ParentOtpResult =
+  | { selectionRequired: false; session: Session }
+  | { selectionRequired: true; organizations: ParentOrganization[] };
+
 export interface AuthService {
   signIn(identifier: string, password: string, role: Role): Promise<Session>;
   signOut(): Promise<void>;
   requestPasswordReset(identifier: string, role?: Role): Promise<PasswordResetSent>;
   resetPassword(identifier: string, code: string, password: string): Promise<void>;
+  requestParentOtp(identifier: string): Promise<PasswordResetSent>;
+  verifyParentOtp(identifier: string, code: string, organizationId?: string): Promise<ParentOtpResult>;
   refresh(refreshToken: string): Promise<{ access: string; refresh: string | null }>;
   getMe(): Promise<{ role: Role; email: string }>;
 }

@@ -1,4 +1,4 @@
-import type { AuthService, PasswordResetSent } from '@/services/types';
+import type { AuthService, ParentOrganization, ParentOtpResult, PasswordResetSent } from '@/services/types';
 import type { Role } from '@/models';
 import { ApiError } from '@/services/errors';
 import { isStrongPassword } from '@/services/auth/password';
@@ -15,6 +15,8 @@ interface Opts {
    * (capped at 2 attempts, then falls back to parent). For tests.
    */
   studentEmailDeliveryFails?: number;
+  /** When 2 or more, parent OTP verify stops for a school choice instead of signing in. */
+  parentOrganizations?: ParentOrganization[];
 }
 
 const MOCK_OTP_CODE = '123456';
@@ -186,6 +188,57 @@ export function authMock(opts: Opts = {}): AuthService {
         passwords.set(match.accountKey, password);
         pendingCodes.delete(match.accountKey);
         return undefined;
+      }),
+    requestParentOtp: (identifier) =>
+      delayed(() => {
+        const match = findAccount(identifier);
+        if (!match || match.role !== 'parent' || !db.parent) throw new ApiError('Not registered', 404);
+        const kind = classifyIdentifier(identifier);
+        const result = kind === 'phone'
+          ? sentResult(db.parent.phone, 'sms', 'self')
+          : sentResult(db.parent.email, 'email', 'self');
+        pendingCodes.set(db.parent.email, MOCK_OTP_CODE);
+        return result;
+      }),
+    verifyParentOtp: (identifier, code, organizationId) =>
+      delayed((): ParentOtpResult => {
+        const match = findAccount(identifier);
+        if (!match || match.role !== 'parent' || !db.parent) throw new ApiError('Not registered', 404);
+        const activeCode = pendingCodes.get(db.parent.email);
+        if (!activeCode || activeCode !== code) throw new ApiError('Incorrect or expired code', 401);
+        const organizations = opts.parentOrganizations ?? [];
+        if (organizations.length >= 2 && !organizationId) {
+          return { selectionRequired: true, organizations };
+        }
+        if (organizationId) {
+          const chosen = organizations.find((org) => org.id === organizationId);
+          if (!chosen) {
+            throw new ApiError(
+              'That school is not linked to this parent account.',
+              403,
+              undefined,
+              'invalid_organization',
+            );
+          }
+          pendingCodes.delete(db.parent.email);
+          return {
+            selectionRequired: false,
+            session: {
+              token: `mock-token-parent-${chosen.id}-${Date.now()}`,
+              role: 'parent',
+              email: db.parent.email,
+            },
+          };
+        }
+        pendingCodes.delete(db.parent.email);
+        return {
+          selectionRequired: false,
+          session: {
+            token: `mock-token-parent-${Date.now()}`,
+            role: 'parent',
+            email: db.parent.email,
+          },
+        };
       }),
     refresh: () =>
       delayed(() => ({

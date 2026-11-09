@@ -1,7 +1,7 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useReducer } from 'react';
 import type { Role, Session } from '@/models';
 import { services } from '@/services';
-import type { PasswordResetSent } from '@/services/types';
+import type { ParentOtpResult, PasswordResetSent } from '@/services/types';
 import { setAuthToken, setRefreshHandler, setSessionExpiredHandler } from '@/api/client';
 import { isConfirmedAuthFailure, isRefreshCredentialRejection } from '@/api/errorKind';
 import { tokenStore } from '@/services/auth/tokenStore';
@@ -9,7 +9,7 @@ import { ApiError } from '@/services/errors';
 import { clearSisStudentCache } from '@/services/http/sisStudent';
 import { clearPersistedQueryCache } from './QueryProvider';
 import { registerSessionReset } from '@/lib/sessionRecovery';
-import { authReducer, initialAuthState } from './authReducer';
+import { authReducer, initialAuthState, type AuthAction } from './authReducer';
 import { registerDevicePush, unregisterDevicePush } from '@/lib/pushRegistration';
 
 interface AuthContextValue {
@@ -19,6 +19,8 @@ interface AuthContextValue {
   signIn: (email: string, password: string, role: Role) => Promise<void>;
   requestPasswordReset: (identifier: string, role?: Role) => Promise<PasswordResetSent>;
   resetPassword: (identifier: string, code: string, password: string) => Promise<void>;
+  requestParentOtp: (identifier: string) => Promise<PasswordResetSent>;
+  verifyParentOtp: (identifier: string, code: string, organizationId?: string) => Promise<ParentOtpResult>;
   signOut: () => Promise<void>;
 }
 
@@ -31,6 +33,27 @@ export function sessionFromPersisted(access: string, role: Role, email: string):
 /** NETWORK FAILURE != AUTH FAILURE != LOGOUT */
 export function shouldInvalidateSession(err: unknown): boolean {
   return isConfirmedAuthFailure(err);
+}
+
+async function finishSignIn(
+  session: Session,
+  role: Role,
+  dispatch: (action: AuthAction) => void,
+) {
+  if (session.role !== role) {
+    await wipeLocalSession();
+    throw new ApiError(
+      role === 'student'
+        ? 'This is a parent login. Switch to the Parent tab.'
+        : 'This is a student login. Switch to the Student tab.',
+      403,
+      undefined,
+      'wrong_role',
+    );
+  }
+  await clearPersistedQueryCache();
+  setAuthToken(session.token);
+  dispatch({ type: 'SIGNED_IN', session });
 }
 
 async function wipeLocalSession() {
@@ -124,24 +147,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       status: state.status,
       signIn: async (email, password, role) => {
         const session = await services.auth.signIn(email, password, role);
-        if (session.role !== role) {
-          await wipeLocalSession();
-          throw new ApiError(
-            role === 'student'
-              ? 'This is a parent login. Switch to the Parent tab.'
-              : 'This is a student login. Switch to the Student tab.',
-            403,
-            undefined,
-            'wrong_role',
-          );
-        }
-        await clearPersistedQueryCache();
-        setAuthToken(session.token);
-        dispatch({ type: 'SIGNED_IN', session });
+        await finishSignIn(session, role, dispatch);
       },
       requestPasswordReset: (identifier, role) => services.auth.requestPasswordReset(identifier, role),
       resetPassword: (identifier, code, password) =>
         services.auth.resetPassword(identifier, code, password),
+      requestParentOtp: (identifier) => services.auth.requestParentOtp(identifier),
+      verifyParentOtp: async (identifier, code, organizationId) => {
+        const result = await services.auth.verifyParentOtp(identifier, code, organizationId);
+        if (!result.selectionRequired) await finishSignIn(result.session, 'parent', dispatch);
+        return result;
+      },
       signOut: async () => {
         await unregisterDevicePush();
         await services.auth.signOut();

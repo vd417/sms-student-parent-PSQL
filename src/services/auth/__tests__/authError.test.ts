@@ -32,6 +32,21 @@ describe('mapAuthError', () => {
     );
   });
 
+  it('keeps the school-selection message instead of a generic password error', () => {
+    expect(mapAuthError(new ApiError(
+      'School selection expired. Request a new code.',
+      401,
+      undefined,
+      'selection_expired',
+    ))).toBe('School selection expired. Request a new code.');
+    expect(mapAuthError(new ApiError(
+      'That school is not linked to this parent account.',
+      403,
+      undefined,
+      'invalid_organization',
+    ))).toBe('That school is not linked to this parent account.');
+  });
+
   it('maps wrong_role to the switch-tab copy', () => {
     expect(mapAuthError(new ApiError(
       'This is a parent login. Switch to the Parent tab.',

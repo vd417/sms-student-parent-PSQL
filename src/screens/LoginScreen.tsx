@@ -19,6 +19,7 @@ import { isStrongPassword, PASSWORD_RULE_TEXT } from '@/services/auth/password';
 import { isEmailOrPhone, normalizeLoginIdentifier } from '@/services/auth/identifier';
 import { loginPrefs } from '@/services/auth/loginPrefs';
 import { mapAuthError } from '@/services/auth/authError';
+import type { ParentOrganization } from '@/services/types';
 
 const ROLE_COPY: Record<
   Role,
@@ -46,11 +47,13 @@ function isValidLoginIdentifier(value: string, role: Role): boolean {
 export function LoginScreen() {
   const { keyboardOpen } = useKeyboardLift();
   const formScrollRef = useRef<ScrollView>(null);
-  const { signIn, requestPasswordReset, resetPassword } = useAuth();
+  const { signIn, requestPasswordReset, resetPassword, requestParentOtp, verifyParentOtp } = useAuth();
   const [role, setRole] = useState<Role>('student');
 
-  type Step = 'sign-in' | 'send-code' | 'set-password';
+  type Step = 'sign-in' | 'send-code' | 'set-password' | 'parent-otp';
   const [step, setStep] = useState<Step>('sign-in');
+  const [parentUsePassword, setParentUsePassword] = useState(false);
+  const [parentOrgs, setParentOrgs] = useState<ParentOrganization[] | null>(null);
   const [identifier, setIdentifier] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -98,6 +101,7 @@ export function LoginScreen() {
     setSentChannel(null);
     setSentTo(null);
     setOtpRecipient(null);
+    setParentOrgs(null);
   };
 
   const switchRole = (next: Role) => {
@@ -105,6 +109,7 @@ export function LoginScreen() {
     setRole(next);
     setIdentifier('');
     setPasswordInput('');
+    setParentUsePassword(false);
     backToSignIn();
     setNotice(null);
   };
@@ -131,6 +136,63 @@ export function LoginScreen() {
     const id = normalizeLoginIdentifier(identifier);
     try {
       await signIn(id, passwordInput, role);
+      await persistLoginPrefs();
+    } catch (err) {
+      setError(mapAuthError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendParentCode = async () => {
+    if (!isValidLoginIdentifier(identifier, 'parent')) {
+      setError('Enter email or mobile number.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const id = normalizeLoginIdentifier(identifier);
+    try {
+      const res = await requestParentOtp(id);
+      setIdentifier(id);
+      setSentChannel(res.channel);
+      setSentTo(res.sentTo);
+      setCode('');
+      setParentOrgs(null);
+      setStep('parent-otp');
+    } catch (err) {
+      setError(mapAuthError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyParentCode = async () => {
+    if (code.trim().length < 6) {
+      setError('Enter the 6-digit code.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await verifyParentOtp(normalizeLoginIdentifier(identifier), code.trim());
+      if (result.selectionRequired) {
+        setParentOrgs(result.organizations);
+      } else {
+        await persistLoginPrefs();
+      }
+    } catch (err) {
+      setError(mapAuthError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const chooseParentSchool = async (organizationId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await verifyParentOtp(normalizeLoginIdentifier(identifier), code.trim(), organizationId);
       await persistLoginPrefs();
     } catch (err) {
       setError(mapAuthError(err));
@@ -212,11 +274,15 @@ export function LoginScreen() {
   }
 
   const tagline =
-    step === 'sign-in'
-      ? "Welcome! Let's get you signed in"
-      : step === 'send-code'
-        ? 'Set up or reset password'
-        : 'Create your new password';
+    step === 'parent-otp' && parentOrgs
+      ? 'Choose your school'
+      : step === 'sign-in' || step === 'parent-otp'
+        ? "Welcome! Let's get you signed in"
+        : step === 'send-code'
+          ? 'Set up or reset password'
+          : 'Create your new password';
+
+  const showParentOtpStart = step === 'sign-in' && role === 'parent' && !parentUsePassword;
 
   return (
     <LinearGradient
@@ -227,7 +293,7 @@ export function LoginScreen() {
     >
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={[styles.flow, keyboardOpen && styles.flowOpen]}>
-          {step === 'sign-in' ? null : (
+          {step === 'sign-in' || step === 'parent-otp' ? null : (
             <Pressable
               onPress={backToSignIn}
               hitSlop={12}
@@ -255,7 +321,53 @@ export function LoginScreen() {
               keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
             >
-              {step === 'sign-in' ? (
+              {showParentOtpStart ? (
+                <>
+                  {keyboardOpen ? null : (
+                    <View style={styles.roleToggle}>
+                      {(['student', 'parent'] as Role[]).map((r) => (
+                        <Pressable
+                          key={r}
+                          onPress={() => switchRole(r)}
+                          style={[styles.roleChip, role === r && styles.roleChipActive]}
+                        >
+                          <Text style={[styles.roleChipText, role === r && styles.roleChipTextActive]}>
+                            {r === 'student' ? 'Student' : 'Parent'}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                  <Field label={ROLE_COPY.parent.label}>
+                    <TextInput
+                      value={identifier}
+                      onChangeText={(t) => {
+                        setIdentifier(t);
+                        if (error) setError(null);
+                      }}
+                      placeholder={ROLE_COPY.parent.placeholder}
+                      placeholderTextColor={colors.inkMuted}
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                      style={styles.input}
+                    />
+                  </Field>
+                  {error ? <Text style={styles.error}>{error}</Text> : null}
+                  <Button variant="primary" size="lg" full loading={loading} onPress={sendParentCode}>
+                    Send verification code
+                  </Button>
+                  <Pressable
+                    onPress={() => {
+                      setParentUsePassword(true);
+                      setError(null);
+                    }}
+                    hitSlop={8}
+                    style={styles.backLink}
+                  >
+                    <Text style={styles.linkText}>Sign in with password</Text>
+                  </Pressable>
+                </>
+              ) : step === 'sign-in' ? (
                 <>
                   {keyboardOpen ? null : (
                     <View style={styles.roleToggle}>
@@ -334,6 +446,78 @@ export function LoginScreen() {
                   <Button variant="primary" size="lg" full loading={loading} onPress={login}>
                     Sign in
                   </Button>
+                  {role === 'parent' ? (
+                    <Pressable
+                      onPress={() => {
+                        setParentUsePassword(false);
+                        setError(null);
+                      }}
+                      hitSlop={8}
+                      style={styles.backLink}
+                    >
+                      <Text style={styles.linkText}>Use verification code</Text>
+                    </Pressable>
+                  ) : null}
+                </>
+              ) : step === 'parent-otp' ? (
+                <>
+                  <RoleBadge role="parent" />
+                  {parentOrgs ? (
+                    <>
+                      <Text style={styles.stepHint}>
+                        This email is registered at more than one school. Choose one to open.
+                      </Text>
+                      {parentOrgs.map((org) => (
+                        <Pressable
+                          key={org.id}
+                          onPress={() => chooseParentSchool(org.id)}
+                          disabled={loading}
+                          style={({ pressed }) => [styles.orgChoice, pressed && { opacity: 0.7 }]}
+                        >
+                          <Ionicons name="school-outline" size={18} color={colors.primary} />
+                          <Text style={styles.orgChoiceText}>{org.name}</Text>
+                        </Pressable>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.stepHint}>
+                        Code sent via {sentChannel === 'sms' ? 'SMS' : 'email'}
+                        {sentTo ? (
+                          <>
+                            {' '}
+                            to <Text style={styles.stepHintStrong}>{sentTo}</Text>
+                          </>
+                        ) : null}
+                      </Text>
+                      <Field label="Verification code">
+                        <TextInput
+                          value={code}
+                          onChangeText={(t) => {
+                            setCode(t.replace(/\D/g, ''));
+                            if (error) setError(null);
+                          }}
+                          placeholder="6-digit code"
+                          placeholderTextColor={colors.inkMuted}
+                          keyboardType="number-pad"
+                          maxLength={6}
+                          style={styles.input}
+                        />
+                      </Field>
+                      <Button variant="primary" size="lg" full loading={loading} onPress={verifyParentCode}>
+                        Verify & sign in
+                      </Button>
+                    </>
+                  )}
+                  {error ? <Text style={styles.error}>{error}</Text> : null}
+                  <View style={styles.otpActions}>
+                    <Pressable onPress={sendParentCode} disabled={loading} hitSlop={8}>
+                      <Text style={styles.linkText}>Resend code</Text>
+                    </Pressable>
+                    <Pressable onPress={backToSignIn} disabled={loading} hitSlop={8}>
+                      <Text style={styles.linkText}>Back</Text>
+                    </Pressable>
+                  </View>
                 </>
               ) : step === 'send-code' ? (
                 <>
@@ -674,5 +858,22 @@ const styles = StyleSheet.create({
   otpActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  orgChoice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.rule,
+    backgroundColor: colors.paper2,
+  },
+  orgChoiceText: {
+    flex: 1,
+    fontFamily: fontFamily.bold,
+    fontSize: 15,
+    color: colors.ink,
   },
 });

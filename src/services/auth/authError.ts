@@ -10,6 +10,9 @@ export function mapAuthError(err: unknown): string {
     }
     if (err.status === 404) return 'No account found. Contact your school.';
     if (err.code === 'wrong_role') return err.message;
+    if (err.code === 'selection_expired' || err.code === 'invalid_organization' || err.code === 'organization_inactive') {
+      return err.message;
+    }
     if (err.status === 401) return 'Incorrect code or password.';
     if (err.status === 409) return 'No password yet — use "Set up or reset password".';
     if (err.status === 410) return 'Code expired. Request a new one.';

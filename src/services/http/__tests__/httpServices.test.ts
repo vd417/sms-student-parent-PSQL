@@ -640,6 +640,64 @@ describe('httpServices.auth', () => {
     });
   });
 
+  it('verifyParentOtp returns schools and does not save a session when more than one matches', async () => {
+    const spy = jest.spyOn(client, 'apiFetch').mockResolvedValue({
+      selection_required: true,
+      organizations: [
+        { id: 'school-a', name: 'School A' },
+        { id: 'school-b', name: 'School B' },
+      ],
+    } as any);
+    await expect(httpServices.auth.verifyParentOtp('Dad@Home.test', '123456')).resolves.toEqual({
+      selectionRequired: true,
+      organizations: [
+        { id: 'school-a', name: 'School A' },
+        { id: 'school-b', name: 'School B' },
+      ],
+    });
+    expect(spy.mock.calls[0][0]).toBe('/auth/otp/verify');
+    expect(postedJson(spy)).toEqual({
+      identifier: 'dad@home.test', code: '123456', role: 'parent',
+    });
+    expect(tokenStore.save).not.toHaveBeenCalled();
+  });
+
+  it('verifyParentOtp signs in immediately when the parent has one school', async () => {
+    jest.spyOn(client, 'apiFetch')
+      .mockResolvedValueOnce({ access_token: 'ACC', refresh_token: 'REF' } as any)
+      .mockResolvedValueOnce({
+        id: 'u1', email: 'dad@home.test', roles: ['student.parent'], tenant_id: 'school-a',
+      } as any);
+    const result = await httpServices.auth.verifyParentOtp('dad@home.test', '123456');
+    expect(result).toEqual({
+      selectionRequired: false,
+      session: { token: 'ACC', role: 'parent', email: 'dad@home.test' },
+    });
+    expect(tokenStore.save).toHaveBeenCalledWith({
+      access: 'ACC', refresh: 'REF', role: 'parent', email: 'dad@home.test', tenantId: 'school-a',
+    });
+  });
+
+  it('verifyParentOtp with a school posts that organization and stores that tenant', async () => {
+    const spy = jest.spyOn(client, 'apiFetch')
+      .mockResolvedValueOnce({ access_token: 'ACC', refresh_token: 'REF' } as any)
+      .mockResolvedValueOnce({
+        id: 'u1', email: 'dad@home.test', roles: ['student.parent'], tenant_id: 'school-b',
+      } as any);
+    const result = await httpServices.auth.verifyParentOtp('dad@home.test', '123456', 'school-b');
+    expect(spy.mock.calls[0][0]).toBe('/auth/otp/verify');
+    expect(postedJson(spy)).toEqual({
+      identifier: 'dad@home.test', code: '123456', role: 'parent', organization_id: 'school-b',
+    });
+    expect(result).toEqual({
+      selectionRequired: false,
+      session: { token: 'ACC', role: 'parent', email: 'dad@home.test' },
+    });
+    expect(tokenStore.save).toHaveBeenCalledWith({
+      access: 'ACC', refresh: 'REF', role: 'parent', email: 'dad@home.test', tenantId: 'school-b',
+    });
+  });
+
   it('school.getCurrent loads tenant mark from /auth/me (not GET /school)', async () => {
     const spy = jest.spyOn(client, 'apiFetch').mockResolvedValueOnce({
       id: 'u1',

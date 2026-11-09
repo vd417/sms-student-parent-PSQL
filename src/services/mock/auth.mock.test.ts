@@ -144,6 +144,39 @@ describe('authMock.signIn', () => {
     });
   });
 
+  it('signs a parent in after one OTP when they belong to one school', async () => {
+    await auth.requestParentOtp('priya.patel@home.com');
+    const result = await auth.verifyParentOtp('priya.patel@home.com', '123456');
+    expect(result.selectionRequired).toBe(false);
+    if (!result.selectionRequired) {
+      expect(result.session).toMatchObject({ role: 'parent', email: 'priya.patel@home.com' });
+    }
+  });
+
+  it('lists schools after OTP and signs into only the selected school', async () => {
+    const schools = [
+      { id: 'school-a', name: 'School A' },
+      { id: 'school-b', name: 'School B' },
+    ];
+    const multi = authMock({ ms: 0, parentOrganizations: schools });
+    await multi.requestParentOtp('priya.patel@home.com');
+    const pending = await multi.verifyParentOtp('priya.patel@home.com', '123456');
+    expect(pending).toMatchObject({
+      selectionRequired: true,
+      organizations: schools,
+    });
+    await expect(multi.verifyParentOtp('priya.patel@home.com', '123456', 'school-c')).rejects.toMatchObject({
+      status: 403,
+      code: 'invalid_organization',
+    });
+    const chosen = await multi.verifyParentOtp('priya.patel@home.com', '123456', 'school-b');
+    expect(chosen.selectionRequired).toBe(false);
+    if (!chosen.selectionRequired) {
+      expect(chosen.session.token).toContain('school-b');
+      expect(chosen.session.role).toBe('parent');
+    }
+  });
+
   it('rejects a parent identifier on the student tab', async () => {
     const inst = authMock({ ms: 0 });
     await inst.requestPasswordReset('priya.patel@home.com');
