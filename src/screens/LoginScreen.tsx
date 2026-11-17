@@ -37,6 +37,17 @@ const ROLE_COPY: Record<
   },
 };
 
+function waitMsForChannel(channel: 'sms' | 'email' | null): number {
+  return channel === 'sms' ? 300_000 : 60_000;
+}
+
+function formatWait(ms: number): string {
+  const seconds = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return m <= 0 ? `${s}s` : `${m}:${String(s).padStart(2, '0')}`;
+}
+
 function isValidLoginIdentifier(value: string, role: Role): boolean {
   const v = value.trim();
   if (v.length === 0) return false;
@@ -67,6 +78,19 @@ export function LoginScreen() {
   const [sentChannel, setSentChannel] = useState<'sms' | 'email' | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [otpRecipient, setOtpRecipient] = useState<'self' | 'parent' | null>(null);
+  const [resendUntil, setResendUntil] = useState(0);
+  const [resendNow, setResendNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (resendUntil <= Date.now()) return;
+    const id = setInterval(() => setResendNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [resendUntil]);
+  const resendLeft = Math.max(0, resendUntil - resendNow);
+  const armResend = (channel: 'sms' | 'email' | null) => {
+    const at = Date.now();
+    setResendNow(at);
+    setResendUntil(at + waitMsForChannel(channel));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -145,6 +169,7 @@ export function LoginScreen() {
   };
 
   const sendParentCode = async () => {
+    if (resendLeft > 0) return;
     if (!isValidLoginIdentifier(identifier, 'parent')) {
       setError('Enter email or mobile number.');
       return;
@@ -159,6 +184,7 @@ export function LoginScreen() {
       setSentTo(res.sentTo);
       setCode('');
       setParentOrgs(null);
+      armResend(res.channel);
       setStep('parent-otp');
     } catch (err) {
       setError(mapAuthError(err));
@@ -208,6 +234,7 @@ export function LoginScreen() {
   };
 
   const sendCode = async () => {
+    if (resendLeft > 0) return;
     if (!isValidLoginIdentifier(identifier, role)) {
       setError(role === 'student' ? 'Enter student ID or email.' : 'Enter email or mobile number.');
       return;
@@ -224,6 +251,7 @@ export function LoginScreen() {
       setCode('');
       setNewPassword('');
       setConfirmPassword('');
+      armResend(res.channel);
       setStep('set-password');
     } catch (err) {
       setError(mapAuthError(err));
@@ -511,8 +539,10 @@ export function LoginScreen() {
                   )}
                   {error ? <Text style={styles.error}>{error}</Text> : null}
                   <View style={styles.otpActions}>
-                    <Pressable onPress={sendParentCode} disabled={loading} hitSlop={8}>
-                      <Text style={styles.linkText}>Resend code</Text>
+                    <Pressable onPress={sendParentCode} disabled={loading || resendLeft > 0} hitSlop={8}>
+                      <Text style={[styles.linkText, resendLeft > 0 && { opacity: 0.5 }]}>
+                        {resendLeft > 0 ? `Resend code ${formatWait(resendLeft)}` : 'Resend code'}
+                      </Text>
                     </Pressable>
                     <Pressable onPress={backToSignIn} disabled={loading} hitSlop={8}>
                       <Text style={styles.linkText}>Back</Text>
@@ -605,8 +635,10 @@ export function LoginScreen() {
                     Save password
                   </Button>
                   <View style={styles.otpActions}>
-                    <Pressable onPress={sendCode} disabled={loading} hitSlop={8}>
-                      <Text style={styles.linkText}>Resend code</Text>
+                    <Pressable onPress={sendCode} disabled={loading || resendLeft > 0} hitSlop={8}>
+                      <Text style={[styles.linkText, resendLeft > 0 && { opacity: 0.5 }]}>
+                        {resendLeft > 0 ? `Resend code ${formatWait(resendLeft)}` : 'Resend code'}
+                      </Text>
                     </Pressable>
                     <Pressable onPress={backToSignIn} disabled={loading} hitSlop={8}>
                       <Text style={styles.linkText}>Back to login</Text>
